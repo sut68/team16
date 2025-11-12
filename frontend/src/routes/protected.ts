@@ -4,7 +4,7 @@ const protectedRoutes: Array<RouteRecordRaw> = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: () => import('../pages/DashboardPage.vue'),
+    component: () => import('../pages/test.vue'),
     meta: { requiresAuth: true },
   },
 ];
