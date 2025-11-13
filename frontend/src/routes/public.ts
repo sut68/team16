@@ -4,17 +4,17 @@ const publicRoutes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('../pages/HomePage.vue'),
+    component: () => import('../pages/public/HomePage.vue'),
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../pages/LoginPage.vue'),
+    component: () => import('../pages/public/LoginPage.vue'),
   },
   {
     path: '/register',
     name: 'Register',
-    component: () => import('../pages/RegisterPage.vue'),
+    component: () => import('../pages/public/RegisterPage.vue'),
   },
 ];
 

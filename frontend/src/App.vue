@@ -1,4 +1,7 @@
 <template>
+  <div>
+    <router-link to="/dashboard"></router-link>
+  </div>
   <router-view />
 </template>
 
@@ -6,7 +9,5 @@
 </script>
 
 <style>
-/* Global styles are in src/style.css */
-/* The #app styling from the default template is removed 
-   to allow pages to control their own layout fully. */
+
 </style>

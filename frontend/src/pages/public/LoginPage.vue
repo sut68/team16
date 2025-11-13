@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import AuthService from '../services/auth.service';
+import AuthService from '../../services/auth.service';
 
 const user = ref({ username: '', password: '' });
 const loading = ref(false);
