@@ -11,6 +11,11 @@ const protectedRoutes: Array<RouteRecordRaw> = [
         name: 'Dashboard',
         component: () => import('../pages/protected/DashboardPage.vue'),
       },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('../pages/protected/UserManagementPage.vue'),
+      },
     ],
     meta: { requiresAuth: true },
   },
