@@ -38,9 +38,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Post } from '../../services/api';
+import { authAPI } from '../../services/api';
+import type { LoginUserRequest } from '../../interfaces/user';
 
-const user = ref({ username: '', password: '' });
+const user = ref<LoginUserRequest>({ username: '', password: '' });
 const loading = ref(false);
 const message = ref('');
 const router = useRouter();
@@ -49,7 +50,7 @@ const handleLogin = async () => {
   loading.value = true;
   message.value = '';
   try {
-    const response = await Post('/login', user.value, false);
+    const response = await authAPI.login(user.value);
 
     if (response && response.data && response.data.token) {
       sessionStorage.setItem('token', response.data.token);

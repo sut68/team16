@@ -40,9 +40,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Post } from '../../services/api';
+import { authAPI } from '../../services/api';
+import type { CreateUserRequest } from '../../interfaces/user';
 
-const user = ref({ username: '', password: '' });
+const user = ref<CreateUserRequest>({ username: '', password: '' });
 const loading = ref(false);
 const message = ref('');
 const successful = ref(false);
@@ -53,7 +54,7 @@ const handleRegister = async () => {
   successful.value = false;
 
   try {
-    const response = await Post('/register', user.value, false);
+    const response = await authAPI.signUp(user.value);
 
     if (response && response.status >= 200 && response.status < 300) {
       loading.value = false;
