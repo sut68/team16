@@ -38,29 +38,41 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import AuthService from '../../services/auth.service';
+import { Post } from '../../services/api';
 
 const user = ref({ username: '', password: '' });
 const loading = ref(false);
 const message = ref('');
 const router = useRouter();
 
-const handleLogin = () => {
+const handleLogin = async () => {
   loading.value = true;
   message.value = '';
-  AuthService.login(user.value).then(
-    () => {
-      router.push('/dashboard');
-    },
-    (error) => {
+  try {
+    const response = await Post('/login', user.value, false);
+
+    if (response && response.data && response.data.token) {
+      sessionStorage.setItem('token', response.data.token);
+      if (response.data.token_type) {
+        sessionStorage.setItem('token_type', response.data.token_type);
+      }
+      // Redirect to dashboard or reload to apply auth state
+      await router.push('/dashboard');
+      window.location.reload(); // To ensure all components re-evaluate auth state
+    } else {
       loading.value = false;
       message.value =
-        (error.response &&
-          error.response.data &&
-          error.response.data.error) ||
-        error.message ||
-        error.toString();
+        (response && response.data && (response.data.error || response.data.message)) ||
+        'Login failed. Please check your credentials.';
     }
-  );
+  } catch (error: any) {
+    loading.value = false;
+    message.value =
+      (error.response &&
+        error.response.data &&
+        error.response.data.error) ||
+      error.message ||
+      'An unexpected error occurred.';
+  }
 };
 </script>

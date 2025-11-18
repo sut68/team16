@@ -40,34 +40,41 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import AuthService from '../../services/auth.service';
+import { Post } from '../../services/api';
 
 const user = ref({ username: '', password: '' });
 const loading = ref(false);
 const message = ref('');
 const successful = ref(false);
 
-const handleRegister = () => {
+const handleRegister = async () => {
   loading.value = true;
   message.value = '';
   successful.value = false;
 
-  AuthService.register(user.value).then(
-    (response) => {
+  try {
+    const response = await Post('/register', user.value, false);
+
+    if (response && response.status >= 200 && response.status < 300) {
       loading.value = false;
       successful.value = true;
-      message.value = response.data.message;
-    },
-    (error) => {
+      message.value = response.data.message || 'Registration successful!';
+    } else {
       loading.value = false;
       successful.value = false;
       message.value =
-        (error.response &&
-          error.response.data &&
-          error.response.data.error) ||
-        error.message ||
-        error.toString();
+        (response && response.data && (response.data.error || response.data.message)) ||
+        'Registration failed.';
     }
-  );
+  } catch (error: any) {
+    loading.value = false;
+    successful.value = false;
+    message.value =
+      (error.response &&
+        error.response.data &&
+        error.response.data.error) ||
+      error.message ||
+      'An unexpected error occurred.';
+  }
 };
 </script>
