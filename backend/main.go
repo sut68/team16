@@ -6,7 +6,7 @@ import (
 
 	"backend/config"
 	"backend/controllers"
-	entity "backend/entity"
+	"backend/entity"
 )
 
 func main() {
