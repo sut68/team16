@@ -17,4 +17,6 @@ type ApprovalTask struct {
 
 	RequirementID       uint                `json:"requirement_id"`
 	ApprovalRequirement ApprovalRequirement `gorm:"foreignKey:RequirementID" json:"approval_requirement"`
+
+	ApprovalDecisions []ApprovalDecision `gorm:"foreignKey:TaskID" json:"approval_decisions"`
 }
