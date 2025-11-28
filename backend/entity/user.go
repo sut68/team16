@@ -9,5 +9,5 @@ type User struct {
 	RoleID uint	`gorm:"not null" json:"role_id"`
 	AdminProfiles []AdminProfile `gorm:"foreignKey:UserID" json:"admin_profile"`
 	StudentProfiles []StudentProfile `gorm:"foreignKey:UserID" json:"student_profile"`
-	Application []Application `gorm:"foreignKey:UserID" json:"application"`
+	Applications []Application `gorm:"foreignKey:UserID" json:"applications"`
 }

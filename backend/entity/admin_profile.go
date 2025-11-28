@@ -12,4 +12,6 @@ type AdminProfile struct {
 
 	UserID uint `json:"user_id"`
 	User   User `gorm:"foreignKey:UserID" json:"user"`
+
+	ApprovalTasks []ApprovalTask `gorm:"foreignKey:AdminID" json:"approval_tasks"`
 }
