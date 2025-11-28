@@ -8,5 +8,5 @@ type Application struct {
 	UserID uint `json:"user_id"`
 	User   User `gorm:"foreignKey:UserID" json:"user"`
 
-	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationID" json:"application_document"`
+	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationID" json:"application_documents"`
 }

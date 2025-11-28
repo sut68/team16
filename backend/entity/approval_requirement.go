@@ -10,5 +10,5 @@ type ApprovalRequirement struct {
 	ScholarshipID uint        `json:"scholarship_id"`
 	Scholarship   Scholarship `gorm:"foreignKey:ScholarshipID" json:"scholarship"`
 
-	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:RequirementID" json:"application_document"`
+	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:RequirementID" json:"application_documents"`
 }
