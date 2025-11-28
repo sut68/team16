@@ -9,5 +9,11 @@ type Scholarship struct {
 	OpenDate        string `gorm:"not null" json:"open_date"`
 	CloseDate       string `gorm:"not null" json:"close_date"`
 
+	StatusscholarshipID uint              `json:"statusscholarship_id"`
+	Statusscholarship   Statusscholarship `gorm:"foreignKey:StatusscholarshipID"`
+
+	TypescholarshipID uint            `json:"typescholarship_id"`
+	Typescholarship   Typescholarship `gorm:"foreignKey:TypescholarshipID"`
+
 	ApprovalRequirements []ApprovalRequirement `gorm:"foreignKey:ScholarshipID" json:"approval_requirements"`
 }
