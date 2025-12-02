@@ -6,5 +6,5 @@ import (
 
 type SponsorIndustry struct {
 	gorm.Model
-	Name		string		`json:"name"`
+	Name		string		`json:"name" valid:"required~Industry is required"`
 }
