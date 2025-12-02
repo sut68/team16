@@ -6,7 +6,7 @@ import (
 
 type Sponsor struct {
 	gorm.Model
-	CompanyName		string						`json:"company_name" gorm:"not null"`
+	CompanyName		string						`json:"company_name" gorm:"not null" valid:"required~Company is required"`
 
 	IndustryID		*uint							`json:"industry_id"`
 	Industry			*SponsorIndustry	`json:"industry"`
