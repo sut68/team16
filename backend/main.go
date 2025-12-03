@@ -1,12 +1,15 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"backend/config"
 	"backend/controllers"
 	"backend/entity"
+	"backend/seed"
 )
 
 func main() {
@@ -23,7 +26,19 @@ func main() {
 	config.ConnectDB()
 
 	// Auto-migrate the schema
-	config.DB.AutoMigrate(&entity.User{})
+	if err := config.DB.AutoMigrate(
+		&entity.User{},
+		&entity.SponsorIndustry{},
+		&entity.Sponsor{},
+		&entity.SponsorContact{},
+	); err != nil {
+		log.Fatalf("AutoMigrate failed: %v", err)
+	} else {
+		log.Println("AutoMigrate completed")
+	}
+
+	// Seed
+	seed.SeedAll(config.DB)
 
 	// API routes
 	api := r.Group("/api")
