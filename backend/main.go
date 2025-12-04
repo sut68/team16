@@ -9,6 +9,7 @@ import (
 	"backend/config"
 	"backend/controllers"
 	"backend/entity"
+	"backend/seed"
 )
 
 func main() {
@@ -54,7 +55,7 @@ func main() {
 	}
 
 	// Seed
-	// seed.SeedAll(config.DB)
+	seed.SeedAll(config.DB)
 
 	// API routes
 	api := r.Group("/api")

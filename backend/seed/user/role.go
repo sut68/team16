@@ -15,7 +15,7 @@ func SeedRoles(db *gorm.DB) error {
 
 	for _, r := range roles {
 		var existing entity.Role
-		if err := db.Where("role_name = ?", r.Name).First(&existing).Error; err != nil {
+		if err := db.Where("name = ?", r.Name).First(&existing).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				if err := db.Create(&r).Error; err != nil {
 					return err
