@@ -50,7 +50,7 @@ func SeedUsers(db *gorm.DB) error {
 		newUser := entity.User{
 			Username: u.Username,
 			Password: hashedPassword,
-			RoleID:   role.ID,
+			RoleID:   &role.ID,
 		}
 
 		if err := db.Create(&newUser).Error; err != nil {
