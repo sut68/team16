@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ 'sidebar-closed': !isSidebarOpen }">
+  <div :class="{ 'sidebar-closed': !isSidebarOpen }" data-theme="light">
     <aside ref="asideRef">
       <div class="logo-and-menu-header">
         <img class="logo" :src="logo" alt="logo">
@@ -18,7 +18,7 @@
         <span v-show="isSidebarOpen" class="menu-text">แดชบอร์ด</span>
       </router-link>
 
-      <router-link to="/dashboard/companies" class="menu-link" active-class="active">
+      <router-link to="/dashboard/sponsors" class="menu-link" active-class="active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -425,7 +425,7 @@ aside p {
   overflow-x: hidden;
   overflow-y: hidden;
   margin-left: 30px;
-  max-width: 1500px;
+  /* max-width: 1500px; */
   margin: 0 0;
 }
 
