@@ -20,9 +20,8 @@ func SeedUsers(db *gorm.DB) error {
 	}
 
 	for _, u := range users {
-		// หา role id จาก role_name
 		var role entity.Role
-		if err := db.Where("role_name = ?", u.RoleName).First(&role).Error; err != nil {
+		if err := db.Where("name = ?", u.RoleName).First(&role).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return fmt.Errorf("role '%s' not found, please seed roles first", u.RoleName)
 			}
