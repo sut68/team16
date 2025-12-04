@@ -6,7 +6,7 @@ type Application struct {
 	gorm.Model
 
 	UserID uint `json:"user_id"`
-	User   User `gorm:"foreignKey:UserID" json:"user"`
+	User   *User `gorm:"foreignKey:UserID" json:"user"`
 
 	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationID" json:"application_documents"`
 }

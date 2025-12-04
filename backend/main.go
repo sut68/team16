@@ -9,7 +9,6 @@ import (
 	"backend/config"
 	"backend/controllers"
 	"backend/entity"
-	"backend/seed"
 )
 
 func main() {
@@ -27,10 +26,27 @@ func main() {
 
 	// Auto-migrate the schema
 	if err := config.DB.AutoMigrate(
+		&entity.Role{},
 		&entity.User{},
+		&entity.AdminProfile{},
+		&entity.Application{},
+		&entity.ApplicationDocument{},
+		&entity.ApprovalDecision{},
+		&entity.ApprovalTask{},
+		&entity.FamilyInfo{},
+		&entity.Major{},
+		&entity.NewsPost{},
+		&entity.Scholarship{},
+		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
 		&entity.SponsorContact{},
+		&entity.StatusNews{},
+		&entity.StatusScreening{},
+		&entity.Statusscholarship{},
+		&entity.StudentFavNews{},
+		&entity.StudentProfile{},
+		&entity.Typescholarship{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -38,7 +54,7 @@ func main() {
 	}
 
 	// Seed
-	seed.SeedAll(config.DB)
+	// seed.SeedAll(config.DB)
 
 	// API routes
 	api := r.Group("/api")
@@ -46,8 +62,8 @@ func main() {
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
 
-		r.GET("/industries", controllers.GetIndustries)
-		r.POST("/industries", controllers.CreateIndustry)
+		api.GET("/industries", controllers.GetIndustries)
+	 	api.POST("/industries", controllers.CreateIndustry)
 
 		api.GET("/sponsors", controllers.GetSponsors)
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
