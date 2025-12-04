@@ -8,26 +8,55 @@
             <label class="label">
               <span class="label-text">Username</span>
             </label>
-            <input type="text" v-model="user.username" required class="input input-bordered" />
+            <input
+              type="text"
+              v-model="user.username"
+              required
+              class="input input-bordered"
+            />
           </div>
+
           <div class="form-control mt-4">
             <label class="label">
               <span class="label-text">Password</span>
             </label>
-            <input type="password" v-model="user.password" required class="input input-bordered" />
+            <input
+              type="password"
+              v-model="user.password"
+              required
+              class="input input-bordered"
+            />
           </div>
+
           <div class="form-control mt-6">
             <button type="submit" class="btn btn-primary" :disabled="loading">
               <span v-if="loading" class="loading loading-spinner"></span>
               <span v-else>Login</span>
             </button>
           </div>
+
           <div v-if="message" role="alert" class="alert alert-error mt-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
             <span>{{ message }}</span>
           </div>
+
           <p class="text-center mt-4">
-            Don't have an account? <router-link to="/register" class="link link-primary">Register here</router-link>
+            Don't have an account?
+            <router-link to="/register" class="link link-primary"
+              >Register here</router-link
+            >
           </p>
         </form>
       </div>
@@ -49,31 +78,30 @@ const router = useRouter();
 const handleLogin = async () => {
   loading.value = true;
   message.value = '';
-  try {
-    const response = await authAPI.login(user.value);
 
-    if (response && response.data && response.data.token) {
-      sessionStorage.setItem('token', response.data.token);
-      if (response.data.token_type) {
-        sessionStorage.setItem('token_type', response.data.token_type);
-      }
-      // Redirect to dashboard or reload to apply auth state
-      await router.push('/dashboard');
-      window.location.reload(); // To ensure all components re-evaluate auth state
-    } else {
+  try {
+    // เรียกตรง ๆ เพราะ Post คืน data แล้ว
+    const data = await authAPI.login(user.value);
+
+    if (data?.token) {
+      sessionStorage.setItem('token', data.token);
+      if (data.token_type) sessionStorage.setItem('token_type', data.token_type);
+
       loading.value = false;
-      message.value =
-        (response && response.data && (response.data.error || response.data.message)) ||
-        'Login failed. Please check your credentials.';
+      await router.push('/dashboard');
+      window.location.reload();
+      return;
     }
+
+    // ถ้าไม่มี token ให้แสดงข้อความจาก backend หรือข้อความเริ่มต้น
+    message.value = data?.error ?? data?.message ?? 'Login failed. Please check your credentials.';
   } catch (error: any) {
+    // ปกติด้วยการแก้ Post แล้ว เราไม่ควรมา catch ที่นี่เพื่ออ่าน response data
+    // แต่เผื่อ network error หรือ exception อื่น ๆ ให้ fallback ข้อความ
+    message.value = error?.message ?? 'An unexpected error occurred.';
+  } finally {
     loading.value = false;
-    message.value =
-      (error.response &&
-        error.response.data &&
-        error.response.data.error) ||
-      error.message ||
-      'An unexpected error occurred.';
   }
 };
 </script>
+
