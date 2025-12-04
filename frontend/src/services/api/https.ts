@@ -2,7 +2,7 @@
 import axios from "axios";
 import type { AxiosResponse, AxiosError } from "axios";
 
-const API_URL = import.meta.env.VITE_API_KEY || "http://localhost:8080/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 const getCookie = (name: string): string | null => {
   const cookies = document.cookie.split("; ");
@@ -57,7 +57,7 @@ export const Post = async (
   const config = requireAuth ? getConfig() : getConfigWithoutAuth();
   return await axios
     .post(`${API_URL}${url}`, data, config)
-    .then((res) => res)
+    .then((res) => res.data)
     .catch((error: AxiosError) => {
       if (error?.response?.status === 401) {
         // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
