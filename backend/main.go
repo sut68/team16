@@ -23,7 +23,40 @@ func main() {
 	config.ConnectDB()
 
 	// Auto-migrate the schema
-	config.DB.AutoMigrate(&entity.User{})
+	if err := config.DB.AutoMigrate(
+		&entity.Role{},
+		&entity.User{},
+		&entity.AdminProfile{},
+		&entity.Application{},
+		&entity.ApplicationDocument{},
+		&entity.ApprovalDecision{},
+		&entity.ApprovalTask{},
+		&entity.FamilyInfo{},
+		&entity.Major{},
+		&entity.NewsPost{},
+		&entity.Scholarship{},
+		&entity.Screening{},
+		&entity.SponsorIndustry{},
+		&entity.Sponsor{},
+		&entity.SponsorContact{},
+		&entity.StatusNews{},
+		&entity.StatusScreening{},
+		&entity.Statusscholarship{},
+		&entity.StudentFavNews{},
+		&entity.StudentProfile{},
+		&entity.Typescholarship{},
+	); err != nil {
+		log.Fatalf("AutoMigrate failed: %v", err)
+	} else {
+		log.Println("AutoMigrate completed")
+	}
+
+	// Seed
+	if err := seed.SeedAll(config.DB); err != nil {
+		log.Fatalf("Seed failed: %v", err)
+	} else {
+		log.Println("Seed completed")
+	}
 
 	// API routes
 	api := r.Group("/api")
