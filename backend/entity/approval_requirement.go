@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type ApprovalRequirement struct {
 	gorm.Model
-	Name        string `gorm:"not null" json:"status"`
+	Name        string `gorm:"not null" json:"name"`
 	Description string `gorm:"not null" json:"description"`
 
 	ScholarshipID uint        `json:"scholarship_id"`

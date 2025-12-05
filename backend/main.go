@@ -18,7 +18,7 @@ func main() {
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
 	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"} // Allow frontend dev server
-	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(configCORS))
 
@@ -75,6 +75,13 @@ func main() {
 		api.POST("/sponsors", controllers.CreateSponsor)
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
+
+		api.GET("/approval-tasks", controllers.GetApprovalTasks)
+		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
+		api.POST("/approval-tasks", controllers.CreateApprovalTask)
+		api.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)
+		api.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)
+		api.POST("/approval-decisions", controllers.CreateApprovalDecision)
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

@@ -1,12 +1,12 @@
 import type { StudentProfileResponse } from './user'
-import type { ApprovalRequirementResponse } from './scholarship'
 import type { ApprovalTaskResponse } from './approval'
+import type { ApprovalRequirementResponse } from './scholarship'
 
-// Response from backend
-// ----------------------
 
 export interface ApplicationDocumentResponse {
   ID: number
+  CreatedAt: string
+  UpdatedAt: string
   file_name: string
   uploaded_by: string
   application_id: number
@@ -17,6 +17,8 @@ export interface ApplicationDocumentResponse {
 
 export interface ApplicationResponse {
   ID: number
+  CreatedAt: string
+  UpdatedAt: string
   student_profile_id: number
   student_profile: StudentProfileResponse
   application_documents: ApplicationDocumentResponse[]
