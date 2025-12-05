@@ -15,7 +15,15 @@ import (
 // GET /approval-tasks
 func GetApprovalTasks(ctx *gin.Context) {
 	var tasks []entity.ApprovalTask
-	if err := config.DB.Preload("Admin").Preload("Document").Preload("Application").Preload("Requirement").Find(&tasks).Error; err != nil {
+	// เพิ่ม Preload แบบซ้อนกัน (Nested Preload) เพื่อดึงข้อมูลที่สัมพันธ์กันออกมาให้ครบ
+	if err := config.DB.
+		Preload("Admin").
+		Preload("ApplicationDocument").
+		Preload("Application.StudentProfile.Major"). // ดึงไปถึงสาขาวิชาของนิสิต
+		Preload("Application.StudentProfile").       // ดึงข้อมูลนิสิต
+		Preload("ApprovalRequirement.Scholarship").  // ดึงข้อมูลชื่อทุน
+		Preload("ApprovalRequirement").
+		Find(&tasks).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -31,7 +39,14 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 		return
 	}
 	var task entity.ApprovalTask
-	if err := config.DB.Preload("Admin").Preload("Document").Preload("Application").Preload("Requirement").First(&task, id).Error; err != nil {
+	if err := config.DB.
+		Preload("Admin").
+		Preload("ApplicationDocument").
+		Preload("Application.StudentProfile.Major").
+		Preload("Application.StudentProfile").
+		Preload("ApprovalRequirement.Scholarship").
+		Preload("ApprovalRequirement").
+		First(&task, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval task not found"})
 		return
 	}

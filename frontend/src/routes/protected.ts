@@ -21,6 +21,41 @@ const protectedRoutes: Array<RouteRecordRaw> = [
         name: 'Approval',
         component: () => import('../pages/protected/Approval/ApprovalList.vue'),
       },
+      {
+        path: 'news',
+        name: 'News',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'companies',
+        name: 'Companies',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'projects',
+        name: 'Projects',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'screening',
+        name: 'Screening',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'interview',
+        name: 'Interview',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'consider',
+        name: 'Consider',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
+      {
+        path: 'assistance',
+        name: 'Assistance',
+        component: () => import('../pages/protected/DashboardPage.vue'),
+      },
     ],
     meta: { requiresAuth: true },
   },

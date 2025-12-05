@@ -1,12 +1,10 @@
-import { type AdminProfileResponse } from './user'
-import { type ApplicationDocumentResponse, type ApplicationResponse } from './application'
-import { type ApprovalRequirementResponse } from './scholarship'
-
-// Response from backend
-// ----------------------
+import type { AdminProfileResponse } from './user'
+import type { ApplicationResponse, ApplicationDocumentResponse } from './application'
+import type { ApprovalRequirementResponse } from './scholarship'
 
 export interface ApprovalDecisionResponse {
   ID: number
+  CreatedAt: string
   decision_at: string
   decision: string
   comment: string
@@ -15,6 +13,8 @@ export interface ApprovalDecisionResponse {
 
 export interface ApprovalTaskResponse {
   ID: number
+  CreatedAt: string
+  UpdatedAt: string
   status: string
   admin_id: number
   admin_profile: AdminProfileResponse
@@ -25,4 +25,6 @@ export interface ApprovalTaskResponse {
   requirement_id: number
   approval_requirement: ApprovalRequirementResponse
   approval_decisions: ApprovalDecisionResponse[]
+  round?: string
+  submission_date?: string
 }

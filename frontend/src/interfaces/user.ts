@@ -8,8 +8,6 @@ export interface CreateUserRequest {
   password: string;
 }
 
-// Response from backend
-// ----------------------
 
 export interface RoleResponse {
   ID: number;
@@ -34,6 +32,11 @@ export interface AdminProfileResponse {
   user: UserResponse;
 }
 
+export interface MajorResponse {
+  ID: number;
+  major_name: string;
+}
+
 export interface StudentProfileResponse {
   ID: number;
   student_id: string;
@@ -42,7 +45,7 @@ export interface StudentProfileResponse {
   first_name_en: string;
   last_name_en: string;
   national_id: string;
-  birth_date: string; // Dates are often strings in JSON
+  birth_date: string;
   current_year: number;
   gpax: number;
   advisor_name: string;
@@ -55,5 +58,5 @@ export interface StudentProfileResponse {
   user_id: number;
   user: UserResponse;
   major_id: number;
-  major: any; // Define MajorResponse if needed
+  major: MajorResponse | null;
 }

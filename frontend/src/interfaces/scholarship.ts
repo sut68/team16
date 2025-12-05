@@ -1,20 +1,12 @@
-// Response from backend
-// ----------------------
+
 export interface ScholarshipStatusResponse {
   ID: number
-  // Add other fields from Statusscholarship if necessary
+  status_name: string
 }
 
 export interface ScholarshipTypeResponse {
   ID: number
-  // Add other fields from Typescholarship if necessary
-}
-
-export interface ApprovalRequirementResponse {
-  ID: number
-  name: string
-  description: string
-  scholarship_id: number
+  type_name: string
 }
 
 export interface ScholarshipResponse {
@@ -28,4 +20,12 @@ export interface ScholarshipResponse {
   typescholarship_id: number
   typescholarship: ScholarshipTypeResponse
   approval_requirements: ApprovalRequirementResponse[]
+}
+
+export interface ApprovalRequirementResponse {
+  ID: number
+  name: string
+  description: string
+  scholarship_id: number
+  scholarship: ScholarshipResponse
 }
