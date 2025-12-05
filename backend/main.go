@@ -55,7 +55,11 @@ func main() {
 	}
 
 	// Seed
-	seed.SeedAll(config.DB)
+	if err := seed.SeedAll(config.DB); err != nil {
+		log.Fatalf("Seed failed: %v", err)
+	} else {
+		log.Println("Seed completed")
+	}
 
 	// API routes
 	api := r.Group("/api")

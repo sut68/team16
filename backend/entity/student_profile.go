@@ -27,4 +27,7 @@ type StudentProfile struct {
 
 	MajorID uint  `json:"major_id"`
 	Major   *Major `gorm:"foreignKey:MajorID" json:"major"`
+
+	Applications []Application `gorm:"foreignKey:StudentProfileID" json:"applications"`
+	StudentFavNews []StudentFavNews `gorm:"foreignKey:StudentProfileID" json:"student_fav_news"`
 }
