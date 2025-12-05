@@ -1,12 +1,15 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"backend/config"
 	"backend/controllers"
-	entity "backend/entity"
+	"backend/entity"
+	"backend/seed"
 )
 
 func main() {
@@ -63,6 +66,15 @@ func main() {
 	{
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
+
+		api.GET("/industries", controllers.GetIndustries)
+	 	api.POST("/industries", controllers.CreateIndustry)
+
+		api.GET("/sponsors", controllers.GetSponsors)
+		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
+		api.POST("/sponsors", controllers.CreateSponsor)
+		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
+		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080
