@@ -7,3 +7,53 @@ export interface CreateUserRequest {
   username: string;
   password: string;
 }
+
+// Response from backend
+// ----------------------
+
+export interface RoleResponse {
+  ID: number;
+  name: string;
+}
+
+export interface UserResponse {
+  ID: number;
+  username: string;
+  role_id?: number | null;
+  role?: RoleResponse | null;
+}
+
+export interface AdminProfileResponse {
+  ID: number;
+  admin_firstname: string;
+  admin_lastname: string;
+  position: number;
+  department: number;
+  email: string;
+  user_id: number;
+  user: UserResponse;
+}
+
+export interface StudentProfileResponse {
+  ID: number;
+  student_id: string;
+  first_name_th: string;
+  last_name_th: string;
+  first_name_en: string;
+  last_name_en: string;
+  national_id: string;
+  birth_date: string; // Dates are often strings in JSON
+  current_year: number;
+  gpax: number;
+  advisor_name: string;
+  phone: string;
+  email: string;
+  permanent_address: string;
+  current_address: string;
+  province: string;
+  siblings_count: number;
+  user_id: number;
+  user: UserResponse;
+  major_id: number;
+  major: any; // Define MajorResponse if needed
+}
