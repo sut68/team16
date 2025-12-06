@@ -29,13 +29,13 @@ func SeedApprovalDecisions(db *gorm.DB) error {
 		decisions := []entity.ApprovalDecision{
 			{
 				DecisionAt: time.Now().String(),
-				Decision:   "Approved",
+				Decision:   "",
 				Comment:    "Dokumen valid.",
 				TaskID:     task1.ID,
 			},
 			{
 				DecisionAt: time.Now().String(),
-				Decision:   "Rejected",
+				Decision:   "",
 				Comment:    "Tanda tangan tidak sesuai.",
 				TaskID:     task2.ID,
 			},

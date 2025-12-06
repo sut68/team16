@@ -17,7 +17,7 @@ export interface ApprovalTaskResponse {
   UpdatedAt: string
   status: string
   admin_id: number
-  admin_profile: AdminProfileResponse
+  admin_profile?: AdminProfileResponse
   document_id: number
   application_document: ApplicationDocumentResponse
   application_id: number

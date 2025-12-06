@@ -155,7 +155,7 @@ const handleActionCompleted = () => {
           Export
         </button>
         <select v-model="filterRound"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto font-medium text-gray-600 shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto font-medium text-gray-600 shadow-sm pl-4 pr-10">
           <option value="all">ทุกรอบการรับสมัคร</option>
           <option v-for="round in availableRounds" :key="round.value" :value="round.value">{{ round.label }}</option>
         </select>
@@ -165,7 +165,7 @@ const handleActionCompleted = () => {
           <option value="oldest">ส่งมานานสุด</option>
         </select>
         <select v-if="activeTab === 'history'" v-model="filterStatus"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm pl-4 pr-8">
           <option value="all">สถานะทั้งหมด</option>
           <option value="approved">อนุมัติแล้ว</option>
           <option value="rejected">ปฏิเสธ</option>

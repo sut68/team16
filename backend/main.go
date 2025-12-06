@@ -25,6 +25,33 @@ func main() {
 	// Connect to Database
 	config.ConnectDB()
 
+	if err := config.DB.Migrator().DropTable(
+		&entity.Role{},
+		&entity.User{},
+		&entity.AdminProfile{},
+		&entity.Application{},
+		&entity.ApplicationDocument{},
+		&entity.ApprovalDecision{},
+		&entity.ApprovalTask{},
+		&entity.FamilyInfo{},
+		&entity.Major{},
+		&entity.NewsPost{},
+		&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
+		&entity.Scholarship{},
+		&entity.Screening{},
+		&entity.SponsorIndustry{},
+		&entity.Sponsor{},
+		&entity.SponsorContact{},
+		&entity.StatusNews{},
+		&entity.StatusScreening{},
+		&entity.Statusscholarship{},
+		&entity.StudentFavNews{},
+		&entity.StudentProfile{},
+		&entity.Typescholarship{},
+	); err != nil {
+		log.Fatalf("DropTable failed: %v", err)
+	}
+
 	// Auto-migrate the schema
 	if err := config.DB.AutoMigrate(
 		&entity.Role{},
@@ -38,6 +65,7 @@ func main() {
 		&entity.Major{},
 		&entity.NewsPost{},
 		&entity.Scholarship{},
+		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
 		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},

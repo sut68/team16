@@ -1,23 +1,32 @@
-
 package approval
 
 import (
 	"backend/entity"
+	"errors"
+
 	"gorm.io/gorm"
 )
 
 func SeedApprovalRequirements(db *gorm.DB) error {
 	if err := db.First(&entity.ApprovalRequirement{}).Error; err == gorm.ErrRecordNotFound {
+		var scholarship entity.Scholarship
+		err := db.Where("scholarship_name = ?", "Beasiswa Anak Bangsa").First(&scholarship).Error
+		if err == gorm.ErrRecordNotFound {
+			return errors.New("Scholarship 'Beasiswa Anak Bangsa' not found for seeding ApprovalRequirements")
+		} else if err != nil {
+			return err
+		}
+
 		requirements := []entity.ApprovalRequirement{
 			{
 				Name:        "Transkrip Nilai",
 				Description: "Transkrip nilai semester terakhir",
-				ScholarshipID: 1,
+				ScholarshipID: scholarship.ID,
 			},
 			{
 				Name:        "Surat Rekomendasi",
 				Description: "Surat rekomendasi dari dekan fakultas",
-				ScholarshipID: 1,
+				ScholarshipID: scholarship.ID,
 			},
 		}
 
