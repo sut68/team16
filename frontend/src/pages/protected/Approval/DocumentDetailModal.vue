@@ -177,7 +177,7 @@ const processedTimelineEvents = computed(() => {
             title: 'เจ้าหน้าที่กำลังตรวจสอบ',
             date: formatDate(doc.UpdatedAt || doc.CreatedAt), // ใช้ function formatDate ที่แก้แล้ว
             description: 'อยู่ในระหว่างการพิจารณาตรวจสอบความถูกต้อง',
-            actor: 'ระบบ', // ยังคงใช้ 'ระบบ' หรือเปลี่ยนเป็น adminActorName
+            actor: adminActorName, // ✅ Fix: ใช้ตัวแปรที่ประกาศไว้ตรงนี้
             status: 'current',
             type: 'task',
             timestamp: updateTs > createdTs ? updateTs : createdTs + 1000, // ให้มั่นใจว่าอยู่หลัง CreatedAt
@@ -530,7 +530,14 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                             <div class="text-xs text-gray-500 mb-1">
                                                 {{ event.date }} • โดย {{ event.actor }}
                                             </div>
-                                            <div class="text-xs text-gray-600 break-words">{{ event.description }}</div>
+                                            <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description" 
+                                                 class="mt-2 p-2 rounded-lg text-xs border"
+                                                 :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">
+                                                {{ event.description }}
+                                            </div>
+                                            <div v-else class="text-xs text-gray-600 break-words">
+                                                {{ event.description }}
+                                            </div>
                                         </div>
                                         
                                         <!-- Line 2: Bottom Line (เชื่อมกับรายการถัดไป) -->
