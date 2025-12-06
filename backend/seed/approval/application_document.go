@@ -24,16 +24,18 @@ func SeedApplicationDocuments(db *gorm.DB) error {
 		}
 
 		var req1, req2 entity.ApprovalRequirement
-		if err := db.Where("name = ?", "Transkrip Nilai").First(&req1).Error; err != nil {
+		if err := db.Where("description = ?", "Transkrip nilai semester terakhir").First(&req1).Error; err != nil {
 			return err
 		}
-		if err := db.Where("name = ?", "Surat Rekomendasi").First(&req2).Error; err != nil {
+		if err := db.Where("description = ?", "Surat rekomendasi dari dekan fakultas").First(&req2).Error; err != nil {
 			return err
 		}
 
 		documents := []entity.ApplicationDocument{
 			{
 				FileName:      "transkrip_semester_5.pdf",
+				FilePath:      "test.pdf",
+				FileType:      "application/pdf",
 				UploadedBy:    "student1",
 				ApplicationID: application.ID,
 				RequirementID: req1.ID,

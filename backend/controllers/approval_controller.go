@@ -9,18 +9,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-// --- ApprovalTask Functions ---
-
-// GET /approval-tasks
 func GetApprovalTasks(ctx *gin.Context) {
 	var tasks []entity.ApprovalTask
-	// เพิ่ม Preload แบบซ้อนกัน (Nested Preload) เพื่อดึงข้อมูลที่สัมพันธ์กันออกมาให้ครบ
 	if err := config.DB.
 		Preload("Admin").
 		Preload("ApplicationDocument").
 		Preload("Application.StudentProfile.Major"). // ดึงไปถึงสาขาวิชาของนิสิต
 		Preload("Application.StudentProfile").       // ดึงข้อมูลนิสิต
+		Preload("ApprovalRequirement.Scholarship.ApprovalRequirements"). // ดึงข้อกำหนดทั้งหมดของทุน
 		Preload("ApprovalRequirement.Scholarship").  // ดึงข้อมูลชื่อทุน
 		Preload("ApprovalRequirement").
 		Preload("ApprovalDecisions"). // เพิ่ม Preload ApprovalDecisions
@@ -45,6 +41,7 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 		Preload("ApplicationDocument").
 		Preload("Application.StudentProfile.Major").
 		Preload("Application.StudentProfile").
+		Preload("ApprovalRequirement.Scholarship.ApprovalRequirements").
 		Preload("ApprovalRequirement.Scholarship").
 		Preload("ApprovalRequirement").
 		Preload("ApprovalDecisions"). // เพิ่ม Preload ApprovalDecisions
@@ -160,7 +157,6 @@ func GetDecisionHistoryByStudentID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, decisions)
 }
 
-// --- ApplicationDocument Functions ---
 
 // GET /application-documents
 func GetApplicationDocuments(ctx *gin.Context) {
@@ -257,7 +253,6 @@ func DeleteApplicationDocument(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Application document deleted successfully"})
 }
 
-// --- ApprovalDecision Functions ---
 
 // GET /approval-decisions
 func GetApprovalDecisions(ctx *gin.Context) {
@@ -361,8 +356,6 @@ func DeleteApprovalDecision(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Approval decision deleted successfully"})
 }
 
-// --- ApprovalRequirement Functions ---
-
 // GET /approval-requirements
 func GetApprovalRequirements(ctx *gin.Context) {
 	var requirements []entity.ApprovalRequirement
@@ -392,7 +385,6 @@ func GetApprovalRequirementByID(ctx *gin.Context) {
 // POST /approval-requirements
 func CreateApprovalRequirement(ctx *gin.Context) {
 	var input struct {
-		Name          string `json:"name" binding:"required"`
 		Description   string `json:"description"`
 		ScholarshipID uint   `json:"scholarship_id" binding:"required"`
 	}
@@ -401,7 +393,6 @@ func CreateApprovalRequirement(ctx *gin.Context) {
 		return
 	}
 	requirement := entity.ApprovalRequirement{
-		Name:          input.Name,
 		Description:   input.Description,
 		ScholarshipID: input.ScholarshipID,
 	}
@@ -426,7 +417,6 @@ func UpdateApprovalRequirement(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Name        *string `json:"name"`
 		Description *string `json:"description"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -434,9 +424,6 @@ func UpdateApprovalRequirement(ctx *gin.Context) {
 		return
 	}
 	updates := make(map[string]interface{})
-	if input.Name != nil {
-		updates["name"] = *input.Name
-	}
 	if input.Description != nil {
 		updates["description"] = *input.Description
 	}

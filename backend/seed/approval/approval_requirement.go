@@ -19,12 +19,10 @@ func SeedApprovalRequirements(db *gorm.DB) error {
 
 		requirements := []entity.ApprovalRequirement{
 			{
-				Name:        "Transkrip Nilai",
 				Description: "Transkrip nilai semester terakhir",
 				ScholarshipID: scholarship.ID,
 			},
 			{
-				Name:        "Surat Rekomendasi",
 				Description: "Surat rekomendasi dari dekan fakultas",
 				ScholarshipID: scholarship.ID,
 			},

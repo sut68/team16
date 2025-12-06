@@ -8,6 +8,8 @@ export interface ApplicationDocumentResponse {
   CreatedAt: string
   UpdatedAt: string
   file_name: string
+  file_path: string
+  file_type: string
   uploaded_by: string
   application_id: number
   requirement_id: number

@@ -24,7 +24,6 @@ export interface ScholarshipResponse {
 
 export interface ApprovalRequirementResponse {
   ID: number
-  name: string
   description: string
   scholarship_id: number
   scholarship: ScholarshipResponse

@@ -47,7 +47,6 @@ const parseGoDate = (dateString: string | undefined): Date | null => {
     }
     
     // 3. ตัด Nanoseconds ให้เหลือ Milliseconds (3 หลัก)
-    // Regex นี้หาจุดทศนิยมตามด้วยตัวเลข และตัดให้เหลือแค่ .123
     dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
 
     const date = new Date(dateStr);
@@ -71,7 +70,7 @@ const formatDate = (dateString: string | undefined | number) => {
 
     // ถ้าเป็น string ให้ผ่าน parseGoDate ก่อน
     const date = parseGoDate(dateString);
-    if (!date) return 'เมื่อสักครู่'; // หรือค่าเดิมถ้าต้องการ debug
+    if (!date) return 'เมื่อสักครู่'; 
     
     return date.toLocaleDateString('th-TH', {
         year: 'numeric',
@@ -111,7 +110,7 @@ const processedTimelineEvents = computed(() => {
         date: formatDate(doc.CreatedAt),
         description: 'ส่งเอกสารเข้าสู่ระบบเรียบร้อยแล้ว',
         actor: 'ผู้สมัคร',
-        status: 'past-submitted', // ✅ เปลี่ยนสถานะเพื่อให้แสดงเป็นติ๊กถูก
+        status: 'past-submitted', 
         type: 'task',
         timestamp: createdTs,
     });
@@ -175,9 +174,9 @@ const processedTimelineEvents = computed(() => {
         events.push({
             id: 'reviewing',
             title: 'เจ้าหน้าที่กำลังตรวจสอบ',
-            date: formatDate(doc.UpdatedAt || doc.CreatedAt), // ใช้ function formatDate ที่แก้แล้ว
+            date: formatDate(doc.UpdatedAt || doc.CreatedAt), 
             description: 'อยู่ในระหว่างการพิจารณาตรวจสอบความถูกต้อง',
-            actor: adminActorName, // ✅ Fix: ใช้ตัวแปรที่ประกาศไว้ตรงนี้
+            actor: adminActorName, 
             status: 'current',
             type: 'task',
             timestamp: updateTs > createdTs ? updateTs : createdTs + 1000, // ให้มั่นใจว่าอยู่หลัง CreatedAt
@@ -219,17 +218,12 @@ const processedTimelineEvents = computed(() => {
     // Sort Descending (Newest First) - ล่าสุดอยู่บน
     events.sort((a, b) => b.timestamp - a.timestamp);
 
-    // 4. Finalize Statuses: ให้ตัวบนสุดเป็น Active ถ้ามันไม่ใช่สถานะจบงาน (Approve/Reject)
+    // 4. Finalize Statuses
     if (events.length > 0) {
         const firstEvent = events[0];
-        
-        // ถ้าสถานะล่าสุดเป็นแบบทั่วไป (past) ให้เปลี่ยนเป็น current เพื่อเน้น (เช่น รอตรวจสอบ)
-        // แต่ถ้าเป็น approved/rejected/submitted ให้คงสีเดิมไว้
         if (firstEvent && firstEvent.status === 'past') {
             firstEvent.status = 'current';
         }
-        
-        // ปรับตัวอื่นๆ ให้เป็น past ทั้งหมด (Reset เพื่อความชัวร์)
         for(let i=1; i<events.length; i++) {
             const event = events[i];
             if (event && event.status === 'current') {
@@ -283,6 +277,16 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
         isSubmitting.value = false;
     }
 };
+
+const openDocument = () => {
+    if (props.documentData?.application_document?.file_path) {
+        const backendBaseUrl = 'http://localhost:8080'; 
+        const fileUrl = `${backendBaseUrl}/uploads/${props.documentData.application_document.file_path}`;
+        window.open(fileUrl, '_blank');
+    } else {
+        alert('ไม่พบไฟล์เอกสาร');
+    }
+};
 </script>
 
 <template>
@@ -290,7 +294,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
         class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity">
         <div
             class="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
-            <!-- Header -->
             <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
                 <div>
                     <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">
@@ -323,11 +326,9 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                 </button>
             </div>
 
-            <!-- Content -->
             <div class="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    <!-- Left Column -->
                     <div class="lg:col-span-2 space-y-6">
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
@@ -386,19 +387,37 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <button
+                                        <button @click="openDocument"
                                             class="btn btn-sm btn-ghost text-[#1e3a8a] hover:bg-blue-50">ดูไฟล์</button>
                                     </div>
                                     <div v-else class="text-center text-gray-400 py-4">ไม่พบเอกสารแนบ</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Right Column: Action & Timeline -->
+                        <div class="card bg-white shadow-sm border border-gray-100">
+                            <div class="card-body p-5">
+                                <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">
+                                    ข้อกำหนดทั้งหมดของทุนนี้
+                                </h3>
+                                
+                                <div v-if="documentData.approval_requirement?.scholarship?.approval_requirements?.length">
+                                    <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm">
+                                        <li v-for="req in documentData.approval_requirement.scholarship.approval_requirements" :key="req.ID">
+                                            {{ req.description }}
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <div v-else class="text-center text-gray-400 py-4">
+                                    ไม่พบข้อมูลข้อกำหนด
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+
                     <div class="lg:col-span-1 space-y-6">
                         
-                        <!-- Action Card -->
                         <div v-if="canAction"
                             class="card bg-white shadow-md border border-blue-100 ring-4 ring-blue-50/50">
                             <div class="card-body p-5">
@@ -449,7 +468,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                             </div>
                         </div>
                         
-                        <!-- Status Card (Finished) -->
                         <div v-else class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5 items-center text-center">
                                 <div class="badge badge-lg p-4 font-bold text-white mb-2"
@@ -461,7 +479,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                             </div>
                         </div>
 
-                        <!-- Timeline Section -->
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4">ประวัติการดำเนินการ</h3>
@@ -469,19 +486,15 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                 <ul class="timeline timeline-vertical timeline-compact -ml-4">
                                     <li v-for="(event, index) in processedTimelineEvents" :key="event.id">
                                         
-                                        <!-- Line 1: Top Line (เชื่อมกับรายการก่อนหน้า) -->
                                         <hr v-if="index > 0" class="bg-gray-200" />
 
-                                        <!-- Icon Middle -->
                                         <div class="timeline-middle">
-                                            <!-- Current / Active -> Pulse Effect -->
                                             <div v-if="event.status === 'current'"
                                                 class="relative flex items-center justify-center w-6 h-6">
                                                 <span class="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
                                                 <span class="relative inline-flex rounded-full h-6 w-6 bg-[#1e3a8a] border-4 border-blue-100"></span>
                                             </div>
                                             
-                                            <!-- Approved or Submitted -> Checkmark -->
                                             <div v-else-if="event.status === 'past-approved' || event.status === 'past-submitted'"
                                                 class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -492,7 +505,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                                 </svg>
                                             </div>
 
-                                            <!-- Rejected -> X Mark -->
                                             <div v-else-if="event.status === 'past-rejected'"
                                                 class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -503,7 +515,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                                 </svg>
                                             </div>
 
-                                            <!-- Request Change -> Orange Icon -->
                                             <div v-else-if="event.status === 'past-request-change'"
                                                 class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -514,14 +525,12 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                                 </svg>
                                             </div>
 
-                                            <!-- Past / Generic -->
                                             <div v-else
                                                 class="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center">
                                                 <div class="w-2 h-2 bg-white rounded-full"></div>
                                             </div>
                                         </div>
 
-                                        <!-- Content Right -->
                                         <div class="timeline-end timeline-box w-full border-none shadow-none p-0 pl-2 mb-6">
                                             <div class="font-bold text-slate-800 text-sm"
                                                 :class="{'text-[#1e3a8a]': event.status === 'current'}">
@@ -540,7 +549,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
                                             </div>
                                         </div>
                                         
-                                        <!-- Line 2: Bottom Line (เชื่อมกับรายการถัดไป) -->
                                         <hr v-if="index < processedTimelineEvents.length - 1" class="bg-gray-200" />
                                     </li>
                                 </ul>

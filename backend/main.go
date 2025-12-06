@@ -17,10 +17,13 @@ func main() {
 
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
-	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"} // Allow frontend dev server
+	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173" ,"http://localhost:5174"} // Allow frontend dev server
 	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(configCORS))
+
+	// Serve static files from the "uploads" directory
+	r.Static("/uploads", "./uploads")
 
 	// Connect to Database
 	config.ConnectDB()
