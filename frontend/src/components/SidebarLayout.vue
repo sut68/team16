@@ -234,7 +234,7 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 12px;
+  margin-top: 10px;
   margin-bottom: 10px;
   position: relative;
 }
@@ -340,7 +340,7 @@ div.sidebar-closed .menu-link {
   border-radius: 15px;
   margin-left: 10px;
   margin-right: 10px;
-  margin-top: 20px;
+  margin-top: 17px;
 }
 
 div.sidebar-closed .menu-link svg {

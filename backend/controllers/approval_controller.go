@@ -23,6 +23,7 @@ func GetApprovalTasks(ctx *gin.Context) {
 		Preload("Application.StudentProfile").       // ดึงข้อมูลนิสิต
 		Preload("ApprovalRequirement.Scholarship").  // ดึงข้อมูลชื่อทุน
 		Preload("ApprovalRequirement").
+		Preload("ApprovalDecisions"). // เพิ่ม Preload ApprovalDecisions
 		Find(&tasks).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -46,6 +47,7 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 		Preload("Application.StudentProfile").
 		Preload("ApprovalRequirement.Scholarship").
 		Preload("ApprovalRequirement").
+		Preload("ApprovalDecisions"). // เพิ่ม Preload ApprovalDecisions
 		First(&task, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval task not found"})
 		return
