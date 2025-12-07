@@ -13,7 +13,8 @@ import (
 )
 
 func main() {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
@@ -33,6 +34,7 @@ func main() {
 		&entity.User{},
 		&entity.AdminProfile{},
 		&entity.Application{},
+		&entity.ApplicationScholarship{},
 		&entity.ApplicationDocument{},
 		&entity.ApprovalDecision{},
 		&entity.ApprovalTask{},
@@ -40,6 +42,7 @@ func main() {
 		&entity.Major{},
 		&entity.NewsPost{},
 		&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
+		&entity.Requirement{},         // Added missing Requirement
 		&entity.Scholarship{},
 		&entity.Screening{},
 		&entity.SponsorIndustry{},
@@ -61,6 +64,7 @@ func main() {
 		&entity.User{},
 		&entity.AdminProfile{},
 		&entity.Application{},
+		&entity.ApplicationScholarship{},
 		&entity.ApplicationDocument{},
 		&entity.ApprovalDecision{},
 		&entity.ApprovalTask{},
@@ -69,6 +73,7 @@ func main() {
 		&entity.NewsPost{},
 		&entity.Scholarship{},
 		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
+		&entity.Requirement{},         // Added missing Requirement
 		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
@@ -99,7 +104,7 @@ func main() {
 		api.POST("/login", controllers.Login)
 
 		api.GET("/industries", controllers.GetIndustries)
-	 	api.POST("/industries", controllers.CreateIndustry)
+		api.POST("/industries", controllers.CreateIndustry)
 
 		api.GET("/sponsors", controllers.GetSponsors)
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
@@ -107,12 +112,27 @@ func main() {
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
+		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
+
+		api.GET("/scholarships", controllers.GetAllScholarship)
+		api.POST("/scholarships/:id/apply", controllers.ApplyForScholarship)
+
 		api.GET("/approval-tasks", controllers.GetApprovalTasks)
 		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
-		api.POST("/approval-tasks", controllers.CreateApprovalTask)
 		api.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)
 		api.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)
 		api.POST("/approval-decisions", controllers.CreateApprovalDecision)
+
+		api.GET("/application-documents", controllers.GetApplicationDocuments)
+		api.POST("/application-documents", controllers.CreateApplicationDocument)
+		api.PATCH("/application-documents/:id", controllers.UpdateApplicationDocument)
+		api.DELETE("/application-documents/:id", controllers.DeleteApplicationDocument)
+
+		api.GET("/approval-requirements", controllers.GetApprovalRequirements)
+		api.GET("/approval-requirements/:id", controllers.GetApprovalRequirementByID)
+		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
+		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
+		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

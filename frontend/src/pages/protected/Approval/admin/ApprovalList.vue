@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import DocumentDetailModal from './DocumentDetailModal.vue';
-import { getApprovalTasks } from '../../../services/api/approval';
+import { getApprovalTasks } from '@/services/api/approval';
 import type { ApprovalTaskResponse } from '@/interfaces';
 
-const allTasks = ref<ApprovalTaskResponse[]>([]);
+interface ApprovalTaskDisplay extends ApprovalTaskResponse {
+  round: string;
+  submission_date: string;
+}
+
+const allTasks = ref<ApprovalTaskDisplay[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
@@ -15,7 +20,7 @@ const filterStatus = ref('all');
 const filterRound = ref('all');
 
 const isModalOpen = ref(false);
-const selectedDocument = ref<ApprovalTaskResponse | null>(null);
+const selectedDocument = ref<ApprovalTaskDisplay | null>(null);
 
 const availableRounds = ref([
   { label: '1/2568', value: '1/2568' },
@@ -28,7 +33,7 @@ const fetchTasks = async () => {
   error.value = null;
   try {
     const tasks = await getApprovalTasks();
-    allTasks.value = tasks.map(task => ({
+    allTasks.value = tasks.map((task: ApprovalTaskResponse) => ({
       ...task,
       round: '1/2568', // Mock ค่า
       submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
@@ -59,8 +64,8 @@ const historyItems = computed(() => {
 });
 
 // Filter Logic
-const filteredItems = computed(() => {
-  let result: ApprovalTaskResponse[] = [];
+const filteredItems = computed((): ApprovalTaskDisplay[] => {
+  let result: ApprovalTaskDisplay[] = [];
 
   if (activeTab.value === 'pending') {
     result = [...pendingItems.value];
@@ -87,9 +92,9 @@ const filteredItems = computed(() => {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(item => {
-      const scholarshipName = item.approval_requirement?.scholarship?.scholarship_name || '';
-      const firstName = item.application?.student_profile?.first_name_th || '';
-      const lastName = item.application?.student_profile?.last_name_th || '';
+      const scholarshipName = item.application_document.application_scholarship?.scholarship?.scholarship_name || '';
+      const firstName = item.application_document.application_scholarship?.application?.student_profile?.first_name_th || '';
+      const lastName = item.application_document.application_scholarship?.application?.student_profile?.last_name_th || '';
       const applicantName = `${firstName} ${lastName}`;
 
       return scholarshipName.toLowerCase().includes(query) || applicantName.toLowerCase().includes(query);
@@ -104,7 +109,7 @@ watch(activeTab, () => {
   filterStatus.value = 'all';
   filterRound.value = 'all';
 });
-const handleCardClick = (item: ApprovalTaskResponse) => {
+const handleCardClick = (item: ApprovalTaskDisplay) => {
   selectedDocument.value = item;
   isModalOpen.value = true;
 };
@@ -199,7 +204,7 @@ const handleActionCompleted = () => {
             <div class="flex flex-col overflow-hidden pr-2">
               <div class="flex flex-wrap items-center gap-2 mb-1">
                 <h3 class="font-bold text-[#1e3a8a] text-base md:text-lg leading-tight truncate">
-                  {{ item.approval_requirement?.scholarship?.scholarship_name || 'N/A' }}
+                  {{ item.application_document.application_scholarship?.scholarship?.scholarship_name || 'N/A' }}
                 </h3>
                 <template v-if="activeTab === 'pending'">
                   <span v-if="item.status?.toLowerCase() === 'request-change'"
@@ -221,8 +226,8 @@ const handleActionCompleted = () => {
                 </span>
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-600 truncate">
-                    {{ item.application?.student_profile?.first_name_th }} {{
-                      item.application?.student_profile?.last_name_th }}
+                    {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }} {{
+                      item.application_document.application_scholarship?.application?.student_profile?.last_name_th }}
                   </span>
                   <span class="hidden md:inline text-gray-300">|</span>
                   <span class="text-xs md:text-sm text-gray-400">ส่งเมื่อ {{ item.submission_date }}</span>

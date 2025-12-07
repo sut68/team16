@@ -4,6 +4,12 @@ import { makeApprovalDecision } from '@/services/api/approval';
 // Import Interfaces
 import type { ApprovalTaskResponse } from '@/interfaces';
 
+// Local interface to include mocked/client-side-only properties
+interface ApprovalTaskDisplay extends ApprovalTaskResponse {
+  round?: string;
+  submission_date?: string;
+}
+
 interface TimelineEvent {
     id: number | string;
     title: string;
@@ -17,7 +23,7 @@ interface TimelineEvent {
 
 const props = defineProps<{
     isOpen: boolean;
-    documentData: ApprovalTaskResponse | null;
+    documentData: ApprovalTaskDisplay | null;
 }>();
 
 const emit = defineEmits(['close', 'action-completed']);
@@ -279,9 +285,11 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 };
 
 const openDocument = () => {
-    if (props.documentData?.application_document?.file_path) {
+    const filePath = props.documentData?.application_document?.file_path;
+    if (filePath) {
         const backendBaseUrl = 'http://localhost:8080'; 
-        const fileUrl = `${backendBaseUrl}/uploads/${props.documentData.application_document.file_path}`;
+        // The file_path from backend already contains "uploads/filename.pdf"
+        const fileUrl = `${backendBaseUrl}/${filePath}`;
         window.open(fileUrl, '_blank');
     } else {
         alert('ไม่พบไฟล์เอกสาร');
@@ -297,7 +305,7 @@ const openDocument = () => {
             <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
                 <div>
                     <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">
-                        {{ documentData.approval_requirement?.scholarship?.scholarship_name || 'รายละเอียดทุนการศึกษา'
+                        {{ documentData.application_document.application_scholarship?.scholarship?.scholarship_name || 'รายละเอียดทุนการศึกษา'
                         }}
 
                         <span class="badge badge-warning text-white"
@@ -333,32 +341,32 @@ const openDocument = () => {
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อมูลผู้สมัคร</h3>
-                                <div v-if="documentData.application?.student_profile"
+                                <div v-if="documentData.application_document.application_scholarship?.application?.student_profile"
                                     class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <span class="block text-gray-400">ชื่อ-นามสกุล</span>
                                         <span class="font-semibold text-slate-800 text-lg">
-                                            {{ documentData.application.student_profile.first_name_th }}
-                                            {{ documentData.application.student_profile.last_name_th }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.first_name_th }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.last_name_th }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">รหัสนักศึกษา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.student_id || '-' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.student_id || '-' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">สาขาวิชา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.major?.major_name || 'N/A' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.major?.major_name || 'N/A' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">เกรดเฉลี่ย (GPAX)</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.gpax ?
-                                                documentData.application.student_profile.gpax.toFixed(2) : '-' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.gpax ?
+                                                documentData.application_document.application_scholarship.application.student_profile.gpax.toFixed(2) : '-' }}
                                         </span>
                                     </div>
                                 </div>
@@ -401,10 +409,10 @@ const openDocument = () => {
                                     ข้อกำหนดทั้งหมดของทุนนี้
                                 </h3>
                                 
-                                <div v-if="documentData.approval_requirement?.scholarship?.approval_requirements?.length">
+                                <div v-if="documentData.application_document.application_scholarship?.scholarship?.approval_requirements?.length">
                                     <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm">
-                                        <li v-for="req in documentData.approval_requirement.scholarship.approval_requirements" :key="req.ID">
-                                            {{ req.description }}
+                                        <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements" :key="req.ID">
+                                            {{ req.requirement.name }}
                                         </li>
                                     </ul>
                                 </div>

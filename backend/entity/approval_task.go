@@ -12,11 +12,5 @@ type ApprovalTask struct {
 	DocumentID          uint                `json:"document_id" valid:"required~Document ID is required"`
 	ApplicationDocument ApplicationDocument `gorm:"foreignKey:DocumentID" json:"application_document"`
 
-	ApplicationID uint        `json:"application_id" valid:"required~Application ID is required"`
-	Application   Application `gorm:"foreignKey:ApplicationID" json:"application"`
-
-	RequirementID       uint                `json:"requirement_id" valid:"required~Requirement ID is required"`
-	ApprovalRequirement ApprovalRequirement `gorm:"foreignKey:RequirementID" json:"approval_requirement"`
-
 	ApprovalDecisions []ApprovalDecision `gorm:"foreignKey:TaskID" json:"approval_decisions"`
 }

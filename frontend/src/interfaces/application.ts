@@ -1,7 +1,6 @@
 import type { StudentProfileResponse } from './user'
 import type { ApprovalTaskResponse } from './approval'
-import type { ApprovalRequirementResponse } from './scholarship'
-
+import type { ApplicationScholarshipResponse } from './application_scholarship'
 
 export interface ApplicationDocumentResponse {
   ID: number
@@ -11,9 +10,8 @@ export interface ApplicationDocumentResponse {
   file_path: string
   file_type: string
   uploaded_by: string
-  application_id: number
-  requirement_id: number
-  approval_requirement: ApprovalRequirementResponse
+  application_scholarship_id: number
+  application_scholarship: ApplicationScholarshipResponse
   approval_tasks: ApprovalTaskResponse[]
 }
 
@@ -23,5 +21,5 @@ export interface ApplicationResponse {
   UpdatedAt: string
   student_profile_id: number
   student_profile: StudentProfileResponse
-  application_documents: ApplicationDocumentResponse[]
+  application_scholarships: any[] // Using any to avoid circular dependency issues for now
 }

@@ -2,6 +2,7 @@ package user
 
 import (
 	"backend/entity"
+	"fmt"
 	"gorm.io/gorm"
 	"time"
 )
@@ -10,12 +11,17 @@ func SeedStudentProfiles(db *gorm.DB) error {
 	if err := db.First(&entity.StudentProfile{}).Error; err == gorm.ErrRecordNotFound {
 		var user entity.User
 		if err := db.Where("username = ?", "user").First(&user).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return fmt.Errorf("in SeedStudentProfiles: prerequisite user 'user' not found")
+			}
 			return err
 		}
 
-		var major entity.Major
-		if err := db.Where("major_name = ?", "Computer Engineering").First(&major).Error; err != nil {
-			return err
+		// Use FirstOrCreate to make this seeder more robust.
+		// It will find the major if it exists, or create it if it doesn't.
+		major := entity.Major{MajorName: "Computer Engineering"}
+		if err := db.Where(entity.Major{MajorName: "Computer Engineering"}).FirstOrCreate(&major).Error; err != nil {
+			return fmt.Errorf("in SeedStudentProfiles: failed to find or create major: %w", err)
 		}
 
 		studentProfile := entity.StudentProfile{
@@ -38,7 +44,6 @@ func SeedStudentProfiles(db *gorm.DB) error {
 			UserID:           user.ID,
 			MajorID:          major.ID,
 		}
-
 		if err := db.Create(&studentProfile).Error; err != nil {
 			return err
 		}

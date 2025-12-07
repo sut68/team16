@@ -11,10 +11,10 @@ import (
 func SeedApprovalDecisions(db *gorm.DB) error {
 	if err := db.First(&entity.ApprovalDecision{}).Error; err == gorm.ErrRecordNotFound {
 		var doc1, doc2 entity.ApplicationDocument
-		if err := db.Where("file_name = ?", "transkrip_semester_5.pdf").First(&doc1).Error; err != nil {
+		if err := db.Where("file_name = ?", "transkrip_nilai_seed.pdf").First(&doc1).Error; err != nil {
 			return err
 		}
-		if err := db.Where("file_name = ?", "surat_rekomendasi_dekan.pdf").First(&doc2).Error; err != nil {
+		if err := db.Where("file_name = ?", "surat_rekomendasi_seed.pdf").First(&doc2).Error; err != nil {
 			return err
 		}
 
@@ -29,13 +29,13 @@ func SeedApprovalDecisions(db *gorm.DB) error {
 		decisions := []entity.ApprovalDecision{
 			{
 				DecisionAt: time.Now().String(),
-				Decision:   "",
+				Decision:   "Approved",
 				Comment:    "Dokumen valid.",
 				TaskID:     task1.ID,
 			},
 			{
 				DecisionAt: time.Now().String(),
-				Decision:   "",
+				Decision:   "Rejected",
 				Comment:    "Tanda tangan tidak sesuai.",
 				TaskID:     task2.ID,
 			},

@@ -9,22 +9,29 @@ import (
 
 func SeedApprovalRequirements(db *gorm.DB) error {
 	if err := db.First(&entity.ApprovalRequirement{}).Error; err == gorm.ErrRecordNotFound {
+		// Find scholarship
 		var scholarship entity.Scholarship
-		err := db.Where("scholarship_name = ?", "Beasiswa Anak Bangsa").First(&scholarship).Error
-		if err == gorm.ErrRecordNotFound {
+		if err := db.Where("scholarship_name = ?", "Beasiswa Anak Bangsa").First(&scholarship).Error; err != nil {
 			return errors.New("Scholarship 'Beasiswa Anak Bangsa' not found for seeding ApprovalRequirements")
-		} else if err != nil {
-			return err
+		}
+
+		// Find master requirements
+		var req1, req2 entity.Requirement
+		if err := db.Where("name = ?", "Transkrip nilai semester terakhir").First(&req1).Error; err != nil {
+			return errors.New("Requirement 'Transkrip nilai semester terakhir' not found")
+		}
+		if err := db.Where("name = ?", "Surat rekomendasi dari dekan fakultas").First(&req2).Error; err != nil {
+			return errors.New("Requirement 'Surat rekomendasi dari dekan fakultas' not found")
 		}
 
 		requirements := []entity.ApprovalRequirement{
 			{
-				Description: "Transkrip nilai semester terakhir",
 				ScholarshipID: scholarship.ID,
+				RequirementID: req1.ID,
 			},
 			{
-				Description: "Surat rekomendasi dari dekan fakultas",
 				ScholarshipID: scholarship.ID,
+				RequirementID: req2.ID,
 			},
 		}
 

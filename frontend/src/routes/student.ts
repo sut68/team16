@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
-import StudentSidebar from '../components/StudentSidebar.vue';
+import StudentSidebar from '@/components/StudentSidebar.vue';
 
 const studentRoutes: Array<RouteRecordRaw> = [
   {
@@ -9,22 +9,22 @@ const studentRoutes: Array<RouteRecordRaw> = [
       {
         path: '',
         name: 'StudentDashboard',
-        component: () => import('../pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/DashboardPage.vue'),
       },
       {
         path: 'apply-scholarship',
         name: 'ApplyScholarship',
-        component: () => import('../pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/Approval/student/ScholarshipDetail.vue'),
       },
       {
         path: 'track-status',
         name: 'TrackStatus',
-        component: () => import('../pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/Approval/student/StudentDocument.vue'),
       },
       {
         path: 'assistance',
         name: 'StudentAssistance',
-        component: () => import('../pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/DashboardPage.vue'),
       },
     ],
     meta: { requiresAuth: true, role: 'user' },
