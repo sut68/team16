@@ -88,7 +88,7 @@ func Login(c *gin.Context) {
 	}
 
 	var user entity.User
-	if err := config.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	if err := config.DB.Preload("Role").Where("username = ?", username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
@@ -98,7 +98,16 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := services.GenerateJWT(user.ID)
+	// Ensure Role is not nil before accessing its properties
+	var roleName string
+	if user.Role != nil {
+		roleName = user.Role.Name
+	} else {
+		// Handle case where role is not found, maybe default or return an error
+		roleName = "user" // Defaulting to "user" for safety
+	}
+
+	token, err := services.GenerateJWT(user.ID, roleName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -111,6 +120,7 @@ func Login(c *gin.Context) {
 			"id":       user.ID,
 			"username": user.Username,
 			"role_id":  user.RoleID,
+			"role":     roleName,
 		},
 	})
 }

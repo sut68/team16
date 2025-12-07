@@ -1,14 +1,14 @@
 import type { RouteRecordRaw } from 'vue-router';
 import SidebarLayout from '../components/SidebarLayout.vue';
 
-const protectedRoutes: Array<RouteRecordRaw> = [
+const adminRoutes: Array<RouteRecordRaw> = [
   {
-    path: '/dashboard',
+    path: '/admin',
     component: SidebarLayout,
     children: [
       {
         path: '',
-        name: 'Dashboard',
+        name: 'AdminDashboard',
         component: () => import('../pages/protected/DashboardPage.vue'),
       },
       {
@@ -53,12 +53,12 @@ const protectedRoutes: Array<RouteRecordRaw> = [
       },
       {
         path: 'assistance',
-        name: 'Assistance',
+        name: 'AdminAssistance',
         component: () => import('../pages/protected/DashboardPage.vue'),
       },
     ],
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, role: 'admin' },
   },
 ];
 
-export default protectedRoutes;
+export default adminRoutes;
