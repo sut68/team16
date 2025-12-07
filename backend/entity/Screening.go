@@ -18,8 +18,9 @@ type Screening struct {
 	StatusScreening   StatusScreening `json:"status_screening" gorm:"foreignKey:StatusScreeningID"`
 
 	// ---------- Criterial ----------
-	/*CriterialID uint     `json:"criterial_id" gorm:"not null"`
-	Criterial   Criterial `json:"criterial" gorm:"foreignKey:CriterialID"`*/
+	FeatureScholarshipID uint              `json:"feature_scholarship_id" gorm:"not null"`
+	FeatureScholarship   Featurescholarship `json:"feature_scholarship" gorm:"foreignKey:FeatureScholarshipID"`
+	//คุณสมบัติที่ใช้ในการคัดกรอง เช่น เกรดเฉลี่ย, รายได้ต่อคนในครอบครัว เป็นต้น
 
 	// ---------- Reject Reason ----------
 	RejectionReason *string `json:"rejection_reason"`
