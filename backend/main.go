@@ -70,6 +70,7 @@ func main() {
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
 		api.POST("/sponsors", controllers.CreateSponsor)
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
+		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 	}
 
