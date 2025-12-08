@@ -18,7 +18,7 @@ func main() {
 
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
-	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173" ,"http://localhost:5174"} // Allow frontend dev server
+	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"} // Allow frontend dev server
 	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(configCORS))
@@ -110,12 +110,26 @@ func main() {
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
 		api.POST("/sponsors", controllers.CreateSponsor)
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
+		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
-
 		api.GET("/scholarships", controllers.GetAllScholarship)
 		api.POST("/scholarships/:id/apply", controllers.ApplyForScholarship)
+
+		//scholarship
+		api.GET("/scholarship", controllers.GetAllScholarship)
+		api.GET("/scholarship/:id", controllers.GetScholarshipByID)
+		api.POST("/scholarship", controllers.CreateScholarship)
+		api.PUT("/scholarship/:id", controllers.UpdateScholarship)
+		api.DELETE("/scholarship/:id", controllers.DeleteScholarship)
+
+		//assistance
+		// api.GET("/assistance", controllers.GetAllAssistance)
+		// api.GET("/assistance/:id", controllers.GetAssistanceByID)
+		// api.POST("/assistance", controllers.CreateAssistance)
+		// api.PUT("/assistance/:id", controllers.UpdateAssistance)
+		// api.DELETE("/assistance/:id", controllers.DeleteAssistance)
 
 		api.GET("/approval-tasks", controllers.GetApprovalTasks)
 		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)

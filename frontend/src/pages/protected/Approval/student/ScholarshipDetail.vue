@@ -24,15 +24,11 @@ const fetchScholarships = async () => {
 };
 
 const handleApply = async (scholarshipId: number) => {
-  // In a real application, studentProfileId would come from a global auth store.
-  // We are hardcoding it to 1 for demonstration purposes.
   const studentProfileId = 1;
   
   try {
     const result = await applyForScholarship(scholarshipId, studentProfileId);
     console.log('Application result:', result);
-    
-    // On success, navigate to the tracking page
     router.push('/dashboard/track-status');
 
   } catch (err) {

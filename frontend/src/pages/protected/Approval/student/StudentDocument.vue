@@ -11,8 +11,6 @@ const error = ref<string | null>(null);
 const fetchStudentApplications = async () => {
   isLoading.value = true;
   error.value = null;
-  // In a real app, studentProfileId would come from a global auth store.
-  // We are hardcoding it to 1 for demonstration purposes.
   const studentProfileId = 1; 
   try {
     const data = await getStudentApplications(studentProfileId);
@@ -38,15 +36,11 @@ const openTracking = (app: ApplicationScholarshipResponse) => {
 
 const handleFileUpload = async (file: File) => {
   if (!selectedApp.value) return;
-
-  // In a real app, studentProfileId would come from a global auth store.
   const studentProfileId = 1;
 
   try {
     await uploadDocument(selectedApp.value.ID, file, studentProfileId);
     alert('อัปโหลดไฟล์สำเร็จ! สถานะจะถูกอัปเดตในการโหลดครั้งถัดไป');
-    
-    // Refetch data to show changes
     await fetchStudentApplications();
     isModalOpen.value = false;
 
@@ -116,8 +110,6 @@ const handleFileUpload = async (file: File) => {
               </div>
             </div>
           </div>
-          
-          <!-- The progress bar logic is removed as it's too complex with the new structure without more data -->
         </div>
       </div>
        <div v-else class="text-center py-20 text-gray-500">

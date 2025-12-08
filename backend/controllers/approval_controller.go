@@ -1,43 +1,27 @@
 package controllers
 
 import (
-
-	"backend/config"
-
-	"backend/entity"
-
 	"encoding/json"
-
 	"fmt"
-
 	"net/http"
-
 	"strconv"
-
 	"time"
-
-
 
 	"github.com/gin-gonic/gin"
 
+	"backend/config"
+	"backend/entity"
 )
-
-
 
 func GetApprovalTasks(ctx *gin.Context) {
 
 	var tasks []entity.ApprovalTask
 
 	if err := config.DB.
-
 		Preload("Admin").
-
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
-
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
-
 		Preload("ApprovalDecisions").
-
 		Find(&tasks).Error; err != nil {
 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -45,8 +29,6 @@ func GetApprovalTasks(ctx *gin.Context) {
 		return
 
 	}
-
-
 
 	// DEBUGGING: Print the fetched tasks to console
 
@@ -65,8 +47,6 @@ func GetApprovalTasks(ctx *gin.Context) {
 		fmt.Println("--- END DEBUG ---")
 
 	}
-
-
 
 	ctx.JSON(http.StatusOK, tasks)
 
@@ -171,7 +151,6 @@ func GetDecisionHistoryByStudentID(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, decisions)
 }
-
 
 // GET /application-documents
 func GetApplicationDocuments(ctx *gin.Context) {
@@ -332,7 +311,6 @@ func DeleteApplicationDocument(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "Application document deleted successfully"})
 }
-
 
 // GET /approval-decisions
 func GetApprovalDecisions(ctx *gin.Context) {
@@ -496,9 +474,6 @@ func UpdateApprovalRequirement(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval requirement not found"})
 		return
 	}
-	// The model for updating this linking table is not straightforward.
-	// Leaving this empty to prevent compile errors from the old broken code.
-	// A proper implementation might involve deleting and recreating the link.
 	ctx.JSON(http.StatusOK, requirement)
 }
 

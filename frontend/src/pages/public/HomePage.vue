@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import SuryaGraphic from '@/assets/brand/Surya_graphic.png';
+import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
+
+// 2. ประกาศตัวแปรเพื่อรับค่า (แก้ปัญหา Type Error)
+const SuryaGraphic = SuryaGraphicImport;
 
 interface TabItem {
   id: string;
@@ -106,7 +109,7 @@ const setActiveTab = (id: string) => {
 
     <section class="relative bg-[#8B001D] text-white py-16 md:py-24 overflow-hidden">
       <div class="absolute inset-0 z-0 bg-cover bg-left-top bg-no-repeat opacity-20"
-        :style="{ backgroundImage: `url(${SuryaGraphic})`,backgroundPosition: '-50px -50px' }"></div>
+        :style="{ backgroundImage: `url(${SuryaGraphic})`, backgroundPosition: '-50px -50px' }"></div>
       <div
         class="absolute top-0 right-0 w-80 h-80 bg-[#F26522] opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2">
       </div>
@@ -157,8 +160,8 @@ const setActiveTab = (id: string) => {
             class="px-6 py-3 rounded-md font-bold text-sm md:text-base transition-all duration-300 w-full md:w-auto"
             :class="[
               activeTab === tab.id
-                ? 'bg-[#F26522] text-white shadow-md scale-105' // Active: สีส้ม SUT
-                : 'bg-[#EEEEEE] text-gray-500 hover:bg-gray-200' // Inactive: สีเทา
+                ? 'bg-[#F26522] text-white shadow-md scale-105'
+                : 'bg-[#EEEEEE] text-gray-500 hover:bg-gray-200'
             ]">
             {{ tab.label }}
           </button>
@@ -170,7 +173,8 @@ const setActiveTab = (id: string) => {
       <div class="mb-8 border-b pb-4 border-gray-300">
         <h2 class="text-3xl font-bold text-[#253C90]">
           ทุนการศึกษาที่ได้รับ:
-          <span class="text-[#F26522] text-xl font-normal ml-2">({{tabs.find((t: { id: any; }) => t.id === activeTab)?.label}})</span>
+          <span class="text-[#F26522] text-xl font-normal ml-2">({{ tabs.find((t: { id: any; }) => t.id ===
+            activeTab)?.label }})</span>
         </h2>
       </div>
 

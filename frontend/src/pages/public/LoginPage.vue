@@ -87,22 +87,19 @@ const handleLogin = async () => {
       sessionStorage.setItem('token', data.token);
       if (data.token_type) sessionStorage.setItem('token_type', data.token_type);
 
-      // Decode token to get role
       const decodedToken: { role: string } = jwtDecode(data.token);
       
       loading.value = false;
 
-      // Redirect based on role
       if (decodedToken.role === 'admin') {
         await router.push('/admin');
       } else if (decodedToken.role === 'user' || decodedToken.role === 'student') {
         await router.push('/dashboard');
       } else {
-        // Fallback for unknown roles, maybe to home
         await router.push('/');
       }
       
-      window.location.reload(); // Reload to apply new state
+      window.location.reload();
       return;
     }
 

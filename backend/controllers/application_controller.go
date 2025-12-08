@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"backend/config"
-	"backend/entity"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
+	"backend/config"
+	"backend/entity"
 )
 
 // GET /applications
@@ -92,8 +93,6 @@ func GetStudentApplications(ctx *gin.Context) {
 	// Find the parent Application record for the student
 	var application entity.Application
 	if err := config.DB.Where("student_profile_id = ?", studentID).First(&application).Error; err != nil {
-		// If the student has never applied for anything, they won't have an Application record.
-		// Return an empty array instead of a 404.
 		if err.Error() == "record not found" {
 			ctx.JSON(http.StatusOK, []entity.ApplicationScholarship{})
 			return

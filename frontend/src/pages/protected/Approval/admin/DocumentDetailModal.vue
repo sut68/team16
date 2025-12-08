@@ -16,7 +16,7 @@ interface TimelineEvent {
     date: string;
     description: string;
     actor: string;
-    status: string; // current, past, past-approved, past-rejected, past-request-change, past-submitted
+    status: string
     type: 'task' | 'decision';
     timestamp: number;
 }
@@ -34,36 +34,29 @@ const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
 
-// ✅ Helper: แปลงวันที่จาก Go Time String เป็น JS Date Object
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
     
     let dateStr: string = String(dateString);
-    
-    // 1. ตัดส่วน Monotonic clock (m=+...) ออก
+
     if (dateStr.includes(' m=')) {
         const parts: string[] = dateStr.split(' m=');
         dateStr = parts[0] as string;
     }
-    
-    // 2. แปลงรูปแบบให้เป็น ISO 8601
-    // ตัวอย่าง: "2025-12-05 10:47:51.344406723 +0000 UTC" -> "2025-12-05T10:47:51.344Z"
+
     if (dateStr.includes('+0000 UTC')) {
         dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
     }
-    
-    // 3. ตัด Nanoseconds ให้เหลือ Milliseconds (3 หลัก)
+
     dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
 
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
 };
 
-// Helper: Format Date (Thai)
 const formatDate = (dateString: string | undefined | number) => {
     if (!dateString) return 'เมื่อสักครู่';
-    
-    // ถ้าเป็น number (timestamp) ให้แปลงเลย
+
     if (typeof dateString === 'number') {
         return new Date(dateString).toLocaleDateString('th-TH', {
             year: 'numeric',
@@ -74,7 +67,6 @@ const formatDate = (dateString: string | undefined | number) => {
         });
     }
 
-    // ถ้าเป็น string ให้ผ่าน parseGoDate ก่อน
     const date = parseGoDate(dateString);
     if (!date) return 'เมื่อสักครู่'; 
     
@@ -87,29 +79,24 @@ const formatDate = (dateString: string | undefined | number) => {
     });
 };
 
-// Check if user can perform action
 const canAction = computed(() => {
     if (!props.documentData?.status) return false;
     const s = props.documentData.status.toLowerCase();
     return s === 'pending' || s === 'request-change';
 });
 
-// ✅ Timeline Logic
 const processedTimelineEvents = computed(() => {
     if (!props.documentData) return [];
 
     const events: TimelineEvent[] = [];
     const doc = props.documentData;
-    
-    // Determine the actor's name once with explicit checks for TypeScript
+
     const adminActorName = (doc.admin_profile && doc.admin_profile.admin_firstname) ? doc.admin_profile.admin_firstname : 'ระบบ';
-    
-    // Parse timestamp สำหรับการยื่นใบสมัคร
+
     const createdDate = parseGoDate(doc.CreatedAt);
-    // ถ้า parse ไม่ได้ ให้ใช้เวลาปัจจุบันลบไปนิดหน่อย เพื่อให้มันไปอยู่ล่างสุด (เก่าสุด)
+
     let createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
 
-    // 1. Base Event: ยื่นใบสมัคร (เสมอ)
     events.push({
         id: 'created',
         title: 'ยื่นใบสมัครแล้ว',
@@ -121,15 +108,12 @@ const processedTimelineEvents = computed(() => {
         timestamp: createdTs,
     });
 
-    // 2. Decision Events: ประวัติการตัดสินใจ
     if (doc.approval_decisions && doc.approval_decisions.length > 0) {
         doc.approval_decisions.forEach(decision => {
             let title = '';
             let status = '';
             let description = decision.comment || '';
             const dType = decision.decision?.toLowerCase() || '';
-
-            // ✅ กรอง "ดำเนินการ" ออก: ถ้าไม่ใช่สถานะหลัก (approve, reject, request-change) ให้ข้ามไปเลย
             if (!['approve', 'reject', 'request-change'].includes(dType)) {
                 return;
             }
@@ -150,7 +134,6 @@ const processedTimelineEvents = computed(() => {
                     break;
             }
 
-            // Parse timestamp ของการตัดสินใจ
             const decisionDate = parseGoDate(decision.decision_at);
             const ts = decisionDate ? decisionDate.getTime() : Date.now();
             
@@ -167,13 +150,10 @@ const processedTimelineEvents = computed(() => {
         });
     }
 
-    // 3. Handle Current Status & Missing Events
     const currentStatus = doc.status?.toLowerCase() || '';
     const nowTs = Date.now();
 
-    // กรณีรอดำเนินการ (Pending)
     if (currentStatus === 'pending') {
-        // หาวันที่อัปเดตล่าสุดที่แท้จริง
         const updateDate = parseGoDate(doc.UpdatedAt);
         const updateTs = updateDate ? updateDate.getTime() : nowTs;
 
@@ -185,10 +165,9 @@ const processedTimelineEvents = computed(() => {
             actor: adminActorName, 
             status: 'current',
             type: 'task',
-            timestamp: updateTs > createdTs ? updateTs : createdTs + 1000, // ให้มั่นใจว่าอยู่หลัง CreatedAt
+            timestamp: updateTs > createdTs ? updateTs : createdTs + 1000,
         });
     }
-    // กรณีอนุมัติ (Approved) แต่ไม่มี Event ใน Timeline
     else if (currentStatus === 'approved') {
         const hasApprovedEvent = events.some(e => e.status === 'past-approved');
         if (!hasApprovedEvent) {
@@ -204,7 +183,6 @@ const processedTimelineEvents = computed(() => {
             });
         }
     }
-    // กรณีปฏิเสธ (Rejected) แต่ไม่มี Event ใน Timeline
     else if (currentStatus === 'rejected') {
         const hasRejectedEvent = events.some(e => e.status === 'past-rejected');
         if (!hasRejectedEvent) {
@@ -221,10 +199,7 @@ const processedTimelineEvents = computed(() => {
         }
     }
 
-    // Sort Descending (Newest First) - ล่าสุดอยู่บน
     events.sort((a, b) => b.timestamp - a.timestamp);
-
-    // 4. Finalize Statuses
     if (events.length > 0) {
         const firstEvent = events[0];
         if (firstEvent && firstEvent.status === 'past') {
@@ -241,7 +216,6 @@ const processedTimelineEvents = computed(() => {
     return events;
 });
 
-// Reset state
 watch(() => props.isOpen, (newValue) => {
     if (newValue) {
         comment.value = '';
@@ -288,7 +262,6 @@ const openDocument = () => {
     const filePath = props.documentData?.application_document?.file_path;
     if (filePath) {
         const backendBaseUrl = 'http://localhost:8080'; 
-        // The file_path from backend already contains "uploads/filename.pdf"
         const fileUrl = `${backendBaseUrl}/${filePath}`;
         window.open(fileUrl, '_blank');
     } else {
