@@ -3,35 +3,21 @@
     <div class="card w-full max-w-sm bg-base-100 shadow-xl">
       <div class="card-body">
         <h2 class="card-title text-2xl justify-center">Register</h2>
-        <form @submit.prevent="handleRegister" novalidate>
+        <form @submit.prevent="handleRegister">
           <div class="form-control">
             <label class="label">
               <span class="label-text">Username</span>
             </label>
-            <input
-              type="text"
-              v-model="user.username"
-              required
-              class="input input-bordered"
-              autocomplete="username"
-            />
+            <input type="text" v-model="user.username" required class="input input-bordered" />
           </div>
-
           <div class="form-control mt-4">
             <label class="label">
               <span class="label-text">Password</span>
             </label>
-            <input
-              type="password"
-              v-model="user.password"
-              required
-              class="input input-bordered"
-              autocomplete="new-password"
-            />
+            <input type="password" v-model="user.password" required class="input input-bordered" />
           </div>
-
           <div class="form-control mt-6">
-            <button type="submit" class="btn btn-primary" :disabled="loading" :aria-busy="loading">
+            <button type="submit" class="btn btn-primary" :disabled="loading">
               <span v-if="loading" class="loading loading-spinner"></span>
               <span v-else>Register</span>
             </button>
@@ -54,7 +40,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { authAPI } from '../../services/api';
 import type { CreateUserRequest } from '../../interfaces/user';
 
@@ -62,54 +47,35 @@ const user = ref<CreateUserRequest>({ username: '', password: '' });
 const loading = ref(false);
 const message = ref('');
 const successful = ref(false);
-const router = useRouter();
 
 const handleRegister = async () => {
-  if (loading.value) return;
-
-  // trim inputs
-  const payload: CreateUserRequest = {
-    username: (user.value.username ?? '').trim(),
-    password: (user.value.password ?? '').trim(),
-  };
-
-  if (!payload.username || !payload.password) {
-    message.value = 'Please fill in username and password.';
-    successful.value = false;
-    return;
-  }
-
   loading.value = true;
   message.value = '';
   successful.value = false;
 
   try {
-    const data = await authAPI.signUp(payload);
+    const response = await authAPI.signUp(user.value);
 
-    if (data?.id || data?.success) {
+    if (response && response.status >= 200 && response.status < 300) {
+      loading.value = false;
       successful.value = true;
-      message.value = data?.message ?? 'Registration successful!';
-
-      // เคลียร์ฟอร์มเล็กน้อย
-      user.value.username = '';
-      user.value.password = '';
-
-      // redirect ไปหน้า login หลังสำเร็จ (รอ 1s เพื่อให้ผู้ใช้เห็นข้อความ) 
-      setTimeout(() => {
-        router.push('/login');
-      }, 800);
-
-      return;
+      message.value = response.data.message || 'Registration successful!';
+    } else {
+      loading.value = false;
+      successful.value = false;
+      message.value =
+        (response && response.data && (response.data.error || response.data.message)) ||
+        'Registration failed.';
     }
-
-    successful.value = false;
-    message.value = data?.error ?? data?.message ?? 'Registration failed.';
-  } catch (err: any) {
-    successful.value = false;
-    message.value = err?.message ?? 'An unexpected error occurred.';
-  } finally {
+  } catch (error: any) {
     loading.value = false;
+    successful.value = false;
+    message.value =
+      (error.response &&
+        error.response.data &&
+        error.response.data.error) ||
+      error.message ||
+      'An unexpected error occurred.';
   }
 };
 </script>
-
