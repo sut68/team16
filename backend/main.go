@@ -108,12 +108,27 @@ func main() {
 		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
+		//scholarship
+		api.GET("/scholarship", controllers.GetAllScholarship)
+		api.GET("/scholarship/:id", controllers.GetScholarshipByID)
+		api.POST("/scholarship", controllers.CreateScholarship)
+		api.PUT("/scholarship/:id", controllers.UpdateScholarship)
+		api.DELETE("/scholarship/:id", controllers.DeleteScholarship)
+
+		//assistance
+		api.GET("/assistance", controllers.GetAllAssistance)
+		api.GET("/assistance/:id", controllers.GetAssistanceByID)
+		api.POST("/assistance", controllers.CreateAssistance)
+		api.PUT("/assistance/:id", controllers.UpdateAssistance)
+		api.DELETE("/assistance/:id", controllers.DeleteAssistance)
+		
 		api.GET("/approval-tasks", controllers.GetApprovalTasks)
 		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
 		api.POST("/approval-tasks", controllers.CreateApprovalTask)
 		api.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)
 		api.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)
 		api.POST("/approval-decisions", controllers.CreateApprovalDecision)
+
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080
