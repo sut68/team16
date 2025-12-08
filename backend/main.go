@@ -17,20 +17,68 @@ func main() {
 
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
-	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"} // Allow frontend dev server
-	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173" ,"http://localhost:5174"} // Allow frontend dev server
+	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(configCORS))
+
+	// Serve static files from the "uploads" directory
+	r.Static("/uploads", "./uploads")
 
 	// Connect to Database
 	config.ConnectDB()
 
-	// Auto-migrate the schema
-	if err := config.DB.AutoMigrate(
+	if err := config.DB.Migrator().DropTable(
+		&entity.Role{},
 		&entity.User{},
+		&entity.AdminProfile{},
+		&entity.Application{},
+		&entity.ApplicationDocument{},
+		&entity.ApprovalDecision{},
+		&entity.ApprovalTask{},
+		&entity.FamilyInfo{},
+		&entity.Major{},
+		&entity.NewsPost{},
+		&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
+		&entity.Scholarship{},
+		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
 		&entity.SponsorContact{},
+		&entity.StatusNews{},
+		&entity.StatusScreening{},
+		&entity.Statusscholarship{},
+		&entity.StudentFavNews{},
+		&entity.StudentProfile{},
+		&entity.Typescholarship{},
+	); err != nil {
+		log.Fatalf("DropTable failed: %v", err)
+	}
+
+	// Auto-migrate the schema
+	if err := config.DB.AutoMigrate(
+		&entity.Role{},
+		&entity.User{},
+		&entity.AdminProfile{},
+		&entity.Application{},
+		&entity.ApplicationDocument{},
+		&entity.ApprovalDecision{},
+		&entity.ApprovalTask{},
+		&entity.FamilyInfo{},
+		&entity.Major{},
+		&entity.NewsPost{},
+		&entity.Scholarship{},
+		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
+		&entity.Screening{},
+		&entity.SponsorIndustry{},
+		&entity.Sponsor{},
+		&entity.SponsorContact{},
+		&entity.StatusNews{},
+		&entity.StatusScreening{},
+		&entity.Statusscholarship{},
+		&entity.StudentFavNews{},
+		&entity.StudentProfile{},
+		&entity.Typescholarship{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -38,7 +86,11 @@ func main() {
 	}
 
 	// Seed
-	seed.SeedAll(config.DB)
+	if err := seed.SeedAll(config.DB); err != nil {
+		log.Fatalf("Seed failed: %v", err)
+	} else {
+		log.Println("Seed completed")
+	}
 
 	// API routes
 	api := r.Group("/api")
@@ -46,13 +98,14 @@ func main() {
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
 
-		r.GET("/industries", controllers.GetIndustries)
-		r.POST("/industries", controllers.CreateIndustry)
+		api.GET("/industries", controllers.GetIndustries)
+	 	api.POST("/industries", controllers.CreateIndustry)
 
 		api.GET("/sponsors", controllers.GetSponsors)
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
 		api.POST("/sponsors", controllers.CreateSponsor)
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
+		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
 		//scholarship
@@ -69,7 +122,13 @@ func main() {
 		api.PUT("/assistance/:id", controllers.UpdateAssistance)
 		api.DELETE("/assistance/:id", controllers.DeleteAssistance)
 		
-		
+		api.GET("/approval-tasks", controllers.GetApprovalTasks)
+		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
+		api.POST("/approval-tasks", controllers.CreateApprovalTask)
+		api.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)
+		api.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)
+		api.POST("/approval-decisions", controllers.CreateApprovalDecision)
+
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

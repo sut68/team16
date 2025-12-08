@@ -133,3 +133,11 @@ export const Delete = async (
 export const axiosInstance = axios.create({
   baseURL: API_URL,
 });
+
+export const https = {
+  get: axiosInstance.get,
+  post: axiosInstance.post,
+  put: axiosInstance.put,
+  delete: axiosInstance.delete,
+  patch: axiosInstance.patch,
+}

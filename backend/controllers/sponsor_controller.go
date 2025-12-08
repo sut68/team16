@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm/clause"
 )
 
 // GET /sponsors
@@ -58,6 +59,12 @@ func CreateSponsor(ctx *gin.Context) {
 		return
 	}
 
+	// ป้องกัน client ส่งค่า ID หรือ SponsorID มาเอง
+	for i := range inputValues.Contacts {
+    inputValues.Contacts[i].ID = 0
+    inputValues.Contacts[i].SponsorID = 0
+	}
+
 	sponsor := entity.Sponsor{
 		CompanyName:		inputValues.CompanyName,
 		IndustryID:			inputValues.IndustryID,
@@ -67,9 +74,35 @@ func CreateSponsor(ctx *gin.Context) {
 		Contacts:			inputValues.Contacts,
 	}
 
+	// เริ่มต้นการดำเนินการฐานข้อมูล
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+	// defer เพื่อจัดการ Rollback หากเกิด Panic
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
 	// INSERT
-	if err := config.DB.Create(&sponsor).Error; err != nil {
+	if err := tx.Create(&sponsor).Error; err != nil {
+		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := config.DB.Preload("Contacts").First(&sponsor, sponsor.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reload sponsor"})
 		return
 	}
 
@@ -78,12 +111,18 @@ func CreateSponsor(ctx *gin.Context) {
 
 // PATCH /sponsors/:id
 func UpdateSponsor(ctx *gin.Context) {
-	id := ctx.Param("id")
-	var sponsor entity.Sponsor
+	idParam := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	id := uint(idUint)
 
+	var sponsor entity.Sponsor
 	// หา sponsor ว่ามีมั้ย กันส่ง มาไม่มีอยู่
 	if err := config.DB.Preload("Contacts").First(&sponsor, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Not Found!!!!"})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "sponsor not found"})
 		return
 	}
 
@@ -93,13 +132,26 @@ func UpdateSponsor(ctx *gin.Context) {
 		Website				*string		`json:"website"`
 		Status				*string		`json:"status"`
 		Description		*string		`json:"description"`
-		Contacts			[]entity.SponsorContact		`json:"contacts"`
 	}
 
 	if err := ctx.ShouldBindJSON(&inputValues); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// เริ่มต้นการดำเนินการฐานข้อมูล
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+	// defer เพื่อจัดการ Rollback หากเกิด Panic
+	defer func ()  {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
 
 	updates := map[string]interface{}{}
 
@@ -127,28 +179,142 @@ func UpdateSponsor(ctx *gin.Context) {
 		}
 	}
 
-	// Contact
-	if inputValues.Contacts != nil {
-		config.DB.Where("sponsor_id = ?", sponsor.ID).Delete(&entity.SponsorContact{})
-		for i := range inputValues.Contacts {
-			inputValues.Contacts[i].SponsorID = sponsor.ID
-		}
-
-		if err := config.DB.Create(&inputValues.Contacts).Error; err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+	if err := config.DB.Preload("Contacts").First(&sponsor, sponsor.ID).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, sponsor)
 }
 
+// PATCH /sponsors/:id/contacts
+type BatchContactsPayload struct {
+	Upsert			[]entity.SponsorContact	 `json:"upsert"`
+	DeleteIDs		[]uint									 `json:"delete_ids"`
+}
+
+func UpdateSponsorContacts(ctx *gin.Context) {
+	idParam := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid sponsor id"})
+		return
+	}
+	sponsorID := uint(idUint)
+
+	var payload BatchContactsPayload
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// เริ่มต้นการดำเนินการฐานข้อมูล
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+	// defer เพื่อจัดการ Rollback หากเกิด Panic
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	var sponsor entity.Sponsor
+	if err := tx.First(&sponsor, sponsorID).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "sponsor not found"})
+		return
+	}
+
+	// บังคับใส่ sponsorID ให้ทุกรายการ
+	for i := range payload.Upsert {
+		payload.Upsert[i].SponsorID = sponsorID
+	}
+
+	if len(payload.Upsert) > 0 {
+		if err := tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"name", "email", "phone", "position", "sponsor_id", "updated_at",
+			}),
+		}).Create(&payload.Upsert).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	if len(payload.DeleteIDs) > 0 {
+		if err := tx.Where("id IN ? AND sponsor_id = ?", payload.DeleteIDs, sponsorID).
+			Delete(&entity.SponsorContact{}).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var contacts []entity.SponsorContact
+	if err := config.DB.Where("sponsor_id = ?", sponsorID).Find(&contacts).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"contacts": contacts})
+}
+
 // DELETE /sponsors/:id
 func DeleteSponsor(ctx *gin.Context) {
-	id := ctx.Param("id")
+	idParam := ctx.Param("id")
+	idUint, err := strconv.ParseUint(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	sponsorID := uint(idUint)
+
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
+
+	var sponsor entity.Sponsor
+	if err := tx.First(&sponsor, sponsorID).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "sponsor not found"})
+		return
+	}
+
+	if err := tx.Where("sponsor_id = ?", sponsorID).
+		Delete(&entity.SponsorContact{}).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	// DELETE
-	if err := config.DB.Delete(&entity.Sponsor{}, id).Error; err != nil {
+	if err := tx.Delete(&entity.Sponsor{}, sponsorID).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

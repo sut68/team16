@@ -1,9 +1,12 @@
 package seed
 
 import (
+	"backend/seed/scholarship"
 	"gorm.io/gorm"
 
+	"backend/seed/approval"
 	"backend/seed/sponsor"
+	"backend/seed/user"
 )
 
 func SeedAll(db *gorm.DB) error {
@@ -13,6 +16,58 @@ func SeedAll(db *gorm.DB) error {
 	}
 
 	if err := sponsor.SeedSponsors(db); err != nil {
+		return err
+	}
+
+	if err := user.SeedRoles(db); err != nil {
+		return err
+	}
+
+	if err := user.SeedUsers(db); err != nil {
+		return err
+	}
+
+	if err := user.SeedMajors(db); err != nil {
+		return err
+	}
+
+	if err := user.SeedStudentProfiles(db); err != nil {
+		return err
+	}
+
+	if err := user.SeedAdminProfiles(db); err != nil {
+		return err
+	}
+
+	if err := scholarship.SeedStatusScholarships(db); err != nil {
+		return err
+	}
+
+	if err := scholarship.SeedTypeScholarships(db); err != nil {
+		return err
+	}
+
+	if err := scholarship.SeedScholarships(db); err != nil {
+		return err
+	}
+
+	if err := approval.SeedApprovalRequirements(db); err != nil {
+		return err
+	}
+
+	if err := approval.SeedApplications(db); err != nil {
+		return err
+	}
+
+	if err := approval.SeedApplicationDocuments(db); err != nil {
+		return err
+	}
+
+	if err := approval.SeedApprovalTasks(db); err != nil {
+		return err
+	}
+
+	if err := approval.SeedApprovalDecisions(db); err != nil {
 		return err
 	}
 

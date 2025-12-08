@@ -18,6 +18,13 @@
         <span v-show="isSidebarOpen" class="menu-text">แดชบอร์ด</span>
       </router-link>
 
+      <router-link to="/dashboard/news" class="menu-link" active-class="active">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
+        </svg>
+        <span v-show="isSidebarOpen" class="menu-text">ข่าวสาร</span>
+      </router-link>
+
       <router-link to="/dashboard/companies" class="menu-link" active-class="active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
@@ -37,7 +44,7 @@
         <span v-show="isSidebarOpen" class="menu-text">โครงการทุน</span>
       </router-link>
 
-      <router-link to="/dashboard/apply" class="menu-link" active-class="active">
+      <router-link to="/dashboard/screening" class="menu-link" active-class="active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -97,6 +104,15 @@
         <span v-show="isSidebarOpen" class="menu-text">จัดการผู้ใช้</span>
       </router-link>
 
+      <div class="flex-grow"></div> <!-- Spacer -->
+
+      <a @click="handleLogout" class="menu-link cursor-pointer mt-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+        </svg>
+        <span v-show="isSidebarOpen" class="menu-text">ออกจากระบบ</span>
+      </a>
+
     </aside>
     <main class="main-content">
       <button @click="toggleSidebar" class="sidebar-toggle-btn" :style="{ top: toggleButtonTop }">
@@ -114,7 +130,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/logo/ENGi Logo-White.png';
 
 export default defineComponent({
@@ -124,12 +140,19 @@ export default defineComponent({
     const toggleButtonTop = ref('180px');
     const asideRef = ref<HTMLElement | null>(null);
     const route = useRoute();
+    const router = useRouter();
     
     const TRANSITION_DURATION = 300; // ms
     
     // สำหรับ debounce
     let updateTimeout: ReturnType<typeof setTimeout> | null = null;
     let resizeObserver: ResizeObserver | null = null;
+
+    const handleLogout = () => {
+      try { sessionStorage.clear(); } catch {}
+      try { localStorage.clear(); } catch {}
+      router.push('/');
+    };
 
     const updateButtonPosition = () => {
       if (updateTimeout) {
@@ -207,6 +230,7 @@ export default defineComponent({
       toggleSidebar,
       toggleButtonTop,
       asideRef,
+      handleLogout,
     };
   },
 });
@@ -227,7 +251,7 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 12px;
+  margin-top: 10px;
   margin-bottom: 10px;
   position: relative;
 }
@@ -333,7 +357,7 @@ div.sidebar-closed .menu-link {
   border-radius: 15px;
   margin-left: 10px;
   margin-right: 10px;
-  margin-top: 20px;
+  margin-top: 17px;
 }
 
 div.sidebar-closed .menu-link svg {

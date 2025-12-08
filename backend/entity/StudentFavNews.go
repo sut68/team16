@@ -7,7 +7,7 @@ type StudentFavNews struct{
 	NewsPostID uint `json:"news_post_id" gorm:"not null"`
 	NewsPost   NewsPost `json:"news_post" gorm:"foreignKey:NewsPostID"`
 
-	StudentID uint `json:"student_id" gorm:"not null"`
-	Student   StudentProfile `json:"student" gorm:"foreignKey:StudentID"`
+	StudentProfileID uint `json:"student_profile_id" gorm:"not null"`
+	Student   StudentProfile `json:"student" gorm:"foreignKey:StudentProfileID"`
 	
 }
