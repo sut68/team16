@@ -1,104 +1,99 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import DocumentDetailModal from './DocumentDetailModal.vue';
+import { getApprovalTasks } from '../../../services/api/approval';
+import type { ApprovalTaskResponse } from '@/interfaces';
 
-// 1. Interface
-interface DocumentItem {
-  id: number;
-  title: string;
-  applicant: string;
-  date: string;
-  round: string;
-  subStatus?: 'new' | 'resubmitted';
-  status: 'pending' | 'approved' | 'rejected' | 'request-change';
-}
+const allTasks = ref<ApprovalTaskResponse[]>([]);
+const isLoading = ref(true);
+const error = ref<string | null>(null);
 
-// 2. Mock Data
-const pendingItems = ref<DocumentItem[]>([
-  {
-    id: 4,
-    title: 'ทุนมูลนิธิ SCG (เพื่อการศึกษา)',
-    applicant: 'นายสมชาย ใจดี',
-    date: '03 ธ.ค. 2568',
-    round: '1/2568',
-    subStatus: 'new',
-    status: 'pending'
-  },
-  {
-    id: 3,
-    title: 'ทุนกู้ยืม กยศ. (รายเก่า)',
-    applicant: 'น.ส.มานี มีตา',
-    date: '02 ธ.ค. 2568',
-    round: '1/2568',
-    subStatus: 'resubmitted',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    title: 'ทุนบริษัท ปตท. จำกัด (มหาชน)',
-    applicant: 'นายปิติ รักเรียน',
-    date: '01 ธ.ค. 2568',
-    round: 'Special',
-    subStatus: 'new',
-    status: 'pending'
-  },
-  {
-    id: 1,
-    title: 'ทุนศิษย์เก่าสัมพันธ์',
-    applicant: 'น.ส.ชูใจ ใส่ใจ',
-    date: '30 พ.ย. 2568',
-    round: '2/2567',
-    subStatus: 'new',
-    status: 'pending'
-  },
-]);
-
-const historyItems = ref<DocumentItem[]>([
-  { id: 6, title: 'ทุนมูลนิธิ SCG (เพื่อการศึกษา)', applicant: 'นายกล้าหาญ ชาญชัย', date: '20 พ.ย. 2568', round: '1/2568', status: 'approved' },
-  { id: 5, title: 'ทุนการศึกษา ธนาคารกรุงเทพ', applicant: 'น.ส.แก้วตา ขวัญใจ', date: '15 พ.ย. 2568', round: '1/2568', status: 'rejected' },
-]);
-
-const availableRounds = [
-  { label: 'รอบที่ 1/2568', value: '1/2568' },
-  { label: 'รอบที่ 2/2567 (ตกค้าง)', value: '2/2567' },
-  { label: 'รอบพิเศษ', value: 'Special' }
-];
-
-// 3. State
-type TabType = 'pending' | 'history';
-const activeTab = ref<TabType>('pending');
+const activeTab = ref<'pending' | 'history'>('pending');
 const searchQuery = ref('');
 const sortOrder = ref('newest');
 const filterStatus = ref('all');
 const filterRound = ref('all');
 
 const isModalOpen = ref(false);
-const selectedDocument = ref<DocumentItem | null>(null);
+const selectedDocument = ref<ApprovalTaskResponse | null>(null);
 
-// 4. Computed Logic
+const availableRounds = ref([
+  { label: '1/2568', value: '1/2568' },
+  { label: '2/2568', value: '2/2568' },
+  { label: '3/2568', value: '3/2568' }
+]);
+
+const fetchTasks = async () => {
+  isLoading.value = true;
+  error.value = null;
+  try {
+    const tasks = await getApprovalTasks();
+    allTasks.value = tasks.map(task => ({
+      ...task,
+      round: '1/2568', // Mock ค่า
+      submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }),
+    }));
+  } catch (err) {
+    error.value = 'ไม่สามารถโหลดข้อมูลได้';
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(fetchTasks);
+const pendingItems = computed(() => {
+  return allTasks.value.filter(item =>
+    item.status?.toLowerCase() === 'pending' || item.status?.toLowerCase() === 'request-change'
+  );
+});
+
+const historyItems = computed(() => {
+  return allTasks.value.filter(item =>
+    item.status === 'approved' || item.status === 'rejected'
+  );
+});
+
+// Filter Logic
 const filteredItems = computed(() => {
-  let result: DocumentItem[] = [];
+  let result: ApprovalTaskResponse[] = [];
 
-  if (activeTab.value === 'pending') result = [...pendingItems.value];
-  else result = [...historyItems.value];
+  if (activeTab.value === 'pending') {
+    result = [...pendingItems.value];
+  } else {
+    result = [...historyItems.value];
+  }
 
   if (filterRound.value !== 'all') {
     result = result.filter(item => item.round === filterRound.value);
   }
 
   if (activeTab.value === 'pending') {
-    if (sortOrder.value === 'oldest') result.sort((a, b) => a.id - b.id);
-    else result.sort((a, b) => b.id - a.id);
+    if (sortOrder.value === 'oldest') {
+      result.sort((a, b) => new Date(a.CreatedAt).getTime() - new Date(b.CreatedAt).getTime());
+    } else {
+      result.sort((a, b) => new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime());
+    }
   } else {
-    if (filterStatus.value !== 'all') result = result.filter(item => item.status === filterStatus.value);
+    if (filterStatus.value !== 'all') {
+      result = result.filter(item => item.status?.toLowerCase() === filterStatus.value.toLowerCase());
+    }
   }
 
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    result = result.filter(item =>
-      item.title.toLowerCase().includes(query) ||
-      item.applicant.toLowerCase().includes(query)
-    );
+    result = result.filter(item => {
+      const scholarshipName = item.approval_requirement?.scholarship?.scholarship_name || '';
+      const firstName = item.application?.student_profile?.first_name_th || '';
+      const lastName = item.application?.student_profile?.last_name_th || '';
+      const applicantName = `${firstName} ${lastName}`;
+
+      return scholarshipName.toLowerCase().includes(query) || applicantName.toLowerCase().includes(query);
+    });
   }
   return result;
 });
@@ -109,9 +104,7 @@ watch(activeTab, () => {
   filterStatus.value = 'all';
   filterRound.value = 'all';
 });
-
-const handleCardClick = (item: DocumentItem | undefined) => {
-  if (!item) return;
+const handleCardClick = (item: ApprovalTaskResponse) => {
   selectedDocument.value = item;
   isModalOpen.value = true;
 };
@@ -120,34 +113,16 @@ const handleExport = () => {
   alert(`กำลังดาวน์โหลดรายงานรายชื่อผู้ขอรับทุน (Round: ${filterRound.value === 'all' ? 'ทั้งหมด' : filterRound.value})`);
 };
 
-const handleAction = (payload: any) => {
-  if (payload.action === 'approve' || payload.action === 'reject' || payload.action === 'request-change') {
-    const index = pendingItems.value.findIndex(i => i.id === payload.id);
-    if (index !== -1) {
-      const item = pendingItems.value[index];
-      if (!item) return;
-
-      item.status = payload.action === 'approve' ? 'approved'
-        : payload.action === 'reject' ? 'rejected'
-          : 'request-change';
-
-      delete item.subStatus;
-      const removedItem = pendingItems.value.splice(index, 1)[0];
-      if (removedItem) {
-        historyItems.value.unshift(removedItem);
-      }
-    }
-  }
+const handleActionCompleted = () => {
+  isModalOpen.value = false;
+  fetchTasks();
 };
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f0f2f5] p-6 font-sans text-slate-800">
-
     <div class="flex flex-col xl:flex-row items-center justify-between gap-4 mb-6 px-1">
-
       <div class="flex items-center gap-2 overflow-x-auto pb-2 xl:pb-0 hide-scrollbar shrink-0">
-
         <button
           class="relative btn btn-sm h-11 px-6 rounded-full border-0 text-base font-bold transition-all whitespace-nowrap"
           :class="activeTab === 'pending' ? 'bg-white shadow text-[#1e3a8a]' : 'btn-ghost text-gray-500 hover:bg-white/50'"
@@ -160,7 +135,6 @@ const handleAction = (payload: any) => {
           <div v-if="activeTab === 'pending'"
             class="absolute bottom-1 left-6 right-6 h-[3px] bg-[#1e3a8a] rounded-full"></div>
         </button>
-
         <button
           class="relative btn btn-sm h-11 px-6 rounded-full border-0 text-base font-bold transition-all whitespace-nowrap"
           :class="activeTab === 'history' ? 'bg-white shadow text-[#1e3a8a]' : 'btn-ghost text-gray-500 hover:bg-white/50'"
@@ -170,9 +144,7 @@ const handleAction = (payload: any) => {
             class="absolute bottom-1 left-6 right-6 h-[3px] bg-[#1e3a8a] rounded-full"></div>
         </button>
       </div>
-
       <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
-
         <button v-if="activeTab === 'pending'" @click="handleExport"
           class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -182,26 +154,22 @@ const handleAction = (payload: any) => {
           </svg>
           Export
         </button>
-
         <select v-model="filterRound"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto font-medium text-gray-600 shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto font-medium text-gray-600 shadow-sm pl-4 pr-10">
           <option value="all">ทุกรอบการรับสมัคร</option>
           <option v-for="round in availableRounds" :key="round.value" :value="round.value">{{ round.label }}</option>
         </select>
-
         <select v-if="activeTab === 'pending'" v-model="sortOrder"
           class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
           <option value="newest">ใหม่ล่าสุด</option>
           <option value="oldest">ส่งมานานสุด</option>
         </select>
-
         <select v-if="activeTab === 'history'" v-model="filterStatus"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm pl-4 pr-8">
           <option value="all">สถานะทั้งหมด</option>
           <option value="approved">อนุมัติแล้ว</option>
           <option value="rejected">ปฏิเสธ</option>
         </select>
-
         <div class="relative w-full md:w-64">
           <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
@@ -214,28 +182,32 @@ const handleAction = (payload: any) => {
             class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm" />
         </div>
       </div>
-
     </div>
-
-    <div class="space-y-4 pb-10">
+    <div v-if="isLoading" class="text-center py-20 text-gray-500">
+      <span class="loading loading-spinner loading-lg"></span>
+      <p>Loading data...</p>
+    </div>
+    <div v-if="error" class="text-center py-20 text-red-500">
+      <p>{{ error }}</p>
+      <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
+    </div>
+    <div v-if="!isLoading && !error" class="space-y-4 pb-10">
       <transition-group name="fade" tag="div" class="space-y-4">
-
-        <div v-for="item in filteredItems" :key="item.id" @click="handleCardClick(item)"
+        <div v-for="item in filteredItems" :key="item.ID" @click="handleCardClick(item)"
           class="card bg-white shadow-sm rounded-2xl cursor-pointer border border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
           <div class="card-body p-4 md:p-5 flex flex-row items-center justify-between min-h-[6rem]">
-
             <div class="flex flex-col overflow-hidden pr-2">
               <div class="flex flex-wrap items-center gap-2 mb-1">
-                <h3 class="font-bold text-[#1e3a8a] text-base md:text-lg leading-tight truncate">{{ item.title }}</h3>
-
+                <h3 class="font-bold text-[#1e3a8a] text-base md:text-lg leading-tight truncate">
+                  {{ item.approval_requirement?.scholarship?.scholarship_name || 'N/A' }}
+                </h3>
                 <template v-if="activeTab === 'pending'">
-                  <span v-if="item.subStatus === 'resubmitted'"
-                    class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">ส่งเอกสารแก้</span>
-                  <span v-if="item.subStatus === 'new'"
+                  <span v-if="item.status?.toLowerCase() === 'request-change'"
+                    class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">รอผู้สมัครแก้ไข</span>
+                  <span v-if="item.status?.toLowerCase() === 'pending'"
                     class="badge badge-ghost bg-blue-50 text-blue-700 badge-xs py-2 px-2 border-none font-normal">ยื่นใหม่</span>
                 </template>
               </div>
-
               <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mt-1 text-sm text-gray-500">
                 <span
                   class="inline-flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-gray-200 text-xs font-semibold text-gray-600 w-fit">
@@ -248,26 +220,22 @@ const handleAction = (payload: any) => {
                   รอบ: {{ item.round }}
                 </span>
                 <div class="flex items-center gap-2">
-                  <span class="font-medium text-gray-600 truncate">{{ item.applicant }}</span>
+                  <span class="font-medium text-gray-600 truncate">
+                    {{ item.application?.student_profile?.first_name_th }} {{
+                      item.application?.student_profile?.last_name_th }}
+                  </span>
                   <span class="hidden md:inline text-gray-300">|</span>
-                  <span class="text-xs md:text-sm text-gray-400">ส่งเมื่อ {{ item.date }}</span>
+                  <span class="text-xs md:text-sm text-gray-400">ส่งเมื่อ {{ item.submission_date }}</span>
                 </div>
               </div>
             </div>
-
             <div class="flex items-center gap-2 md:gap-3 shrink-0">
               <div v-if="activeTab === 'history'" class="badge badge-sm font-medium h-6 px-2 md:px-3 whitespace-nowrap"
                 :class="{
                   'badge-success text-white': item.status === 'approved',
                   'badge-error text-white': item.status === 'rejected',
-                  'badge-warning text-white': item.status === 'request-change'
                 }">
-                <span class="hidden md:inline">{{ item.status === 'approved' ? 'อนุมัติแล้ว' : item.status ===
-                  'rejected' ? 'ปฏิเสธ'
-                  : 'แก้ไข' }}</span>
-                <span class="md:hidden">{{ item.status === 'approved' ? 'อนุมัติ' : item.status === 'rejected' ?
-                  'ปฏิเสธ' : 'แก้ไข'
-                }}</span>
+                {{ item.status === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธ' }}
               </div>
               <div
                 class="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[#1e3a8a] bg-slate-50 shadow-sm group-hover:bg-blue-50 transition-colors">
@@ -277,10 +245,8 @@ const handleAction = (payload: any) => {
                 </svg>
               </div>
             </div>
-
           </div>
         </div>
-
         <div v-if="filteredItems.length === 0" :key="'empty'"
           class="flex flex-col items-center justify-center py-16 text-gray-400">
           <div class="bg-white/50 p-4 rounded-full mb-3">
@@ -291,17 +257,12 @@ const handleAction = (payload: any) => {
             </svg>
           </div>
           <p v-if="searchQuery">ไม่พบข้อมูลที่ตรงกับ "{{ searchQuery }}"</p>
-          <p v-else>ไม่พบรายการในรอบที่เลือก</p>
+          <p v-else>ไม่พบรายการ</p>
         </div>
-
       </transition-group>
     </div>
-
-    <DocumentDetailModal :isOpen="isModalOpen" :documentData="selectedDocument" @close="isModalOpen = false"
-      @approve="(payload: any) => handleAction({ ...payload, action: 'approve' })"
-      @reject="(payload: any) => handleAction({ ...payload, action: 'reject' })"
-      @request-change="(payload: any) => handleAction({ ...payload, action: 'request-change' })" />
-
+    <DocumentDetailModal v-if="isModalOpen" :isOpen="isModalOpen" :documentData="selectedDocument"
+      @close="isModalOpen = false" @action-completed="handleActionCompleted" />
   </div>
 </template>
 

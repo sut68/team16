@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { jwtDecode } from 'jwt-decode';
 import { authAPI } from '../../services/api';
 import type { LoginUserRequest } from '../../interfaces/user';
 
@@ -80,24 +81,33 @@ const handleLogin = async () => {
   message.value = '';
 
   try {
-    // เรียกตรง ๆ เพราะ Post คืน data แล้ว
     const data = await authAPI.login(user.value);
 
     if (data?.token) {
       sessionStorage.setItem('token', data.token);
       if (data.token_type) sessionStorage.setItem('token_type', data.token_type);
 
+      // Decode token to get role
+      const decodedToken: { role: string } = jwtDecode(data.token);
+      
       loading.value = false;
-      await router.push('/dashboard');
-      window.location.reload();
+
+      // Redirect based on role
+      if (decodedToken.role === 'admin') {
+        await router.push('/admin');
+      } else if (decodedToken.role === 'user' || decodedToken.role === 'student') {
+        await router.push('/dashboard');
+      } else {
+        // Fallback for unknown roles, maybe to home
+        await router.push('/');
+      }
+      
+      window.location.reload(); // Reload to apply new state
       return;
     }
 
-    // ถ้าไม่มี token ให้แสดงข้อความจาก backend หรือข้อความเริ่มต้น
     message.value = data?.error ?? data?.message ?? 'Login failed. Please check your credentials.';
   } catch (error: any) {
-    // ปกติด้วยการแก้ Post แล้ว เราไม่ควรมา catch ที่นี่เพื่ออ่าน response data
-    // แต่เผื่อ network error หรือ exception อื่น ๆ ให้ fallback ข้อความ
     message.value = error?.message ?? 'An unexpected error occurred.';
   } finally {
     loading.value = false;

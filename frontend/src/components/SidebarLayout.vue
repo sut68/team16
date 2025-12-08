@@ -104,6 +104,15 @@
         <span v-show="isSidebarOpen" class="menu-text">จัดการผู้ใช้</span>
       </router-link>
 
+      <div class="flex-grow"></div> <!-- Spacer -->
+
+      <a @click="handleLogout" class="menu-link cursor-pointer mt-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+        </svg>
+        <span v-show="isSidebarOpen" class="menu-text">ออกจากระบบ</span>
+      </a>
+
     </aside>
     <main class="main-content h-screen flex flex-col">
       <button @click="toggleSidebar" class="sidebar-toggle-btn" :style="{ top: toggleButtonTop }">
@@ -121,7 +130,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/logo/ENGi Logo-White.png';
 
 export default defineComponent({
@@ -131,12 +140,19 @@ export default defineComponent({
     const toggleButtonTop = ref('180px');
     const asideRef = ref<HTMLElement | null>(null);
     const route = useRoute();
+    const router = useRouter();
     
     const TRANSITION_DURATION = 300; // ms
     
     // สำหรับ debounce
     let updateTimeout: ReturnType<typeof setTimeout> | null = null;
     let resizeObserver: ResizeObserver | null = null;
+
+    const handleLogout = () => {
+      try { sessionStorage.clear(); } catch {}
+      try { localStorage.clear(); } catch {}
+      router.push('/');
+    };
 
     const updateButtonPosition = () => {
       if (updateTimeout) {
@@ -214,6 +230,7 @@ export default defineComponent({
       toggleSidebar,
       toggleButtonTop,
       asideRef,
+      handleLogout,
     };
   },
 });
@@ -234,7 +251,7 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 12px;
+  margin-top: 10px;
   margin-bottom: 10px;
   position: relative;
 }
@@ -340,7 +357,7 @@ div.sidebar-closed .menu-link {
   border-radius: 15px;
   margin-left: 10px;
   margin-right: 10px;
-  margin-top: 20px;
+  margin-top: 17px;
 }
 
 div.sidebar-closed .menu-link svg {

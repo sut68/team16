@@ -13,5 +13,4 @@ type User struct {
 
 	AdminProfiles []AdminProfile `gorm:"foreignKey:UserID" json:"admin_profile"`
 	StudentProfiles []StudentProfile `gorm:"foreignKey:UserID" json:"student_profile"`
-	Applications []Application `gorm:"foreignKey:UserID" json:"applications"`
 }

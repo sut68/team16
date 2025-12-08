@@ -21,8 +21,13 @@ const protectedRoutes: Array<RouteRecordRaw> = [
         name: 'Approval',
         component: () => import('../pages/protected/Approval/ApprovalList.vue'),
       },
+      {
+        path: 'sponsors',
+        name: 'Sponsors',
+        component: () => import('../pages/protected/Sponsor/SponsorList.vue'),
+      },
     ],
-    // meta: { requiresAuth: true },
+    meta: { requiresAuth: true },
   },
 ];
 
