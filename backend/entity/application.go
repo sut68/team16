@@ -8,5 +8,5 @@ type Application struct {
 	StudentProfileID uint           `json:"student_profile_id" valid:"required~Student profile ID is required"`
 	StudentProfile   *StudentProfile `gorm:"foreignKey:StudentProfileID" json:"student_profile"`
 
-	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationID" json:"application_documents"`
+	ApplicationScholarships []ApplicationScholarship `gorm:"foreignKey:ApplicationID" json:"application_scholarships"`
 }

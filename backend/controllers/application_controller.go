@@ -1,19 +1,20 @@
 package controllers
 
 import (
-	"backend/config"
-	"backend/entity"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+
+	"backend/config"
+	"backend/entity"
 )
 
 // GET /applications
 func GetApplications(ctx *gin.Context) {
 	var applications []entity.Application
 
-	if err := config.DB.Preload("StudentProfile").Preload("ApplicationDocuments").Find(&applications).Error; err != nil {
+	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").Find(&applications).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -32,7 +33,7 @@ func GetApplicationByID(ctx *gin.Context) {
 
 	var application entity.Application
 
-	if err := config.DB.Preload("StudentProfile").Preload("ApplicationDocuments").First(&application, id).Error; err != nil {
+	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").First(&application, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Application not found"})
 		return
 	}
@@ -78,4 +79,40 @@ func DeleteApplication(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Application deleted successfully"})
+}
+
+// GET /students/:student_profile_id/applications
+func GetStudentApplications(ctx *gin.Context) {
+	studentIDStr := ctx.Param("student_profile_id")
+	studentID, err := strconv.ParseUint(studentIDStr, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid student profile id"})
+		return
+	}
+
+	// Find the parent Application record for the student
+	var application entity.Application
+	if err := config.DB.Where("student_profile_id = ?", studentID).First(&application).Error; err != nil {
+		if err.Error() == "record not found" {
+			ctx.JSON(http.StatusOK, []entity.ApplicationScholarship{})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find application record: " + err.Error()})
+		return
+	}
+
+	// Preload all associated scholarship applications
+	var appScholarships []entity.ApplicationScholarship
+	if err := config.DB.
+		Where("application_id = ?", application.ID).
+		Preload("Scholarship.Statusscholarship").
+		Preload("Scholarship.Typescholarship").
+		Preload("Application").
+		Preload("ApplicationDocuments.ApprovalTasks.ApprovalDecisions").
+		Find(&appScholarships).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve scholarship applications: " + err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, appScholarships)
 }

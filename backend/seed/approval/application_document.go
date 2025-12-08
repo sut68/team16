@@ -8,43 +8,32 @@ import (
 
 func SeedApplicationDocuments(db *gorm.DB) error {
 	if err := db.First(&entity.ApplicationDocument{}).Error; err == gorm.ErrRecordNotFound {
+		// Find the application scholarship that should be in 'pending' state
+		var appScholarship entity.ApplicationScholarship
+		if err := db.Where("status = ?", "pending").First(&appScholarship).Error; err != nil {
+			return err
+		}
+
+		// Find the student user to use for the 'UploadedBy' field
 		var user entity.User
 		if err := db.Where("username = ?", "user").First(&user).Error; err != nil {
 			return err
 		}
 
-		var studentProfile entity.StudentProfile
-		if err := db.Where("user_id = ?", user.ID).First(&studentProfile).Error; err != nil {
-			return err
-		}
-
-		var application entity.Application
-		if err := db.Where("student_profile_id = ?", studentProfile.ID).First(&application).Error; err != nil {
-			return err
-		}
-
-		var req1, req2 entity.ApprovalRequirement
-		if err := db.Where("description = ?", "Transkrip nilai semester terakhir").First(&req1).Error; err != nil {
-			return err
-		}
-		if err := db.Where("description = ?", "Surat rekomendasi dari dekan fakultas").First(&req2).Error; err != nil {
-			return err
-		}
-
 		documents := []entity.ApplicationDocument{
 			{
-				FileName:      "transkrip_semester_5.pdf",
-				FilePath:      "test.pdf",
-				FileType:      "application/pdf",
-				UploadedBy:    "student1",
-				ApplicationID: application.ID,
-				RequirementID: req1.ID,
+				FileName:                 "transkrip_nilai_seed.pdf",
+				FilePath:                 "test.pdf",
+				FileType:                 "application/pdf",
+				UploadedBy:               "user",
+				ApplicationScholarshipID: appScholarship.ID,
 			},
 			{
-				FileName:      "surat_rekomendasi_dekan.pdf",
-				UploadedBy:    "student1",
-				ApplicationID: application.ID,
-				RequirementID: req2.ID,
+				FileName:                 "surat_rekomendasi_seed.pdf",
+				FilePath:                 "test.pdf",
+				FileType:                 "application/pdf",
+				UploadedBy:               "user",
+				ApplicationScholarshipID: appScholarship.ID,
 			},
 		}
 

@@ -4,20 +4,26 @@ import { makeApprovalDecision } from '@/services/api/approval';
 // Import Interfaces
 import type { ApprovalTaskResponse } from '@/interfaces';
 
+// Local interface to include mocked/client-side-only properties
+interface ApprovalTaskDisplay extends ApprovalTaskResponse {
+  round?: string;
+  submission_date?: string;
+}
+
 interface TimelineEvent {
     id: number | string;
     title: string;
     date: string;
     description: string;
     actor: string;
-    status: string; // current, past, past-approved, past-rejected, past-request-change, past-submitted
+    status: string
     type: 'task' | 'decision';
     timestamp: number;
 }
 
 const props = defineProps<{
     isOpen: boolean;
-    documentData: ApprovalTaskResponse | null;
+    documentData: ApprovalTaskDisplay | null;
 }>();
 
 const emit = defineEmits(['close', 'action-completed']);
@@ -28,36 +34,29 @@ const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
 
-// ✅ Helper: แปลงวันที่จาก Go Time String เป็น JS Date Object
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
     
     let dateStr: string = String(dateString);
-    
-    // 1. ตัดส่วน Monotonic clock (m=+...) ออก
+
     if (dateStr.includes(' m=')) {
         const parts: string[] = dateStr.split(' m=');
         dateStr = parts[0] as string;
     }
-    
-    // 2. แปลงรูปแบบให้เป็น ISO 8601
-    // ตัวอย่าง: "2025-12-05 10:47:51.344406723 +0000 UTC" -> "2025-12-05T10:47:51.344Z"
+
     if (dateStr.includes('+0000 UTC')) {
         dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
     }
-    
-    // 3. ตัด Nanoseconds ให้เหลือ Milliseconds (3 หลัก)
+
     dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
 
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
 };
 
-// Helper: Format Date (Thai)
 const formatDate = (dateString: string | undefined | number) => {
     if (!dateString) return 'เมื่อสักครู่';
-    
-    // ถ้าเป็น number (timestamp) ให้แปลงเลย
+
     if (typeof dateString === 'number') {
         return new Date(dateString).toLocaleDateString('th-TH', {
             year: 'numeric',
@@ -68,7 +67,6 @@ const formatDate = (dateString: string | undefined | number) => {
         });
     }
 
-    // ถ้าเป็น string ให้ผ่าน parseGoDate ก่อน
     const date = parseGoDate(dateString);
     if (!date) return 'เมื่อสักครู่'; 
     
@@ -81,29 +79,24 @@ const formatDate = (dateString: string | undefined | number) => {
     });
 };
 
-// Check if user can perform action
 const canAction = computed(() => {
     if (!props.documentData?.status) return false;
     const s = props.documentData.status.toLowerCase();
     return s === 'pending' || s === 'request-change';
 });
 
-// ✅ Timeline Logic
 const processedTimelineEvents = computed(() => {
     if (!props.documentData) return [];
 
     const events: TimelineEvent[] = [];
     const doc = props.documentData;
-    
-    // Determine the actor's name once with explicit checks for TypeScript
+
     const adminActorName = (doc.admin_profile && doc.admin_profile.admin_firstname) ? doc.admin_profile.admin_firstname : 'ระบบ';
-    
-    // Parse timestamp สำหรับการยื่นใบสมัคร
+
     const createdDate = parseGoDate(doc.CreatedAt);
-    // ถ้า parse ไม่ได้ ให้ใช้เวลาปัจจุบันลบไปนิดหน่อย เพื่อให้มันไปอยู่ล่างสุด (เก่าสุด)
+
     let createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
 
-    // 1. Base Event: ยื่นใบสมัคร (เสมอ)
     events.push({
         id: 'created',
         title: 'ยื่นใบสมัครแล้ว',
@@ -115,15 +108,12 @@ const processedTimelineEvents = computed(() => {
         timestamp: createdTs,
     });
 
-    // 2. Decision Events: ประวัติการตัดสินใจ
     if (doc.approval_decisions && doc.approval_decisions.length > 0) {
         doc.approval_decisions.forEach(decision => {
             let title = '';
             let status = '';
             let description = decision.comment || '';
             const dType = decision.decision?.toLowerCase() || '';
-
-            // ✅ กรอง "ดำเนินการ" ออก: ถ้าไม่ใช่สถานะหลัก (approve, reject, request-change) ให้ข้ามไปเลย
             if (!['approve', 'reject', 'request-change'].includes(dType)) {
                 return;
             }
@@ -144,7 +134,6 @@ const processedTimelineEvents = computed(() => {
                     break;
             }
 
-            // Parse timestamp ของการตัดสินใจ
             const decisionDate = parseGoDate(decision.decision_at);
             const ts = decisionDate ? decisionDate.getTime() : Date.now();
             
@@ -161,13 +150,10 @@ const processedTimelineEvents = computed(() => {
         });
     }
 
-    // 3. Handle Current Status & Missing Events
     const currentStatus = doc.status?.toLowerCase() || '';
     const nowTs = Date.now();
 
-    // กรณีรอดำเนินการ (Pending)
     if (currentStatus === 'pending') {
-        // หาวันที่อัปเดตล่าสุดที่แท้จริง
         const updateDate = parseGoDate(doc.UpdatedAt);
         const updateTs = updateDate ? updateDate.getTime() : nowTs;
 
@@ -179,10 +165,9 @@ const processedTimelineEvents = computed(() => {
             actor: adminActorName, 
             status: 'current',
             type: 'task',
-            timestamp: updateTs > createdTs ? updateTs : createdTs + 1000, // ให้มั่นใจว่าอยู่หลัง CreatedAt
+            timestamp: updateTs > createdTs ? updateTs : createdTs + 1000,
         });
     }
-    // กรณีอนุมัติ (Approved) แต่ไม่มี Event ใน Timeline
     else if (currentStatus === 'approved') {
         const hasApprovedEvent = events.some(e => e.status === 'past-approved');
         if (!hasApprovedEvent) {
@@ -198,7 +183,6 @@ const processedTimelineEvents = computed(() => {
             });
         }
     }
-    // กรณีปฏิเสธ (Rejected) แต่ไม่มี Event ใน Timeline
     else if (currentStatus === 'rejected') {
         const hasRejectedEvent = events.some(e => e.status === 'past-rejected');
         if (!hasRejectedEvent) {
@@ -215,10 +199,7 @@ const processedTimelineEvents = computed(() => {
         }
     }
 
-    // Sort Descending (Newest First) - ล่าสุดอยู่บน
     events.sort((a, b) => b.timestamp - a.timestamp);
-
-    // 4. Finalize Statuses
     if (events.length > 0) {
         const firstEvent = events[0];
         if (firstEvent && firstEvent.status === 'past') {
@@ -235,7 +216,6 @@ const processedTimelineEvents = computed(() => {
     return events;
 });
 
-// Reset state
 watch(() => props.isOpen, (newValue) => {
     if (newValue) {
         comment.value = '';
@@ -279,9 +259,10 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 };
 
 const openDocument = () => {
-    if (props.documentData?.application_document?.file_path) {
+    const filePath = props.documentData?.application_document?.file_path;
+    if (filePath) {
         const backendBaseUrl = 'http://localhost:8080'; 
-        const fileUrl = `${backendBaseUrl}/uploads/${props.documentData.application_document.file_path}`;
+        const fileUrl = `${backendBaseUrl}/${filePath}`;
         window.open(fileUrl, '_blank');
     } else {
         alert('ไม่พบไฟล์เอกสาร');
@@ -297,7 +278,7 @@ const openDocument = () => {
             <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
                 <div>
                     <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">
-                        {{ documentData.approval_requirement?.scholarship?.scholarship_name || 'รายละเอียดทุนการศึกษา'
+                        {{ documentData.application_document.application_scholarship?.scholarship?.scholarship_name || 'รายละเอียดทุนการศึกษา'
                         }}
 
                         <span class="badge badge-warning text-white"
@@ -333,32 +314,32 @@ const openDocument = () => {
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อมูลผู้สมัคร</h3>
-                                <div v-if="documentData.application?.student_profile"
+                                <div v-if="documentData.application_document.application_scholarship?.application?.student_profile"
                                     class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <span class="block text-gray-400">ชื่อ-นามสกุล</span>
                                         <span class="font-semibold text-slate-800 text-lg">
-                                            {{ documentData.application.student_profile.first_name_th }}
-                                            {{ documentData.application.student_profile.last_name_th }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.first_name_th }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.last_name_th }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">รหัสนักศึกษา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.student_id || '-' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.student_id || '-' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">สาขาวิชา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.major?.major_name || 'N/A' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.major?.major_name || 'N/A' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">เกรดเฉลี่ย (GPAX)</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application.student_profile.gpax ?
-                                                documentData.application.student_profile.gpax.toFixed(2) : '-' }}
+                                            {{ documentData.application_document.application_scholarship.application.student_profile.gpax ?
+                                                documentData.application_document.application_scholarship.application.student_profile.gpax.toFixed(2) : '-' }}
                                         </span>
                                     </div>
                                 </div>
@@ -401,10 +382,10 @@ const openDocument = () => {
                                     ข้อกำหนดทั้งหมดของทุนนี้
                                 </h3>
                                 
-                                <div v-if="documentData.approval_requirement?.scholarship?.approval_requirements?.length">
+                                <div v-if="documentData.application_document.application_scholarship?.scholarship?.approval_requirements?.length">
                                     <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm">
-                                        <li v-for="req in documentData.approval_requirement.scholarship.approval_requirements" :key="req.ID">
-                                            {{ req.description }}
+                                        <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements" :key="req.ID">
+                                            {{ req.requirement.name }}
                                         </li>
                                     </ul>
                                 </div>
