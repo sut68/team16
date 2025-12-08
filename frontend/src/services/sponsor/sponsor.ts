@@ -6,6 +6,15 @@ const api = axios.create({
   timeout: 10000,
 })
 
+export type SponsorUpdatePayload = Partial<Omit<SponsorPayload, 'ID'>>;
+
+function stripUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  return Object.entries(obj).reduce((acc, [k, v]) => {
+    if (v !== undefined) (acc as any)[k] = v;
+    return acc;
+  }, {} as Partial<T>);
+}
+
 export const SponsorService = {
   async getAll(): Promise<SponsorResponse[]> {
     const res = await api.get<SponsorResponse[]>('/sponsors');
@@ -22,13 +31,13 @@ export const SponsorService = {
     return res.data;
   },
 
-  async update(id: number, data: SponsorPayload): Promise<SponsorResponse> {
-    const res = await api.patch<SponsorResponse>(`/sponsors/${id}`, data);
+  async update(id: number, data: SponsorUpdatePayload): Promise<SponsorResponse> {
+    const payload = stripUndefined(data);
+    const res = await api.patch<SponsorResponse>(`/sponsors/${id}`, payload);
     return res.data;
   },
 
   async delete(id: number): Promise<void> {
-    const res = await api.delete<void>(`/sponsors/${id}`);
-    return res.data;
+    await api.delete(`/sponsors/${id}`);
   },
 };
