@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ 'sidebar-closed': !isSidebarOpen }">
+  <div :class="{ 'sidebar-closed': !isSidebarOpen }" class="h-screen" data-theme="light">
     <aside ref="asideRef">
       <div class="logo-and-menu-header">
         <img class="logo" :src="logo" alt="logo">
@@ -114,14 +114,14 @@
       </a>
 
     </aside>
-    <main class="main-content">
+    <main class="main-content h-screen flex flex-col">
       <button @click="toggleSidebar" class="sidebar-toggle-btn" :style="{ top: toggleButtonTop }">
         <svg :class="{ 'rotate-180': !isSidebarOpen }" xmlns="http://www.w3.org/2000/svg" fill="none"
           viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
       </button>
-      <div class='main-scroll'>
+      <div class='main-scroll flex-1 overflow-auto'>
         <router-view />
       </div>
     </main>
@@ -436,20 +436,23 @@ aside p {
 .main-content {
   height: 100vh;
   position: relative;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  /* overflow: visible; */
   margin-left: 260px;
 }
 
 .main-scroll {
+  flex: 1;
   width: 100%;
   padding: 20px;
-  height: 100%;
+  /* height: 100%; */
   border-top-left-radius: 50px;
   background-color: #f0f2f5;
   overflow-x: hidden;
   overflow-y: hidden;
   margin-left: 30px;
-  max-width: 1500px;
+  /* max-width: 1500px; */
   margin: 0 0;
 }
 
