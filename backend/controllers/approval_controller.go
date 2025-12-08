@@ -1,27 +1,75 @@
 package controllers
 
 import (
+
 	"backend/config"
+
 	"backend/entity"
+
+	"encoding/json"
+
 	"fmt"
+
 	"net/http"
+
 	"strconv"
+
 	"time"
 
+
+
 	"github.com/gin-gonic/gin"
+
 )
+
+
+
 func GetApprovalTasks(ctx *gin.Context) {
+
 	var tasks []entity.ApprovalTask
+
 	if err := config.DB.
+
 		Preload("Admin").
-		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile").
-		Preload("ApplicationDocument.ApplicationScholarship.Scholarship").
+
+		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+
+		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+
 		Preload("ApprovalDecisions").
+
 		Find(&tasks).Error; err != nil {
+
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
 		return
+
 	}
+
+
+
+	// DEBUGGING: Print the fetched tasks to console
+
+	jsonData, err := json.MarshalIndent(tasks, "", "  ")
+
+	if err != nil {
+
+		fmt.Println("Error marshalling tasks for debugging:", err)
+
+	} else {
+
+		fmt.Println("--- DEBUG: Fetched Approval Tasks ---")
+
+		fmt.Println(string(jsonData))
+
+		fmt.Println("--- END DEBUG ---")
+
+	}
+
+
+
 	ctx.JSON(http.StatusOK, tasks)
+
 }
 
 // GET /approval-tasks/:id
@@ -35,8 +83,8 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 	var task entity.ApprovalTask
 	if err := config.DB.
 		Preload("Admin").
-		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile").
-		Preload("ApplicationDocument.ApplicationScholarship.Scholarship").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
 		Preload("ApprovalDecisions").
 		First(&task, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval task not found"})
@@ -215,6 +263,19 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	if err := tx.Create(&task).Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create approval task: " + err.Error()})
+		return
+	}
+
+	// Update the status of the ApplicationScholarship to "pending"
+	var appScholarship entity.ApplicationScholarship
+	if err := tx.First(&appScholarship, document.ApplicationScholarshipID).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find parent application scholarship: " + err.Error()})
+		return
+	}
+	if err := tx.Model(&appScholarship).Update("status", "pending").Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application scholarship status: " + err.Error()})
 		return
 	}
 

@@ -29,4 +29,5 @@ export interface ScholarshipResponse {
   close_date: string
   statusscholarship: ScholarshipStatusResponse
   typescholarship: ScholarshipTypeResponse
+  approval_requirements: ApprovalRequirementResponse[]
 }

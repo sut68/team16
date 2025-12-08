@@ -10,7 +10,7 @@ type ApplicationScholarship struct {
 	Application   Application `gorm:"foreignKey:ApplicationID"`
 
 	ScholarshipID uint        `json:"scholarship_id"`
-	Scholarship   Scholarship `gorm:"foreignKey:ScholarshipID"`
+	Scholarship   Scholarship `gorm:"foreignKey:ScholarshipID" json:"scholarship"`
 
 	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationScholarshipID"`
 }
