@@ -21,6 +21,7 @@ func GetApprovalTasks(ctx *gin.Context) {
 		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
 		Preload("ApprovalDecisions").
 		Find(&tasks).Error; err != nil {
 

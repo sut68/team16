@@ -3,7 +3,6 @@ package seed
 import (
 	"backend/seed/scholarship"
 	"gorm.io/gorm"
-
 	"backend/seed/approval"
 	"backend/seed/sponsor"
 	"backend/seed/user"
@@ -55,29 +54,25 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
+	// The following approval-related seeders have been removed.
 	if err := approval.SeedApprovalRequirements(db); err != nil {
 		return err
 	}
-
-	if err := approval.SeedApplications(db); err != nil {
-		return err
-	}
-
-	if err := approval.SeedApplicationScholarships(db); err != nil {
-		return err
-	}
-
-	if err := approval.SeedApplicationDocuments(db); err != nil {
-		return err
-	}
-
-	if err := approval.SeedApprovalTasks(db); err != nil {
-		return err
-	}
-
-	if err := approval.SeedApprovalDecisions(db); err != nil {
-		return err
-	}
+	// if err := approval.SeedApplications(db); err != nil {
+	// 	return err
+	// }
+	// if err := approval.SeedApplicationScholarships(db); err != nil {
+	// 	return err
+	// }
+	// if err := approval.SeedApplicationDocuments(db); err != nil {
+	// 	return err
+	// }
+	// if err := approval.SeedApprovalTasks(db); err != nil {
+	// 	return err
+	// }
+	// if err := approval.SeedApprovalDecisions(db); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
