@@ -14,9 +14,12 @@ interface TimelineEvent {
     date: string;
     description: string;
     actor: string;
-    status: string
+    status: string;
     type: 'task' | 'decision';
     timestamp: number;
+    filePath?: string;
+    fileName?: string;     // เพิ่ม: ชื่อไฟล์เพียวๆ
+    isOldFile?: boolean;   // เพิ่ม: เพื่อเช็คว่าต้องขึ้นปุ่ม "ดูไฟล์เก่า" หรือไม่
 }
 
 const props = defineProps<{
@@ -31,16 +34,12 @@ const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
 
-// --- Helper: Parse Date ---
+// --- Helper Functions ---
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
-    let dateStr: string = String(dateString);
-    if (dateStr.includes(' m=')) {
-        dateStr = dateStr.split(' m=')[0] || dateStr; 
-    }
-    if (dateStr.includes('+0000 UTC')) {
-        dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
-    }
+    let dateStr = String(dateString);
+    if (dateStr.includes(' m=')) dateStr = dateStr.split(' m=')[0] || dateStr; 
+    if (dateStr.includes('+0000 UTC')) dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
     dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
@@ -67,7 +66,6 @@ const canAction = computed(() => {
     return true; 
 });
 
-// --- Computed 1: หาเอกสารฉบับล่าสุด ---
 const latestDocument = computed(() => {
     const currentDoc = props.documentData?.application_document;
     if (!currentDoc) return null;
@@ -84,7 +82,6 @@ const latestDocument = computed(() => {
     return currentDoc;
 });
 
-// --- Computed 2: ตรวจสอบว่ามีการส่งงานใหม่หรือไม่ (Resubmitted) ---
 const isResubmitted = computed(() => {
     if (!props.documentData?.approval_decisions || !latestDocument.value) return false;
     
@@ -98,21 +95,17 @@ const isResubmitted = computed(() => {
     if (!lastDecision) return false;
     
     const decisionTime = parseGoDate(lastDecision.decision_at)?.getTime() || 0;
-
-    // เงื่อนไข: คำสั่งล่าสุดคือแก้ AND ไฟล์ใหม่กว่าคำสั่ง
     return lastDecision.decision === 'request-change' && uploadTime > decisionTime;
 });
 
-// --- Timeline Generation ---
 const processedTimelineEvents = computed(() => {
     if (!props.documentData || !props.documentData.application_document) return [];
 
     const events: TimelineEvent[] = [];
     const doc = props.documentData;
-    const appDoc = doc.application_document;
+    const currentDoc = doc.application_document;
     
-    // 1. Event ยื่นใบสมัคร
-    const appScholarship = appDoc.application_scholarship;
+    const appScholarship = currentDoc.application_scholarship;
     const application = appScholarship?.application;
     let studentName = 'ผู้สมัคร';
     if (application?.student_profile) {
@@ -120,6 +113,7 @@ const processedTimelineEvents = computed(() => {
     }
     const adminName = doc.admin_profile?.admin_firstname || 'เจ้าหน้าที่';
     
+    // 1. Event ยื่นใบสมัคร
     if (appScholarship) {
         const applyDateRaw = appScholarship.CreatedAt; 
         const applyTs = parseGoDate(applyDateRaw)?.getTime();
@@ -137,41 +131,66 @@ const processedTimelineEvents = computed(() => {
         }
     }
     
-    // 2. Event อัปโหลดเอกสาร (ฉบับแรก)
-    const uploadDateRaw = appDoc.CreatedAt;
-    const uploadTs = parseGoDate(uploadDateRaw)?.getTime();
-    if (uploadDateRaw) { 
-        events.push({
-            id: `doc-${appDoc.ID}`,
-            title: 'อัปโหลดเอกสาร (ครั้งแรก)',
-            date: formatDate(uploadDateRaw),
-            description: `ไฟล์: ${appDoc.file_name}`,
-            actor: studentName,
-            status: 'past-submitted',
-            type: 'task',
-            timestamp: uploadTs || Date.now(), 
+    // 2. Event อัปโหลดเอกสาร (Loop)
+    const allDocsRaw = appScholarship?.application_documents || appScholarship?.application_documents;
+    
+    if (allDocsRaw && Array.isArray(allDocsRaw) && allDocsRaw.length > 0) {
+        const sortedDocs = [...allDocsRaw].sort((a, b) => 
+            (parseGoDate(a.CreatedAt)?.getTime() || 0) - (parseGoDate(b.CreatedAt)?.getTime() || 0)
+        );
+
+        sortedDocs.forEach((d, index) => {
+            const uploadTs = parseGoDate(d.CreatedAt)?.getTime();
+            if (uploadTs) {
+                const isFirstUpload = index === 0;
+                // เช็คว่าไฟล์นี้ใช่ไฟล์ล่าสุดหรือไม่ (ถ้าไม่ใช่ = ไฟล์เก่า)
+                const isCurrentFile = d.ID === latestDocument.value?.ID;
+                
+                let titleLabel = isFirstUpload ? 'อัปโหลดเอกสาร (ครั้งแรก)' : 'อัปโหลดเอกสารแก้ไข';
+                if (isFirstUpload && isResubmitted.value && isCurrentFile) {
+                    titleLabel = 'อัปโหลดเอกสารแก้ไข';
+                }
+
+                events.push({
+                    id: `doc-history-${d.ID}`,
+                    title: titleLabel,
+                    date: formatDate(d.CreatedAt),
+                    description: '', // ไม่ต้องใช้ description แบบ text แล้ว เพราะจะโชว์การ์ดแทน
+                    actor: studentName,
+                    status: 'past-submitted', 
+                    type: 'task',
+                    timestamp: uploadTs,
+                    filePath: d.file_path,
+                    fileName: d.file_name,
+                    isOldFile: !isCurrentFile // ถ้าไม่ใช่ไฟล์ล่าสุด คือไฟล์เก่า
+                });
+            }
         });
+    } else {
+        // Fallback
+        const uploadDateRaw = currentDoc.CreatedAt;
+        const uploadTs = parseGoDate(uploadDateRaw)?.getTime();
+        let titleLabel = isResubmitted.value ? 'อัปโหลดเอกสารแก้ไข' : 'อัปโหลดเอกสาร';
+
+        if (uploadDateRaw) { 
+            events.push({
+                id: `doc-${currentDoc.ID}`,
+                title: titleLabel,
+                date: formatDate(uploadDateRaw),
+                description: '',
+                actor: studentName,
+                status: 'past-submitted',
+                type: 'task',
+                timestamp: uploadTs || Date.now(), 
+                filePath: currentDoc.file_path,
+                fileName: currentDoc.file_name,
+                isOldFile: false
+            });
+        }
     }
 
-    // 3. Event อัปโหลดเอกสาร (ฉบับล่าสุด - ถ้าไม่ใช่อันเดียวกับอันแรก)
-    if (latestDocument.value && latestDocument.value.ID !== appDoc.ID) {
-        const newUploadDateRaw = latestDocument.value.CreatedAt;
-        const newUploadTs = parseGoDate(newUploadDateRaw)?.getTime();
-         events.push({
-            id: `doc-new-${latestDocument.value.ID}`,
-            title: 'อัปโหลดเอกสารแก้ไข', // เปลี่ยนชื่อได้ตามต้องการ
-            date: formatDate(newUploadDateRaw),
-            description: `ไฟล์ใหม่: ${latestDocument.value.file_name}`,
-            actor: studentName,
-            status: 'past-submitted',
-            type: 'task',
-            timestamp: newUploadTs || Date.now(), 
-        });
-    }
-    
-    // 4. Event การตัดสินใจ (Decisions)
-    const hasDecisions = doc.approval_decisions && doc.approval_decisions.length > 0;
-    if (hasDecisions) {
+    // 3. Event การตัดสินใจ
+    if (doc.approval_decisions && doc.approval_decisions.length > 0) {
         doc.approval_decisions.forEach(decision => {
             const dateRaw = decision.decision_at;
             const decisionTs = parseGoDate(dateRaw)?.getTime();
@@ -194,7 +213,6 @@ const processedTimelineEvents = computed(() => {
                     description = `เหตุผล: ${description || 'ไม่ระบุ'}`;
                     break;
                 case 'request-change':
-                    // *** แก้ไข: เปลี่ยนชื่อ Event ถ้ามีการส่งงานแก้แล้ว ***
                     title = isResubmitted.value ? 'ขอข้อมูลเพิ่มเติม (ส่งแก้ไขแล้ว)' : 'ขอข้อมูลเพิ่มเติม/แก้ไข';
                     status = 'past-request-change';
                     description = `สิ่งที่ต้องแก้ไข: ${description || 'ไม่ระบุ'}`;
@@ -216,10 +234,10 @@ const processedTimelineEvents = computed(() => {
         });
     }
 
-    // 5. Event Reviewing Logic (แก้ไขให้ไม่โชว์ซ้ำซ้อน)
+    // 4. Reviewing
     const currentStatus = doc.status?.toLowerCase();
+    const hasDecisions = doc.approval_decisions && doc.approval_decisions.length > 0;
 
-    // CASE A: มีการส่งงานแก้เข้ามาใหม่ -> สร้าง Event "รอตรวจสอบ" อันใหม่ ไว้บนสุด
     if (isResubmitted.value) {
          events.push({
             id: 'reviewing-new',
@@ -232,8 +250,6 @@ const processedTimelineEvents = computed(() => {
             timestamp: Date.now() + 10000, 
         });
     }
-    // CASE B: งานใหม่แกะกล่อง (Pending และยังไม่มี Decision ใดๆ เท่านั้น)
-    // *** แก้ไข: เพิ่ม !hasDecisions เพื่อป้องกันไม่ให้โชว์ถ้าเคยตรวจไปแล้ว ***
     else if (currentStatus === 'pending' && !hasDecisions) {
          const reviewingTs = parseGoDate(doc.CreatedAt)?.getTime();
          if (reviewingTs) {
@@ -250,7 +266,6 @@ const processedTimelineEvents = computed(() => {
          }
     }
 
-    // Sorting
     events.sort((a, b) => b.timestamp - a.timestamp);
 
     // Styling Logic
@@ -258,7 +273,6 @@ const processedTimelineEvents = computed(() => {
         let currentSet = false;
         
         for (const event of events) {
-            // ถ้าเป็น Event รอตรวจสอบอันใหม่ ให้เป็น Current เสมอ
             if (event.id === 'reviewing-new') {
                 event.status = 'current';
                 currentSet = true;
@@ -268,12 +282,10 @@ const processedTimelineEvents = computed(() => {
             if (!currentSet) {
                  const decisionType = event.type === 'decision' ? (doc.approval_decisions.find(d => d.ID === event.id)?.decision?.toLowerCase() || '') : '';
                  
-                 // ถ้าเป็น reviewing ปกติ
                  if (event.id === 'reviewing') {
                      event.status = 'current';
                      currentSet = true;
-                 } 
-                 else {
+                 } else {
                      const isMatch = (currentStatus === decisionType) || 
                                      (currentStatus === 'approved' && decisionType === 'approve') ||
                                      (currentStatus === 'rejected' && decisionType === 'reject');
@@ -284,7 +296,6 @@ const processedTimelineEvents = computed(() => {
                          } else if (decisionType === 'reject' || decisionType === 'rejected') {
                              event.status = 'past-rejected'; 
                          } else {
-                             // request-change -> ถ้าส่งแก้แล้ว (isResubmitted) ไม่ต้องเป็น current ให้เป็น past ไปเลย
                              if (isResubmitted.value) {
                                 event.status = 'past-request-change';
                              } else {
@@ -305,7 +316,6 @@ const processedTimelineEvents = computed(() => {
     return events;
 });
 
-// Watchers
 watch(() => props.isOpen, (newValue) => {
     if (newValue) {
         comment.value = '';
@@ -348,7 +358,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 };
 
 const openDocument = () => {
-    // ใช้ไฟล์ล่าสุด
     const filePath = latestDocument.value?.file_path;
     if (filePath) {
         const backendBaseUrl = 'http://localhost:8080'; 
@@ -356,6 +365,14 @@ const openDocument = () => {
         window.open(fileUrl, '_blank');
     } else {
         alert('ไม่พบไฟล์เอกสาร');
+    }
+};
+
+const openSpecificDocument = (path: string) => {
+    if (path) {
+        const backendBaseUrl = 'http://localhost:8080'; 
+        const fileUrl = `${backendBaseUrl}/${path}`;
+        window.open(fileUrl, '_blank');
     }
 };
 </script>
@@ -407,7 +424,6 @@ const openDocument = () => {
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อมูลผู้สมัคร</h3>
-                                
                                 <div v-if="documentData.application_document?.application_scholarship?.application?.student_profile"
                                     class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                     <div>
@@ -570,11 +586,35 @@ const openDocument = () => {
                                                 <div class="w-2 h-2 bg-white rounded-full"></div>
                                             </div>
                                         </div>
+
                                         <div class="timeline-end timeline-box w-full border-none shadow-none p-0 pl-2 mb-6">
                                             <div class="font-bold text-slate-800 text-sm" :class="{'text-[#1e3a8a]': event.status === 'current'}">{{ event.title }}</div>
                                             <div class="text-xs text-gray-500 mb-1">{{ event.date }} • โดย {{ event.actor }}</div>
-                                            <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description" class="mt-2 p-2 rounded-lg text-xs border" :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">{{ event.description }}</div>
-                                            <div v-else class="text-xs text-gray-600 break-words">{{ event.description }}</div>
+                                            
+                                            <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description" 
+                                                 class="mt-2 p-2 rounded-lg text-xs border" 
+                                                 :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">
+                                                {{ event.description }}
+                                            </div>
+                                            
+                                            <div v-else-if="event.filePath" class="bg-white border border-gray-200 rounded-lg p-2.5 mt-2 shadow-sm max-w-sm">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <div class="flex items-center gap-2 overflow-hidden">
+                                                        <div class="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-500 shrink-0">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div class="truncate text-xs font-medium text-slate-700" :title="event.fileName">{{ event.fileName }}</div>
+                                                    </div>
+                                                    <button @click.prevent="openSpecificDocument(event.filePath)" 
+                                                            class="btn btn-xs btn-outline bg-white text-gray-600 hover:bg-gray-50 shrink-0 font-normal">
+                                                        {{ event.isOldFile ? 'ดูไฟล์เก่า' : 'ดูไฟล์' }}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div v-else class="text-xs text-gray-600 break-words mt-1">{{ event.description }}</div>
                                         </div>
                                         <hr v-if="index < processedTimelineEvents.length - 1" class="bg-gray-200" />
                                     </li>

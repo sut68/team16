@@ -234,29 +234,37 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	// --- 3. Create associated ApprovalTask ---
-	task := entity.ApprovalTask{
-		Status:     "pending", // Initial status for admin review
-		AdminID:    1,         // Assumption: A default admin (ID 1) for initial assignment
-		DocumentID: document.ID,
-	}
+	var existingTask entity.ApprovalTask
+	
+	// ค้นหา Task เดิมที่ผูกกับ Scholarship ID นี้
+	// โดยการ Join ตารางกลับไปเช็คที่ application_documents
+	errTask := tx.Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+		First(&existingTask).Error
 
-	if err := tx.Create(&task).Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create approval task: " + err.Error()})
-		return
-	}
+	if errTask == nil {
+		if err := tx.Model(&existingTask).Updates(map[string]interface{}{
+			"document_id": document.ID,
+			"status":      "pending",
+		}).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing task: " + err.Error()})
+			return
+		}
+		
+	} else {
+		
+		newTask := entity.ApprovalTask{
+			Status:     "pending",
+			AdminID:    1, // Default Admin ID
+			DocumentID: document.ID,
+		}
 
-	// Update the status of the ApplicationScholarship to "pending"
-	var appScholarship entity.ApplicationScholarship
-	if err := tx.First(&appScholarship, document.ApplicationScholarshipID).Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find parent application scholarship: " + err.Error()})
-		return
-	}
-	if err := tx.Model(&appScholarship).Update("status", "pending").Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application scholarship status: " + err.Error()})
-		return
+		if err := tx.Create(&newTask).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create approval task: " + err.Error()})
+			return
+		}
 	}
 
 	// --- 4. Commit Transaction ---
