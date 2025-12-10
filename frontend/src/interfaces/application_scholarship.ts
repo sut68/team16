@@ -2,8 +2,8 @@ import type {
   ApplicationResponse,
   ScholarshipResponse,
   ApplicationDocumentResponse,
-  // ApprovalTaskResponse,
 } from './';
+import type { ScreeningResponse } from './screening';
 
 export interface ApplicationScholarshipResponse {
   ID: number;
@@ -18,4 +18,5 @@ export interface ApplicationScholarshipResponse {
   scholarship: ScholarshipResponse;
 
   application_documents: ApplicationDocumentResponse[];
+  screening?: ScreeningResponse;
 }

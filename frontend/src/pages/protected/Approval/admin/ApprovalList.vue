@@ -50,7 +50,17 @@ const fetchTasks = async () => {
   }
 };
 
+const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
+  if (task.status?.toLowerCase() !== 'pending') return false;
+  const decisions = task.approval_decisions;
+  if (!decisions || decisions.length === 0) return false;
+  const sortedDecisions = [...decisions].sort((a: any, b: any) => (b.ID || 0) - (a.ID || 0));
+  const latestDecision = sortedDecisions[0];
+  return latestDecision?.decision === 'request-change';
+};
+
 onMounted(fetchTasks);
+
 const pendingItems = computed(() => {
   return allTasks.value.filter(item =>
     item.status?.toLowerCase() === 'pending' || item.status?.toLowerCase() === 'request-change'
@@ -63,7 +73,6 @@ const historyItems = computed(() => {
   );
 });
 
-// Filter Logic
 const filteredItems = computed((): ApprovalTaskDisplay[] => {
   let result: ApprovalTaskDisplay[] = [];
 
@@ -109,6 +118,7 @@ watch(activeTab, () => {
   filterStatus.value = 'all';
   filterRound.value = 'all';
 });
+
 const handleCardClick = (item: ApprovalTaskDisplay) => {
   selectedDocument.value = item;
   isModalOpen.value = true;
@@ -207,10 +217,22 @@ const handleActionCompleted = () => {
                   {{ item.application_document.application_scholarship?.scholarship?.scholarship_name || 'N/A' }}
                 </h3>
                 <template v-if="activeTab === 'pending'">
+
                   <span v-if="item.status?.toLowerCase() === 'request-change'"
-                    class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">รอผู้สมัครแก้ไข</span>
-                  <span v-if="item.status?.toLowerCase() === 'pending'"
-                    class="badge badge-ghost bg-blue-50 text-blue-700 badge-xs py-2 px-2 border-none font-normal">ยื่นใหม่</span>
+                    class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">
+                    รอผู้สมัครแก้ไข
+                  </span>
+
+                  <span v-else-if="checkIsResubmitted(item)"
+                    class="badge badge-info text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">
+                    มีการส่งแก้ไขใหม่
+                  </span>
+
+                  <span v-else-if="item.status?.toLowerCase() === 'pending'"
+                    class="badge badge-ghost bg-blue-50 text-blue-700 badge-xs py-2 px-2 border-none font-normal">
+                    ยื่นใหม่
+                  </span>
+
                 </template>
               </div>
               <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mt-1 text-sm text-gray-500">
@@ -226,7 +248,8 @@ const handleActionCompleted = () => {
                 </span>
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-600 truncate">
-                    {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }} {{
+                    {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }}
+                    {{
                       item.application_document.application_scholarship?.application?.student_profile?.last_name_th }}
                   </span>
                   <span class="hidden md:inline text-gray-300">|</span>

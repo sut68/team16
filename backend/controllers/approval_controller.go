@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,30 +20,13 @@ func GetApprovalTasks(ctx *gin.Context) {
 		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
 		Preload("ApprovalDecisions").
 		Find(&tasks).Error; err != nil {
 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 
 		return
-
-	}
-
-	// DEBUGGING: Print the fetched tasks to console
-
-	jsonData, err := json.MarshalIndent(tasks, "", "  ")
-
-	if err != nil {
-
-		fmt.Println("Error marshalling tasks for debugging:", err)
-
-	} else {
-
-		fmt.Println("--- DEBUG: Fetched Approval Tasks ---")
-
-		fmt.Println(string(jsonData))
-
-		fmt.Println("--- END DEBUG ---")
 
 	}
 
@@ -180,7 +162,6 @@ func GetApplicationDocumentByID(ctx *gin.Context) {
 
 // POST /application-documents
 func CreateApplicationDocument(ctx *gin.Context) {
-	// Start a new database transaction
 	tx := config.DB.Begin()
 
 	// --- 1. Get Input & Handle File Upload ---
@@ -206,11 +187,9 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		return
 	}
 
-	// Generate a unique filename and path
 	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
 	filePath := fmt.Sprintf("uploads/%s", uniqueFileName)
 
-	// Save the file
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
@@ -233,29 +212,37 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	// --- 3. Create associated ApprovalTask ---
-	task := entity.ApprovalTask{
-		Status:     "pending", // Initial status for admin review
-		AdminID:    1,         // Assumption: A default admin (ID 1) for initial assignment
-		DocumentID: document.ID,
-	}
+	var existingTask entity.ApprovalTask
+	
+	// ค้นหา Task เดิมที่ผูกกับ Scholarship ID นี้
+	// โดยการ Join ตารางกลับไปเช็คที่ application_documents
+	errTask := tx.Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+		First(&existingTask).Error
 
-	if err := tx.Create(&task).Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create approval task: " + err.Error()})
-		return
-	}
+	if errTask == nil {
+		if err := tx.Model(&existingTask).Updates(map[string]interface{}{
+			"document_id": document.ID,
+			"status":      "pending",
+		}).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing task: " + err.Error()})
+			return
+		}
+		
+	} else {
+		
+		newTask := entity.ApprovalTask{
+			Status:     "pending",
+			AdminID:    1, // Default Admin ID
+			DocumentID: document.ID,
+		}
 
-	// Update the status of the ApplicationScholarship to "pending"
-	var appScholarship entity.ApplicationScholarship
-	if err := tx.First(&appScholarship, document.ApplicationScholarshipID).Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find parent application scholarship: " + err.Error()})
-		return
-	}
-	if err := tx.Model(&appScholarship).Update("status", "pending").Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application scholarship status: " + err.Error()})
-		return
+		if err := tx.Create(&newTask).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create approval task: " + err.Error()})
+			return
+		}
 	}
 
 	// --- 4. Commit Transaction ---

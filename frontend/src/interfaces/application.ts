@@ -21,5 +21,5 @@ export interface ApplicationResponse {
   UpdatedAt: string
   student_profile_id: number
   student_profile: StudentProfileResponse
-  application_scholarships: any[] // Using any to avoid circular dependency issues for now
+  application_scholarships: any[]
 }
