@@ -217,7 +217,7 @@ const handleActionCompleted = () => {
                   {{ item.application_document.application_scholarship?.scholarship?.scholarship_name || 'N/A' }}
                 </h3>
                 <template v-if="activeTab === 'pending'">
-                  
+
                   <span v-if="item.status?.toLowerCase() === 'request-change'"
                     class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">
                     รอผู้สมัครแก้ไข
@@ -248,7 +248,8 @@ const handleActionCompleted = () => {
                 </span>
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-600 truncate">
-                    {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }} {{
+                    {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }}
+                    {{
                       item.application_document.application_scholarship?.application?.student_profile?.last_name_th }}
                   </span>
                   <span class="hidden md:inline text-gray-300">|</span>

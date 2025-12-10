@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { ApplicationScholarshipResponse } from '@/interfaces';
+import Swal from 'sweetalert2';
 
-// --- Props & Emits ---
 const props = defineProps<{
     isOpen: boolean;
     applicationData: ApplicationScholarshipResponse | null;
@@ -10,24 +10,21 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'upload-file', 'book-interview']);
 
-// --- State ---
 const fileInput = ref<HTMLInputElement | HTMLInputElement[] | null>(null);
 const isUploading = ref(false);
 
-// --- Stages Definition ---
 const stages = [
     { id: 1, title: 'ยื่นใบสมัคร', description: 'ส่งข้อมูลเข้าสู่ระบบเรียบร้อยแล้ว' },
     { id: 2, title: 'ตรวจสอบคุณสมบัติ', description: 'เจ้าหน้าที่ตรวจสอบคุณสมบัติเบื้องต้น' },
     { id: 3, title: 'อัปโหลดเอกสาร', description: 'ส่งเอกสารประกอบการพิจารณา' },
     { id: 4, title: 'ตรวจสอบเอกสาร', description: 'เจ้าหน้าที่ตรวจสอบความถูกต้องของเอกสาร' },
     { id: 5, title: 'จองคิวสัมภาษณ์', description: 'เลือกเวลาเพื่อเข้าสัมภาษณ์' },
-    { id: 6, title: 'ผลการสัมภาษณ์', description: 'ประกาศผลการคัดเลือกและสัมภาษณ์' } // เพิ่ม Stage นี้
+    { id: 6, title: 'ผลการสัมภาษณ์', description: 'ประกาศผลการคัดเลือกและสัมภาษณ์' }
 ];
 
-// --- Helper: Parse Date from Go Backend ---
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
-    // ตัดส่วน m=+... ออกถ้ามี
+
     const dateStr = String(dateString).split(' m=')[0];
     if (dateStr && dateStr.includes('+0000 UTC')) {
         const formattedStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
@@ -39,28 +36,27 @@ const parseGoDate = (dateString: string | undefined): Date | null => {
     return isNaN(date.getTime()) ? null : date;
 };
 
-// --- Logic: Determine Current State ---
 const processState = computed(() => {
+
     if (!props.applicationData) return { currentStep: 1, status: 'normal', message: '' };
 
     const data = props.applicationData;
-    const status = data.status?.toLowerCase();
+    const mainStatus = data.status?.toLowerCase();
 
-    // ------------------------------------------------------------
-    // 1. CHECK SCREENING (Stage 2: ตรวจสอบคุณสมบัติ)
-    // ------------------------------------------------------------
     const screening = data.screening;
-    if (screening && screening.rejection_reason) {
-        return {
-            currentStep: 2,
-            status: 'error',
-            message: screening.rejection_reason
-        };
+
+    if (screening) {
+        const screeningStatusName = screening.status_screening?.name?.toLowerCase();
+
+        if (screening.rejection_reason || screeningStatusName === 'rejected' || screeningStatusName === 'not pass') {
+            return {
+                currentStep: 2,
+                status: 'error',
+                message: screening.rejection_reason || 'คุณสมบัติไม่ผ่านเกณฑ์การคัดกรอง'
+            };
+        }
     }
 
-    // ------------------------------------------------------------
-    // 2. PREPARE DOCUMENT DATA
-    // ------------------------------------------------------------
     const docs = data.application_documents;
     let latestDecisionType = '';
     let latestDecisionComment = '';
@@ -68,13 +64,12 @@ const processState = computed(() => {
     let latestDecisionTime = 0;
 
     if (docs && docs.length > 0) {
-        // หาเวลาไฟล์ล่าสุด
+
         const sortedDocs = [...docs].sort((a, b) =>
             (parseGoDate(b.CreatedAt)?.getTime() || 0) - (parseGoDate(a.CreatedAt)?.getTime() || 0)
         );
         latestDocTime = parseGoDate(sortedDocs[0]?.CreatedAt)?.getTime() || 0;
 
-        // หา Decision ล่าสุด
         const allDecisions: any[] = [];
         docs.forEach(doc => {
             if (doc.approval_tasks) {
@@ -97,11 +92,6 @@ const processState = computed(() => {
         }
     }
 
-    // ------------------------------------------------------------
-    // 3. CHECK DECISIONS (Stage 4 vs Stage 3)
-    // ------------------------------------------------------------
-
-    // A. ถ้าโดนปฏิเสธเอกสาร (Rejected) -> ค้าง Stage 4 (แดง)
     if (latestDecisionType === 'rejected' || latestDecisionType === 'reject') {
         return {
             currentStep: 4,
@@ -110,14 +100,15 @@ const processState = computed(() => {
         };
     }
 
-    // B. ถ้าโดนสั่งแก้ (Request Change) -> เช็คว่าแก้หรือยัง?
     if (latestDecisionType === 'request-change') {
-        // ถ้าเวลาไฟล์ล่าสุด มากกว่า เวลาตัดสินใจ -> แปลว่า "แก้แล้ว" -> ไปรอตรวจ Stage 4
+
         if (latestDocTime > latestDecisionTime) {
+
             return { currentStep: 4, status: 'process', message: 'รอตรวจสอบเอกสารแก้ไข' };
         }
-        // ถ้าไฟล์เก่ากว่า -> แปลว่า "ยังไม่แก้" -> กลับไป Stage 3 (Warning)
+
         else {
+
             return {
                 currentStep: 3,
                 status: 'warning',
@@ -126,26 +117,37 @@ const processState = computed(() => {
         }
     }
 
-    // ------------------------------------------------------------
-    // 4. NORMAL FLOW
-    // ------------------------------------------------------------
-    if (status === 'new') return { currentStep: 2, status: 'process', message: '' };
-    if (status === 'qualified') return { currentStep: 3, status: 'action', message: '' };
+    if (['approve', 'approved'].includes(latestDecisionType)) {
+        if (!['completed', 'final-approved'].includes(mainStatus || '')) {
+            return { currentStep: 5, status: 'action', message: 'เอกสารผ่านการอนุมัติแล้ว' };
+        }
+    }
 
-    // กรณี Pending (อาจจะส่งครั้งแรก หรือ ส่งแก้แล้วที่ไม่มี Decision ค้าง)
-    if (status === 'pending') {
-        // มีไฟล์แล้ว -> รอตรวจ Stage 4
-        if (docs && docs.length > 0) return { currentStep: 4, status: 'process', message: '' };
-        // ไม่มีไฟล์ -> กลับไปอัปโหลด Stage 3
+    if (mainStatus === 'new') return { currentStep: 2, status: 'process', message: '' };
+
+    if (mainStatus === 'qualified') {
+        if (docs && docs.length > 0) {
+            return { currentStep: 4, status: 'process', message: 'รอเจ้าหน้าที่ตรวจสอบเอกสาร' };
+        }
         return { currentStep: 3, status: 'action', message: '' };
     }
 
-    // ผ่านหมด -> ไป Stage 5 หรือ 6
-    if (['approved', 'approve'].includes(status || '')) {
+    if (mainStatus === 'pending') {
+        if (docs && docs.length > 0) return { currentStep: 4, status: 'process', message: '' };
+        return { currentStep: 3, status: 'action', message: '' };
+    }
+
+    if (['approved', 'approve'].includes(mainStatus || '')) {
         return { currentStep: 5, status: 'action', message: '' };
     }
-    if (['completed', 'final-approved'].includes(status || '')) {
+
+    if (['completed', 'final-approved'].includes(mainStatus || '')) {
         return { currentStep: 6, status: 'completed', message: '' };
+    }
+
+    if (['rejected', 'reject'].includes(mainStatus || '')) {
+        if (!docs || docs.length === 0) return { currentStep: 2, status: 'error', message: 'ไม่ผ่านการพิจารณา' };
+        return { currentStep: 4, status: 'error', message: 'ไม่ผ่านการพิจารณา' };
     }
 
     return { currentStep: 1, status: 'normal', message: '' };
@@ -167,7 +169,6 @@ const getStepStatus = (stepId: number) => {
     return 'pending';
 };
 
-// Helper to get the most recent comment
 const latestComment = computed(() => {
     const docs = props.applicationData?.application_documents || props.applicationData?.application_documents;
     if (!docs) return '';
@@ -192,7 +193,6 @@ const latestComment = computed(() => {
 });
 
 
-// --- Actions ---
 const triggerUpload = () => {
     if (Array.isArray(fileInput.value)) {
         fileInput.value[0]?.click();
@@ -201,14 +201,58 @@ const triggerUpload = () => {
     }
 };
 
-const handleFileChange = (e: Event) => {
+const handleFileChange = async (e: Event) => {
     const target = e.target as HTMLInputElement;
-    if (target.files?.length) {
-        isUploading.value = true;
-        setTimeout(() => {
-            emit('upload-file', target.files![0]);
-            isUploading.value = false;
-        }, 1000);
+    const file = target.files?.[0];
+
+    if (file) {
+        const result = await Swal.fire({
+            title: 'ยืนยันการส่งเอกสาร',
+            text: `คุณต้องการส่งไฟล์ "${file.name}" ใช่หรือไม่?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยันส่งข้อมูล',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#1e3a8a',
+            cancelButtonColor: '#d33',
+            reverseButtons: true,
+            width: '400px',
+            customClass: {
+                title: 'text-lg font-bold',
+                htmlContainer: 'text-sm',
+                popup: 'rounded-xl'
+            }
+        });
+
+        if (result.isConfirmed) {
+            isUploading.value = true;
+
+            setTimeout(() => {
+                emit('upload-file', file);
+                isUploading.value = false;
+
+                Swal.fire({
+                    title: 'อัปโหลดสำเร็จ!',
+                    text: 'ระบบได้รับเอกสารของคุณเรียบร้อยแล้ว',
+                    icon: 'success',
+                    confirmButtonText: 'ตกลง',
+                    confirmButtonColor: '#1e3a8a',
+                    timer: 2000,
+                    timerProgressBar: true,
+                    width: '400px',
+                    customClass: {
+                        title: 'text-lg font-bold',
+                        htmlContainer: 'text-sm',
+                        popup: 'rounded-xl'
+                    }
+                });
+
+                target.value = '';
+
+            }, 1000);
+        } else {
+            target.value = '';
+        }
     }
 };
 </script>
@@ -352,7 +396,7 @@ const handleFileChange = (e: Event) => {
                                                         <span
                                                             class="font-semibold text-orange-800 text-xs block mb-1">สิ่งที่ต้องแก้ไข:</span>
                                                         "{{ processState.message ||
-                                                        'กรุณาตรวจสอบความถูกต้องของเอกสารแล้วอัปโหลดใหม่อีกครั้ง' }}"
+                                                            'กรุณาตรวจสอบความถูกต้องของเอกสารแล้วอัปโหลดใหม่อีกครั้ง' }}"
                                                     </div>
                                                 </div>
                                             </div>
@@ -373,8 +417,9 @@ const handleFileChange = (e: Event) => {
                                         </div>
                                     </div>
 
-                                    <div v-if="stage.id === 5 && getStepStatus(5) === 'completed'"
+                                    <div v-if="stage.id === 5 && ['action-needed', 'current'].includes(getStepStatus(5))"
                                         class="bg-green-50 border border-green-100 rounded-lg p-4 mt-2">
+
                                         <div class="flex items-center gap-3 mb-3">
                                             <div
                                                 class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 shrink-0">
@@ -391,6 +436,7 @@ const handleFileChange = (e: Event) => {
                                                 </p>
                                             </div>
                                         </div>
+
                                         <button @click="$emit('book-interview')"
                                             class="btn bg-[#1e3a8a] hover:bg-blue-900 text-white btn-sm border-none shadow-lg shadow-blue-200 w-full">
                                             จองคิวสัมภาษณ์ทันที
@@ -400,7 +446,7 @@ const handleFileChange = (e: Event) => {
                                     <div v-if="getStepStatus(stage.id) === 'rejected'"
                                         class="bg-red-50 border border-red-100 rounded-lg p-3 text-sm text-red-700 mt-2">
                                         <span class="font-bold">เหตุผลที่ไม่ผ่าน:</span> {{ latestComment ||
-                                        'ไม่ผ่านการพิจารณาในขั้นตอนนี้' }}
+                                            'ไม่ผ่านการพิจารณาในขั้นตอนนี้' }}
                                     </div>
 
                                 </div>

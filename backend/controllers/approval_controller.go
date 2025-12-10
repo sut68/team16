@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -28,24 +27,6 @@ func GetApprovalTasks(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 
 		return
-
-	}
-
-	// DEBUGGING: Print the fetched tasks to console
-
-	jsonData, err := json.MarshalIndent(tasks, "", "  ")
-
-	if err != nil {
-
-		fmt.Println("Error marshalling tasks for debugging:", err)
-
-	} else {
-
-		fmt.Println("--- DEBUG: Fetched Approval Tasks ---")
-
-		fmt.Println(string(jsonData))
-
-		fmt.Println("--- END DEBUG ---")
 
 	}
 
@@ -181,7 +162,6 @@ func GetApplicationDocumentByID(ctx *gin.Context) {
 
 // POST /application-documents
 func CreateApplicationDocument(ctx *gin.Context) {
-	// Start a new database transaction
 	tx := config.DB.Begin()
 
 	// --- 1. Get Input & Handle File Upload ---
@@ -207,11 +187,9 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		return
 	}
 
-	// Generate a unique filename and path
 	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
 	filePath := fmt.Sprintf("uploads/%s", uniqueFileName)
 
-	// Save the file
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
