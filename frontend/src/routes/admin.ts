@@ -13,8 +13,8 @@ const adminRoutes: Array<RouteRecordRaw> = [
       },
       {
         path: 'users',
-        name: 'UserManagement',
-        component: () => import('@/pages/protected/UserManagementPage.vue'),
+        name: 'admin-users',
+        component: () => import('@/pages/protected/User/UserManagementPage.vue'),
       },
       {
         path: 'approval',

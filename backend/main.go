@@ -147,6 +147,22 @@ func main() {
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
+	
+		//profile
+		api.GET("/profile/student/me", controllers.GetMyStudentProfile)
+		api.PUT("/profile/student/me", controllers.UpdateMyStudentProfile)
+		api.GET("/profile/admin/me", controllers.GetMyAdminProfile)
+		api.PUT("/profile/admin/me", controllers.UpdateMyAdminProfile)
+		
+		//users
+		api.GET("/users", controllers.ListUsers)
+		api.POST("/users", controllers.CreateUser)
+		api.PUT("/users/:id", controllers.UpdateUser)
+		api.DELETE("/users/:id", controllers.DeleteUser)
+	
+	
+	
+	
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080
