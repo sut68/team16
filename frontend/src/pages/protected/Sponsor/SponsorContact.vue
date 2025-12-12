@@ -50,7 +50,7 @@ watch(() => props.initialContacts, (v) => {
 
 // useFocusTrap
 const isOpenRef = computed(() => props.isOpen);
-const { modalRef, dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
+const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
   onClose: () => {
     emit('update:isOpen', false);
     emit('close');
