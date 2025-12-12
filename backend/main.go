@@ -81,6 +81,8 @@ func main() {
 		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
 		&entity.Requirement{},         // Added missing Requirement
 		&entity.Screening{},
+		&entity.Featurescholarship{},
+		&entity.Typefeature{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
 		&entity.SponsorContact{},
