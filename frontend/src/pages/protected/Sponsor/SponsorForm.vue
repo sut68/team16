@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue';
+import { ref, watch, onMounted, nextTick, computed } from 'vue';
 import type { PropType } from 'vue';
 import type { IndustryResponse } from '@/interfaces/sponsor';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
@@ -32,7 +32,7 @@ const errors = ref<Record<string, any>>({});
 
 // ---------------- useFocusTrap ----------------
 const isOpenRef = computed(() => props.isOpen);
-const { modalRef, dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
+const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
   onClose: () => {
     emit('update:isOpen', false);
     emit('close');

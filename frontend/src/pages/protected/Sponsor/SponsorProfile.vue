@@ -44,20 +44,20 @@ const contacts = ref<Contact[]>([
 sponsor.value.contacts = contacts.value
 
 // --- Simple handlers (local only, ให้ลองคลิกดูงาน) ---
-function onAddContact() {
-  // สร้าง dummy contact ใหม่แล้ว push เข้า list (เพื่อ preview หน้า)
-  const nextId = (contacts.value.length ? Math.max(...contacts.value.map(c => c.id)) : 0) + 1
-  const newC: Contact = {
-    id: nextId,
-    name: `New Contact ${nextId}`,
-    position: 'Position',
-    email: `new${nextId}@example.com`,
-    phone: 'N/A'
-  }
-  contacts.value.push(newC)
-  sponsor.value.contacts = contacts.value
-  window.alert('เพิ่มผู้ติดต่อตัวอย่างแล้ว — เปลี่ยนข้อมูลได้เอง')
-}
+// function onAddContact() {
+//   // สร้าง dummy contact ใหม่แล้ว push เข้า list (เพื่อ preview หน้า)
+//   const nextId = (contacts.value.length ? Math.max(...contacts.value.map(c => c.id)) : 0) + 1
+//   const newC: Contact = {
+//     id: nextId,
+//     name: `New Contact ${nextId}`,
+//     position: 'Position',
+//     email: `new${nextId}@example.com`,
+//     phone: 'N/A'
+//   }
+//   contacts.value.push(newC)
+//   sponsor.value.contacts = contacts.value
+//   window.alert('เพิ่มผู้ติดต่อตัวอย่างแล้ว — เปลี่ยนข้อมูลได้เอง')
+// }
 
 // function onEditContact(c: Contact) {
 //   const newName = window.prompt('แก้ไขชื่อผู้ติดต่อ', c.name)
@@ -70,17 +70,17 @@ function onAddContact() {
 //   }
 // }
 
-function onDeleteContact(c: Contact) {
-  const ok = window.confirm(`ลบผู้ติดต่อ ${c.name} จริงหรือไม่?`)
-  if (!ok) return
-  contacts.value = contacts.value.filter(x => x.id !== c.id)
-  sponsor.value.contacts = contacts.value
-}
+// function onDeleteContact(c: Contact) {
+//   const ok = window.confirm(`ลบผู้ติดต่อ ${c.name} จริงหรือไม่?`)
+//   if (!ok) return
+//   contacts.value = contacts.value.filter(x => x.id !== c.id)
+//   sponsor.value.contacts = contacts.value
+// }
 
-// เพื่อให้ template ใช้ชื่อเดียวกับเดิม (ปุ่มใน template ต้องเรียกชื่อเหล่านี้)
-const addContact = onAddContact
-// const editContact = onEditContact
-const deleteContact = onDeleteContact
+// // เพื่อให้ template ใช้ชื่อเดียวกับเดิม (ปุ่มใน template ต้องเรียกชื่อเหล่านี้)
+// const addContact = onAddContact
+// // const editContact = onEditContact
+// const deleteContact = onDeleteContact
 </script>
 
 
