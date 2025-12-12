@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, nextTick, onMounted, onBeforeUnmount } from "vue";
-  import { CheckCircle, Ellipsis, PenLine, Slash, Trash } from "lucide-vue-next";
+  import { CheckCircle, Ellipsis, PenLine, Slash, Trash, Users } from "lucide-vue-next";
 
   const props = defineProps<{
     id: number
@@ -9,6 +9,7 @@
 
   const emit = defineEmits<{
     edit: [number],
+    'edit-contacts': [number],
     'toggle-status': [number],
     delete: [number]
   }>();
@@ -63,16 +64,29 @@
     document.addEventListener("click", onClickOutside);
     window.addEventListener("scroll", positionMenu, true);
     window.addEventListener("resize", positionMenu);
+    document.addEventListener("keydown", onKeydown);
   });
 
   onBeforeUnmount(() => {
     document.removeEventListener("click", onClickOutside);
     window.removeEventListener("scroll", positionMenu, true);
     window.removeEventListener("resize", positionMenu);
+    document.removeEventListener("keydown", onKeydown);
   });
 
-  function handleEdit() {
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape" && open.value) {
+      open.value = false;
+    }
+  }
+
+  function handleEditCompany() {
     emit("edit", props.id);
+    open.value = false;
+  }
+
+  function handleEditContacts() {
+    emit("edit-contacts", props.id);
     open.value = false;
   }
 
@@ -91,6 +105,10 @@
   <button 
     class="btn btn-ghost btn-sm"
     @click.stop="toggleMenu"
+    aria-haspopup="true"
+    :aria-expanded="open"
+    :aria-controls="'menu-'+props.id"
+    ref="btnRef"
   >
     <Ellipsis class="w-4 h-4" />
   </button>
@@ -102,17 +120,29 @@
       :style="menuStyle"
       class="rounded-box shadow bg-base-100 w-40 menu p-2"
       data-theme="light"
+      role="menu"
+      :id="'menu-'+props.id"
     >
       <button 
         class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
-        @click="handleEdit"
+        @click="handleEditCompany"
+        role="menuitem"
       >
-        <PenLine class="w-4 h-4" /> Edit
+        <PenLine class="w-4 h-4" /> Edit Sponsor
+      </button>
+
+      <button 
+        class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+        @click="handleEditContacts"
+        role="menuitem"
+      >
+        <Users class="w-4 h-4" /> Edit Contact
       </button>
 
       <button
         class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
         @click="handleToggleStatus"
+        role="menuitem"
       >
         <template v-if="props.status === 'active'">
           <Slash class="w-4 h-4"/> Set Inactive
@@ -127,6 +157,7 @@
       <button 
         class="flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-500 w-full text-left"
         @click="handleDelete"
+        role="menuitem"
       >
         <Trash class="w-4 h-4" /> Delete
       </button>
