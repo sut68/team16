@@ -1,208 +1,134 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue';
 import type { PropType } from 'vue';
-import type { IndustryResponse } from '../../../interfaces/sponsor';
-import { IndustryService } from "../../../services/sponsor/industry"
+import type { IndustryResponse } from '@/interfaces/sponsor';
+import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
+import { IndustryService } from '@/services/sponsor/industry';
+import { validateSponsorForm } from '@/validators/sponsorValidator';
+import { useFocusTrap } from './useFocusTrap';
 
-// -------------------- Props --------------------
+// ---------------- Props / Emits ----------------
 const props = defineProps({
   isOpen: { type: Boolean as PropType<boolean>, default: false },
   loading: { type: Boolean as PropType<boolean>, default: false },
   initialData: { type: Object as PropType<Record<string, any> | null>, default: null },
 });
-
-// -------------------- Emits --------------------
 const emit = defineEmits(['update:isOpen', 'close', 'create']);
 
-// -------------------- Form State --------------------
+// ---------------- Local state ----------------
 const industries = ref<IndustryResponse[]>([]);
+const industryLoading = ref<boolean>(true);
 
-const form = ref({
+const form = ref<SponsorPayload>({
   company_name: '',
-  website: '',
-  industry_id: null as number | null,
+  website: null,
+  industry_id: null,
+  status: 'active',
+  description: null,
+  contacts: [] as ContactPayload[],
 });
 
+const errors = ref<Record<string, any>>({});
+
+// ---------------- useFocusTrap ----------------
+const isOpenRef = computed(() => props.isOpen);
+const { modalRef, dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
+  onClose: () => {
+    emit('update:isOpen', false);
+    emit('close');
+  },
+});
+
+// ---------------- Fetch industries ----------------
 onMounted(async () => {
+  industryLoading.value = true;
   try {
     const res = await IndustryService.getAll();
-    industries.value = res;
+    industries.value = res ?? [];
   } catch (err) {
-    console.error("โหลดอุตสาหกรรมผิดพลาด:", err);
+    console.error('โหลดอุตสาหกรรมผิดพลาด:', err);
+    industries.value = [];
+  } finally {
+    industryLoading.value = false;
   }
-})
+});
 
-const errors = ref<{ [k: string]: string }>({});
-
-// ref สำหรับ modal container
-const modalRef = ref<HTMLElement | null>(null);
-
-// เก็บ element ที่ focus ก่อนเปิด popup เพื่อคืนค่าเมื่อปิด
-let previouslyFocusedElement: HTMLElement | null = null;
-
-// id สำหรับ aria-labelledby
-const dialogId = `sponsor-form-modal-${Math.random().toString(36).slice(2, 9)}`;
-
-// -------------------- Watch: เปิด/ปิด Popup --------------------
+// ---------------- Watch isOpen (reset form when opened) ----------------
 watch(
   () => props.isOpen,
-  async (open) => {
+  (open) => {
     if (open) {
       resetForm();
-      document.body.style.overflow = 'hidden';
-      previouslyFocusedElement = document.activeElement as HTMLElement | null;
-      await nextTick();
-      focusFirstElement();
+      // composable handles focus & body scroll
+      nextTick(() => {
+        // ถ้ามี error จาก server หรือ validation ก่อนหน้า ให้โฟกัส field แรกที่มี error
+        if (Object.keys(errors.value || {}).length > 0) {
+          focusFirstElement(true);
+        }
+      });
     } else {
-      document.body.style.overflow = '';
-      if (previouslyFocusedElement?.focus) {
-        previouslyFocusedElement.focus();
-      }
-      previouslyFocusedElement = null;
+      // closed -> nothing extra here
     }
   }
 );
 
-// -------------------- Reset Form --------------------
+// ---------------- Helpers ----------------
 function resetForm() {
   form.value = {
     company_name: props.initialData?.company_name ?? '',
-    website: props.initialData?.website ?? '',
+    website: props.initialData?.website ?? null,
     industry_id: props.initialData?.industry_id ?? null,
+    status: props.initialData?.status ?? 'active',
+    description: props.initialData?.description ?? null,
+    contacts: (props.initialData?.contacts ?? []) as ContactPayload[],
   };
   errors.value = {};
 }
 
-// -------------------- Validation --------------------
-function validate() {
-  errors.value = {};
-
-  if (!form.value.company_name || form.value.company_name.trim().length < 2) {
-    errors.value.company_name = 'โปรดระบุชื่อบริษัท (อย่างน้อย 2 ตัวอักษร)';
-  }
-
-  if (form.value.website && !/^https?:\/\//i.test(form.value.website)) {
-    errors.value.website = 'ใส่ URL ให้มี http:// หรือ https://';
-  }
-
-  return Object.keys(errors.value).length === 0;
-}
-
-// -------------------- Close & Submit --------------------
 function close() {
   emit('update:isOpen', false);
   emit('close');
 }
 
+function addContact() {
+  form.value.contacts?.push({ name: '', email: '', phone: '', position: '' } as ContactPayload);
+}
+
+function removeContact(idx: number) {
+  form.value.contacts?.splice(idx, 1);
+}
+
 function submit() {
-  if (!validate()) {
-    focusFirstElement(true);
+  const { valid, errors: vErrors } = validateSponsorForm(form.value);
+  errors.value = vErrors;
+  if (!valid) {
+    nextTick(() => focusFirstElement(true));
     return;
   }
 
-  emit('create', {
-    company_name: form.value.company_name.trim(),
-    website: form.value.website?.trim() || null,
+  const payload: SponsorPayload = {
+    company_name: String(form.value.company_name).trim(),
+    website: form.value.website ? String(form.value.website).trim() : null,
     industry_id: form.value.industry_id ?? null,
-  });
+    status: String(form.value.status ?? 'active'),
+    description: form.value.description ? String(form.value.description).trim() : null,
+    contacts: (form.value.contacts ?? []).map(c => ({
+      name: String((c as ContactPayload).name ?? '').trim(),
+      email: String((c as ContactPayload).email ?? '').trim(),
+      phone: String((c as ContactPayload).phone ?? '').trim(),
+      position: String((c as ContactPayload).position ?? '').trim(),
+    })) as ContactPayload[],
+  };
+
+  emit('create', payload);
 }
-
-// -------------------- Focus / Keyboard handling --------------------
-// Selector สำหรับ element ที่สามารถ focus ได้
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled]):not([type="hidden"])',
-  'textarea:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])'
-].join(',');
-
-// Helper: ตรวจ element ที่เห็นได้ (ไม่ hidden)
-function isVisible(el: HTMLElement) {
-  // offsetParent เป็นวิธีที่ค่อนข้าง reliable ในกรณีทั่วไป
-  return !!(el.offsetParent || el.getClientRects().length);
-}
-
-// focus ช่องแรก (หรือช่องที่มี error)
-function focusFirstElement(focusError = false) {
-  const container = modalRef.value;
-  if (!container) return;
-
-  if (focusError) {
-    const errorField = container.querySelector<HTMLElement>('[data-has-error="true"]');
-    if (errorField && typeof errorField.focus === 'function') {
-      errorField.focus();
-      return;
-    }
-  }
-
-  const el = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-  if (el && typeof el.focus === 'function') el.focus();
-}
-
-// onKeydown: Escape ปิด, Tab/Shift+Tab ทำ focus-trap
-function onKeydown(e: KeyboardEvent) {
-  if (!props.isOpen) return;
-
-  if (e.key === 'Escape') {
-    e.preventDefault();
-    close();
-    return;
-  }
-
-  if (e.key !== 'Tab') return;
-
-  const container = modalRef.value;
-  if (!container) return;
-
-  const nodeList = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-  const focusable = Array.from(nodeList).filter((el) => {
-    if (el.hasAttribute('disabled')) return false;
-    if (el.getAttribute('tabindex') === '-1') return false;
-    return isVisible(el);
-  });
-
-  // ถ้าไม่มี element ให้เลิกทำ
-  if (focusable.length === 0) return;
-
-  // ---------- type-safe narrow + assertion ----------
-  // ภายในบล็อกนี้ focusable.length > 0 แล้ว ดังนั้นการใช้ [0] และ [length-1] ปลอดภัย
-  const first = focusable[0] as HTMLElement;
-  const last = focusable[focusable.length - 1] as HTMLElement;
-  // --------------------------------------------------
-
-  if (e.shiftKey) {
-    if (document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    }
-    return;
-  }
-
-  if (document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
-
-// Backdrop click -> ปิด เมื่อคลิกนอก dialog card
-function onBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) {
-    close();
-  }
-}
-
-// -------------------- Lifecycle --------------------
-onMounted(() => window.addEventListener('keydown', onKeydown));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>
   <teleport to="body">
     <div
-      v-if="isOpen"
-      class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity"
+      v-if="props.isOpen"
+      class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       @click="onBackdropClick"
       data-theme="light"
     >
@@ -216,7 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <!-- Header -->
         <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
           <div>
-            <h2 :id="`${dialogId}-title`" class="text-xl font-bold text-[#1e3a8a] flex item-center gap-2">เพิ่มบริษัทใหม่</h2>
+            <h2 :id="`${dialogId}-title`" class="text-xl font-bold text-[#1e3a8a]">เพิ่มบริษัทใหม่</h2>
           </div>
 
           <button class="btn btn-circle btn-ghost btn-sm" @click="close" aria-label="ปิด">
@@ -232,14 +158,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <div class="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
           <div class="card bg-white shadow-sm border border-gray-100">
             <div class="card-body p-5">
-
               <form @submit.prevent="submit" class="grid grid-cols-1 gap-4">
                 <!-- Company Name -->
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">
                     ชื่อบริษัท <span class="text-red-500">*</span>
                   </label>
-    
+
                   <input
                     v-model="form.company_name"
                     type="text"
@@ -248,18 +173,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                     :aria-invalid="errors.company_name ? 'true' : 'false'"
                     :data-has-error="errors.company_name ? 'true' : null"
                   />
-    
+
                   <p v-if="errors.company_name" class="text-xs text-red-500 mt-1">
                     {{ errors.company_name }}
                   </p>
                 </div>
-    
+
                 <!-- Website -->
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">เว็บไซต์</label>
                   <div class="relative">
-                    <!-- Icon -->
-                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                       <g stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5" fill="none" stroke="currentColor">
                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
@@ -280,32 +204,139 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                     </p>
                   </div>
                 </div>
-    
-                <!-- Industry ID -->
+
+                <!-- Industry -->
                 <div>
-                  <label class="block text-sm text-gray-600 mb-1">อุตสาหกรรม (ID)</label>
-    
+                  <label class="block text-sm text-gray-600 mb-1">อุตสาหกรรม</label>
+
                   <select
                     v-model="form.industry_id"
                     class="select select-bordered w-full bg-white"
+                    :disabled="industryLoading"
                   >
                     <option :value="null">-- เลือกอุตสาหกรรม --</option>
                     <option v-for="i in industries" :key="i.ID" :value="i.ID">{{ i.name }}</option>
                   </select>
+
+                  <p v-if="industryLoading" class="text-xs text-slate-400 mt-1">กำลังโหลดรายการ...</p>
+                </div>
+
+                <!-- description -->
+                <div>
+                  <label class="block text-sm text-gray-600 mb-1">คำอธิบาย</label>
+                  <textarea v-model="form.description" rows="3" class="textarea textarea-bordered w-full"></textarea>
+                </div>
+
+                <!-- Contact -->
+                <div class="border rounded p-4 bg-white">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-medium">ผู้ติดต่อ</h3>
+
+                    <button 
+                      type="button" 
+                      class="btn btn-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 flex items-center justify-center gap-2 rounded-full px-5 h-10 w-full md:w-auto shadow-sm transition-all duration-150" 
+                      @click="addContact"
+                    >
+                      เพิ่มผู้ติดต่อ
+                    </button>
+                  </div>
                   
+                  <div v-if="form.contacts?.length === 0" 
+                    class="flex flex-col items-center gap-2"
+                  >
+                    <video 
+                      src="../../../assets/animation/addContact.webm"
+                      class="w-20 h-20 object-contain"
+                      autoplay
+                      muted
+                      loop
+                      playsinline
+                    ></video>
+
+                    <span class="text-xs text-gray-500">ยังไม่มีผู้ติดต่อ</span>
+                  </div>
+
+                  <div class="space-y-4">
+                    <template v-for="(c, idx) in form.contacts" :key="idx">
+                      <div class="grid grid-cols-12 gap-2 items-start">
+
+                        <input
+                          v-model="c.name"
+                          class="input input-sm input-bordered col-span-12 md:col-span-4"
+                          placeholder="ชื่อ"
+                          :data-has-error="errors.contacts?.[idx]?.name ? 'true' : null"
+                        />
+
+                        <input
+                          v-model="c.email"
+                          class="input input-sm input-bordered col-span-12 md:col-span-3"
+                          placeholder="email"
+                          :data-has-error="errors.contacts?.[idx]?.email ? 'true' : null"
+                        />
+
+                        <input
+                          v-model="c.position"
+                          class="input input-sm input-bordered col-span-12 md:col-span-3"
+                          placeholder="ตำแหน่ง"
+                          :data-has-error="errors.contacts?.[idx]?.position ? 'true' : null"
+                        />
+
+                        <input
+                          v-model="c.phone"
+                          class="input input-sm input-bordered col-span-11 md:col-span-1"
+                          placeholder="โทร."
+                          :data-has-error="errors.contacts?.[idx]?.phone ? 'true' : null"
+                        />
+
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-error btn-outline col-span-1"
+                          @click="removeContact(idx)"
+                        >
+                          ลบ
+                        </button>
+
+                        <!-- Contact Errors -->
+                        <p
+                          v-if="errors.contacts?.[idx]"
+                          class="text-xs text-red-500 col-span-12"
+                        >
+                          {{ Object.values(errors.contacts[idx])[0] }}
+                        </p>
+
+                      </div>
+                    </template>
+                  </div>
                 </div>
               </form>
             </div>
-            
           </div>
         </div>
 
         <!-- Footer -->
         <div class="px-6 py-4 border-t bg-slate-50 flex items-center justify-end gap-2">
-          <button class="btn btn-ghost" @click="close" type="button">ยกเลิก</button>
+          <button 
+            class="btn btn-sm bg-white border border-gray-300 text-gray-700
+                hover:bg-red-100 hover:border-red-400 hover:text-red-700
+                flex items-center justify-center gap-2
+                rounded-full px-5 h-10 w-full md:w-auto shadow-sm
+                transition-all duration-150" 
+            @click="close" 
+            type="button"
+          >
+            ยกเลิก
+          </button>
 
-          <button class="btn btn-primary" @click="submit" :disabled="loading">
-            <span v-if="loading" class="loading loading-spinner" aria-hidden="true"></span>
+          <button 
+            class="btn btn-sm bg-white border border-blue-300 text-gray-700
+                hover:bg-blue-100 hover:border-blue-400 hover:text-blue-700
+                flex items-center justify-center gap-2
+                rounded-full px-5 h-10 w-full md:w-auto shadow-sm
+                transition-all duration-150" 
+            @click="submit" 
+            :disabled="props.loading"
+          >
+            <span v-if="props.loading" class="loading loading-spinner" aria-hidden="true"></span>
             <span v-else>สร้างบริษัท</span>
           </button>
         </div>
@@ -315,7 +346,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 </template>
 
 <style scoped>
-/* sr-only สำหรับ accessibility (พร้อมใช้ถ้าต้องการ) */
+/* small pop-in animation */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-pop-in {
+  animation: pop-in .12s cubic-bezier(.2,.9,.3,1);
+}
+
+/* sr-only for accessibility if needed */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -323,7 +363,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip: rect(0,0,0,0);
   white-space: nowrap;
   border: 0;
 }

@@ -3,15 +3,25 @@
   import { SponsorService } from '../../../services/sponsor/sponsor';
   import type { SponsorPayload, SponsorResponse, SponsorView } from '../../../interfaces/sponsor';
   import SponsorForm from './SponsorForm.vue';
+  import SponsorEdit from './SponsorEdit.vue';
+  import SponsorContact from './SponsorContact.vue';
   import { ExternalLink, Plus, ChevronLeft, ChevronRight } from "lucide-vue-next";
   import SponsorActionMenu from '../../../components/ui/SponsorActionMenu.vue';
+  import Swal from "sweetalert2";
 
   const sponsors = ref<SponsorView[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const isCreateSponsorOpen = ref(false)
   const creating = ref(false)
-  const loadingToggle = ref<number | null>(null);
+  const loadingToggle = ref<number | null>(null)
+  const isEditSponsorOpen = ref(false)
+  const updating = ref(false)
+  const currentSponsor = ref<SponsorResponse | null>(null)
+  const serverErrors = ref<Record<string, any> | null>(null)
+  const isContactsOpen = ref(false);
+  const currentSponsorId = ref<number | null>(null);
+  const currentContacts = ref<any[]>([]);
 
   // search and page
   const q = ref("")
@@ -153,30 +163,86 @@
     }
   }
 
-  async function removeOne(id: number) {
-    if (!confirm('ลบบริษัทนี้จริงหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) return
-    loading.value = true
-    error.value = null
-    const snapshot = [...sponsors.value]
-    sponsors.value = sponsors.value.filter(s => s.ID !== id)
-    
+  async function openEditForm(id: number) {
     try {
-      await SponsorService.delete(id)
-      alert('ลบสำเร็จ')
-
-      await fetchSponsors()
-
-    } catch (err: any) {
+      const sponsor = await SponsorService.getById(id)
+      currentSponsor.value = sponsor
+      serverErrors.value = null
+      isEditSponsorOpen.value = true
+    } catch (err) {
       console.error(err)
-      sponsors.value = snapshot
-
-      alert(err?.response?.data?.message || 'ลบไม่สำเร็จ')
-
-    } finally {
-      loading.value = false
-
+      Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลบริษัท' })
     }
   }
+
+  // Called when SponsorActionMenu emits edit-contacts
+async function openContacts(id: number) {
+  currentSponsorId.value = id;
+
+  // Try to reuse currentSponsor if it matches
+  if (currentSponsor.value && currentSponsor.value.ID === id && Array.isArray(currentSponsor.value.contacts)) {
+    currentContacts.value = currentSponsor.value.contacts;
+    isContactsOpen.value = true;
+    return;
+  }
+
+  // otherwise fetch sponsor (lightweight)
+  try {
+    const sponsor = await SponsorService.getById(id);
+    currentContacts.value = sponsor?.contacts ?? [];
+    currentSponsor.value = sponsor;
+    isContactsOpen.value = true;
+  } catch (err: any) {
+    console.error('openContacts: failed to fetch sponsor', err);
+    Swal.fire({ icon: 'error', title: 'ไม่สามารถโหลดผู้ติดต่อได้' });
+  }
+}
+
+async function onContactsSaved(newContact:any[]) {
+  isContactsOpen.value = false
+
+  if (currentSponsor.value && currentSponsor.value.ID === currentSponsorId.value) {
+    currentSponsor.value.contacts = newContact
+  }
+
+  const id = currentSponsorId.value;
+  if (id == null) {
+    await Swal.fire({ icon: 'success', title: 'บันทึกผู้ติดต่อเรียบร้อย' });
+    return
+  }
+
+  const idx = sponsors.value.findIndex(s => s.ID === id)
+  if (idx !== -1) {
+    sponsors.value[idx] && (sponsors.value[idx].contacts_count = newContact.length);
+  }
+
+  await Swal.fire({ icon: 'success', title: 'บันทึกผู้ติดต่อเรียบร้อย' });
+}
+
+async function removeOne(id: number) {
+  if (!confirm('ลบบริษัทนี้จริงหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) return
+  loading.value = true
+  error.value = null
+  const snapshot = [...sponsors.value]
+  sponsors.value = sponsors.value.filter(s => s.ID !== id)
+  
+  try {
+    await SponsorService.delete(id)
+    alert('ลบสำเร็จ')
+
+    await fetchSponsors()
+
+  } catch (err: any) {
+    console.error(err)
+    sponsors.value = snapshot
+
+    alert(err?.response?.data?.message || 'ลบไม่สำเร็จ')
+
+  } finally {
+    loading.value = false
+
+  }
+}
 
   // เปิด Sponsor Form
   function openCreateForm() {
@@ -187,19 +253,114 @@
     creating.value = true
     try {
       const created = await SponsorService.create(payload)
-
+      
       const view = toSponsorView(created)
+      
+      if (!sponsors.value.some(s => s.ID === view.ID )) {
+        sponsors.value.unshift(view)
 
-      sponsors.value.unshift(view)
+      } else {
+        const idx = sponsors.value.findIndex(s => s.ID === view.ID);
+        if (idx !== -1) sponsors.value.splice(idx, 1, view);
 
+      }
+      
+      await Swal.fire({ icon: 'success', title: 'สร้างบริษัทสำเร็จ' });
       isCreateSponsorOpen.value = false
-
       page.value = 1
+
     } catch (err: any) {
-      console.error(err)
-      alert(err?.response?.data?.message || 'เพิ่มบริษัทไม่สำเร็จ')
+      console.error('onCreateSponsor error:', err);
+
+      const resp = err?.response?.data;
+      if (resp?.errors && typeof resp.errors === 'object') {
+        err.value = resp.errors;
+        await Swal.fire({
+          icon: 'warning',
+          title: 'ข้อมูลไม่ผ่านการตรวจสอบ',
+          text: resp.message ?? 'กรุณาตรวจสอบข้อผิดพลาดในฟอร์ม',
+        });
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'ผิดพลาด',
+          text: resp?.message ?? err?.message ?? 'เกิดข้อผิดพลาด',
+        });
+      }
+
     } finally {
       creating.value = false
+
+    }
+  }
+
+  async function onUpdateSponsor(payload: SponsorPayload) {
+    if (!currentSponsor.value) return
+
+    updating.value = true
+    serverErrors.value = null
+
+    try {
+      // 1) Update sponsor fields
+      const sponsorFields = {
+        company_name: payload.company_name,
+        website: payload.website,
+        industry_id: payload.industry_id,
+        status: payload.status,
+        description: payload.description,
+      }
+
+      await SponsorService.update(currentSponsor.value.ID, sponsorFields)
+
+      // 2) Contacts upsert/delete
+      const orig = currentSponsor.value.contacts ?? []
+      const curr = payload.contacts ?? []
+
+      const origIDs = orig.map(c => c.ID)
+      const currIDs = curr.filter(c => (c as any).ID).map(c => (c as any).ID)
+
+      const upsert = curr.map(c => ({
+        ...(c as any).ID ? { ID: (c as any).ID } : {},
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        position: c.position,
+      }))
+
+      const delete_ids = origIDs.filter(id => !currIDs.includes(id))
+
+      if (upsert.length || delete_ids.length) {
+        await SponsorService.updateContacts(currentSponsor.value.ID, { upsert, delete_ids })
+      }
+
+      await Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ' })
+
+      // update view list
+      await fetchSponsors()
+
+      isEditSponsorOpen.value = false
+
+    } catch (err: any) {
+      console.error(err)
+      const resp = err?.response?.data
+
+      if (resp?.errors) {
+        serverErrors.value = resp.errors
+        Swal.fire({
+          icon: 'warning',
+          title: 'ข้อมูลไม่ผ่านการตรวจสอบ',
+          text: resp.message ?? 'ตรวจสอบข้อมูลที่กรอก',
+        })
+      } else {
+        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: resp?.message ?? 'เกิดข้อผิดพลาด' })
+      }
+      console.error('AXIOS ERROR', err);
+      console.log('status:', err.response?.status);
+      console.log('headers:', err.response?.headers);
+      console.log('data:', err.response?.data);
+
+    } finally {
+      updating.value = false
     }
   }
 
@@ -418,7 +579,8 @@
                   :id="s.ID"
                   :status="s.status"
                   :disabled="loadingToggle === s.ID"
-                  @edit="(id) => $router.push(`/sponsor/${id}/edit`)"
+                  @edit="openEditForm"
+                  @edit-contacts="openContacts"
                   @toggle-status="() => onToggleStatus(s.ID, s.status)"
                   @delete="removeOne"
                 />
@@ -510,6 +672,24 @@
     v-model:isOpen="isCreateSponsorOpen"
     :loading="creating"
     @create="onCreateSponsor"
+  />
+
+  <SponsorEdit
+    v-model:isOpen="isEditSponsorOpen"
+    :loading="updating"
+    :initialData="currentSponsor"
+    :serverErrors="serverErrors"
+    @update="onUpdateSponsor"
+    @delete="removeOne"
+  />
+
+  <SponsorContact
+    v-if="currentSponsorId !== null"
+    v-model:isOpen="isContactsOpen"
+    :sponsorId="currentSponsorId"
+    :initialContacts="currentContacts"
+    @saved="onContactsSaved"
+    @close="() => { isContactsOpen = false }"
   />
 </template>
 
