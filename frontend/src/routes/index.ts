@@ -1,83 +1,112 @@
+// src/router/index.ts
 import { createRouter, createWebHistory } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 import { jwtDecode } from 'jwt-decode';
 import publicRoutes from './public';
 import adminRoutes from './admin';
 import studentRoutes from './student';
-import { getToken } from '../services/api';
+import { getToken } from '../services/api/httpsTest'; // your existing helper (may return token from storage for back-compat)
 
-// Helper to get user role from JWT
-const getUserRole = (): string | null => {
-  const token = getToken();
-  if (token) {
-    try {
-      const decodedToken: { role: string } = jwtDecode(token);
-      return decodedToken.role;
-    } catch (error) {
-      console.error('Invalid token:', error);
-      return null;
-    }
-  }
-  return null;
-};
+// Routes
+const routes: Array<RouteRecordRaw> = [
+  ...publicRoutes,
+  ...adminRoutes,
+  ...studentRoutes,
+];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [...publicRoutes, ...adminRoutes, ...studentRoutes],
+  routes,
 });
 
+
+// Helper
+function decodeTokenToUser(token?: string | null): { id?: number | string | null; role?: string | null } | null {
+  if (!token) return null;
+  try {
+    const decoded: any = jwtDecode(token as string);
+    return {
+      id: decoded.user_id ?? decoded.userId ?? decoded.sub ?? null,
+      role: decoded.role ?? decoded.role_name ?? null,
+    };
+  } catch (e) {
+    console.warn('[router] invalid token for decode', e);
+    return null;
+  }
+}
+
+// Router guard
 router.beforeEach((to, _from, next) => {
-  const loggedIn = !!getToken();
-  const role = getUserRole();
+  // 1) Try sessionStorage
+  let currentUser: any = null;
+  const raw = sessionStorage.getItem('currentUser');
+  if (raw) {
+    try {
+      currentUser = JSON.parse(raw);
+    } catch (e) {
+      console.warn('[router] invalid currentUser in sessionStorage, clearing', e);
+      sessionStorage.removeItem('currentUser');
+      currentUser = null;
+    }
+  }
+
+  // Fallback: decode token (back-compat)
+  if (!currentUser) {
+    const token = getToken();
+    const maybeUser = decodeTokenToUser(token);
+    if (maybeUser) {
+      currentUser = maybeUser;
+      try {
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+  }
+
+  const loggedIn = !!currentUser;
+  const roleRaw = currentUser?.role ?? null;
+  const role = roleRaw ? String(roleRaw).toLowerCase() : null;
   const isStudent = role === 'user' || role === 'student';
 
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  const guestOnly = to.matched.some(record => record.meta.guest);
-  const requiredRole = to.meta.role as string | undefined;
+  const requiresAuth = to.matched.some((rec) => !!rec.meta?.requiresAuth);
+  const guestOnly = to.matched.some((rec) => !!rec.meta?.guest);
 
-  // Redirect from root if logged in
+  const requiredRole = to.matched.reduce<string | undefined>((acc, r) => {
+    if (acc) return acc;
+    if (r.meta?.role) return String(r.meta.role);
+    if (r.meta?.requireAdmin) return 'admin';
+    return acc;
+  }, undefined)?.toLowerCase();
+
   if (to.path === '/' && loggedIn) {
-    if (role === 'admin') {
-      return next('/admin');
-    }
-    if (isStudent) {
-      return next('/dashboard');
-    }
+    if (role === 'admin') return next('/admin');
+    if (isStudent) return next('/dashboard');
   }
-  
+
   if (requiresAuth) {
     if (!loggedIn) {
-      // User is not logged in, redirect to home
       return next('/');
     }
-    if (requiredRole && role !== requiredRole) {
-      // Special case for student routes, which accept 'user' role
-      if (requiredRole === 'user' && isStudent) {
+
+    if (requiredRole) {
+      if (requiredRole === 'user' && (role === 'user' || role === 'student')) {
         return next();
       }
-
-      // User is logged in but does not have the required role
-      // Redirect to their respective dashboard
-      if (role === 'admin') {
-        return next('/admin');
+      if (role !== requiredRole) {
+        if (role === 'admin') return next('/admin');
+        if (isStudent) return next('/dashboard');
+        return next('/');
       }
-      if (isStudent) {
-        return next('/dashboard');
-      }
-      // Fallback if role is unknown
-      return next('/');
     }
   } else if (guestOnly && loggedIn) {
-    // Logged-in user tries to access guest-only pages (login/register)
-    if (role === 'admin') {
-      return next('/admin');
-    }
-    if (isStudent) {
-      return next('/dashboard');
-    }
+    // guest-only pages (login/register)
+    if (role === 'admin') return next('/admin');
+    if (isStudent) return next('/dashboard');
   }
 
-  // All other cases
-  next();
+  // default: allow
+  return next();
 });
 
 export default router;

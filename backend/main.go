@@ -10,6 +10,7 @@ import (
 	"backend/config"
 	"backend/controllers"
 	"backend/entity"
+	"backend/middleware"
 	"backend/seed"
 )
 
@@ -22,7 +23,8 @@ func main() {
 	configCORS := cors.DefaultConfig()
 	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"} // Allow frontend dev server
 	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"}
+	configCORS.AllowCredentials = true
 	r.Use(cors.New(configCORS))
 
 	// Serve static files from the "uploads" directory
@@ -104,20 +106,18 @@ func main() {
 	}
 
 	// API routes
+	// ------------
+
+	// Public routes
 	api := r.Group("/api")
 	{
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
 
 		api.GET("/industries", controllers.GetIndustries)
-		api.POST("/industries", controllers.CreateIndustry)
 
 		api.GET("/sponsors", controllers.GetSponsors)
 		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
-		api.POST("/sponsors", controllers.CreateSponsor)
-		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
-		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
-		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
 		api.GET("/scholarships", controllers.GetAllScholarship)
@@ -153,6 +153,26 @@ func main() {
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
+	}
+
+	// Protected routes ส่วนใหญ่เป็นของนักศึกษา
+	authGroup := r.Group("/api")
+	authGroup.Use(middleware.JWTAuth(), middleware.CSRFMiddleware())
+	{
+
+	}
+
+	// Admin routes คือ ที่แอดมินควรทำได้ เพียง role เดียว
+	adminGroup := r.Group("/api")
+	adminGroup.Use(middleware.JWTAuth(), middleware.CSRFMiddleware(), middleware.RequireAdmin())
+	{
+		// Sponsor management
+		adminGroup.POST("/sponsors", controllers.CreateSponsor)
+		adminGroup.PATCH("/sponsors/:id", controllers.UpdateSponsor)
+		adminGroup.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
+		adminGroup.DELETE("/sponsors/:id", controllers.DeleteSponsor)
+		// industries
+		adminGroup.POST("/industries", controllers.CreateIndustry)
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

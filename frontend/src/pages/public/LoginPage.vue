@@ -67,8 +67,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { jwtDecode } from 'jwt-decode';
-import { authAPI } from '../../services/api';
+import { authAPITest } from '@/services/api/authTest';
 import type { LoginUserRequest } from '../../interfaces/user';
 
 const user = ref<LoginUserRequest>({ username: '', password: '' });
@@ -81,34 +80,44 @@ const handleLogin = async () => {
   message.value = '';
 
   try {
-    const data = await authAPI.login(user.value);
+    // authAPI.login จะเรียก backend /login ที่จะเซ็ต cookies (access_token HttpOnly + csrf_token)
+    const data = await authAPITest.login(user.value);
+    console.log("[login] response:", data)
 
-    if (data?.token) {
-      sessionStorage.setItem('token', data.token);
-      if (data.token_type) sessionStorage.setItem('token_type', data.token_type);
+    if (!data) {
+      message.value = "Empty response from server"
+      return
+    }
+    if (data.error) {
+      message.value = data.error;
+      return
+    }
+    const userObj = data.user ?? data;
+    console.log("[login] userObj:", userObj)
 
-      const decodedToken: { role: string } = jwtDecode(data.token);
-      
-      loading.value = false;
+    try { sessionStorage.setItem('currentUser', JSON.stringify(userObj)); } catch (e) { console.warn('sess store fail', e); }
 
-      if (decodedToken.role === 'admin') {
+    if (data && data.user) {
+      const role = data.user.role ?? data.user.role_name ?? '';
+
+      // นำทางตาม role
+      if (role === 'admin') {
         await router.push('/admin');
-      } else if (decodedToken.role === 'user' || decodedToken.role === 'student') {
+      } else if (role === 'user' || role === 'student') {
         await router.push('/dashboard');
       } else {
         await router.push('/');
       }
-      
-      window.location.reload();
+
+      loading.value = false;
       return;
     }
 
-    message.value = data?.error ?? data?.message ?? 'Login failed. Please check your credentials.';
   } catch (error: any) {
-    message.value = error?.message ?? 'An unexpected error occurred.';
+    console.error('[login] error', error);
+    message.value = error?.response?.data?.error ?? error?.message ?? 'Login failed';
   } finally {
     loading.value = false;
   }
 };
 </script>
-
