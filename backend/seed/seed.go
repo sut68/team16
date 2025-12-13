@@ -4,6 +4,7 @@ import (
 	"backend/seed/scholarship"
 	"gorm.io/gorm"
 	"backend/seed/approval"
+	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
 )
@@ -38,6 +39,10 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
+	if err := semaster.CreateSemasters(db); err != nil {
+		return err
+	}
+
 	if err := scholarship.SeedStatusScholarships(db); err != nil {
 		return err
 	}
@@ -54,7 +59,6 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	// The following approval-related seeders have been removed.
 	if err := approval.SeedApprovalRequirements(db); err != nil {
 		return err
 	}

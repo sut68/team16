@@ -72,6 +72,9 @@ onMounted(fetchScholarships);
                 <div class="flex items-center gap-3 mb-2">
                   <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-full">{{
                     scholarship.typescholarship?.type_name || 'ทั่วไป' }}</span>
+                  <span v-if="scholarship.semaster" class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    รอบ: {{ scholarship.semaster.term }}/{{ scholarship.semaster.academic_year }}
+                  </span>
                   <span class="text-xs text-gray-400">ปิดรับสมัคร: {{ new
                     Date(scholarship.close_date).toLocaleDateString('th-TH') }}</span>
                 </div>
