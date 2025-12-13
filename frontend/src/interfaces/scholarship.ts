@@ -1,3 +1,4 @@
+import type { SemasterResponse } from './semaster';
 
 export interface ScholarshipStatusResponse {
   ID: number
@@ -30,4 +31,5 @@ export interface ScholarshipResponse {
   statusscholarship: ScholarshipStatusResponse
   typescholarship: ScholarshipTypeResponse
   approval_requirements: ApprovalRequirementResponse[]
+  semaster: SemasterResponse
 }

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { makeApprovalDecision } from '@/services/api/approval';
-import type { ApprovalTaskResponse } from '@/interfaces';
+import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
-    round?: string;
+    roundText?: string;
     submission_date?: string;
+    semaster?: SemasterResponse;
 }
 
 interface TimelineEvent {
-    id: number | string;
+id: number | string;
     title: string;
     date: string;
     description: string;
@@ -33,6 +34,12 @@ const comment = ref('');
 const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
+
+const semesterText = computed(() => {
+  const semaster = props.documentData?.semaster;
+  if (!semaster) return 'N/A';
+  return `ปีการศึกษา ${semaster.academic_year} เทอม ${semaster.term} รอบ ${semaster.round}`;
+});
 
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
@@ -403,7 +410,7 @@ const openSpecificDocument = (path: string) => {
                         <span>Task ID: #{{ documentData.ID }}</span>
                         <span>•</span>
                         <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs">
-                            รอบ: {{ documentData.round || '1/2568' }}
+                            {{ semesterText }}
                         </span>
                     </div>
                 </div>
