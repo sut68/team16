@@ -20,4 +20,5 @@ type Scholarship struct {
 	
 	ApprovalRequirements    []ApprovalRequirement    `gorm:"foreignKey:ScholarshipID" json:"approval_requirements"`
 	ApplicationScholarships []ApplicationScholarship `gorm:"foreignKey:ScholarshipID" json:"application_scholarships"`
+	InterviewRounds         []InterviewRound         `gorm:"foreignKey:ScholarshipID" json:"interview_rounds"`
 }
