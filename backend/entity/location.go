@@ -9,4 +9,6 @@ type Location struct {
 	Room string `gorm:"not null" json:"room"`
 	Floor uint `gorm:"not null" json:"floor"`
 	Description string `json:"description"`
+
+	Slots []Slot `gorm:"foreignKey:LocationID" json:"slots"`
 }
