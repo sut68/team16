@@ -12,7 +12,7 @@ const profile = ref<any>({
   first_name_en: '', last_name_en: '', major: { major_name: '' }, 
   gpax: 0, advisor_name: '', birth_date: '',
   permanent_address: '', current_address: '', province: '', siblings_count: 0,
-  admin_first_name: '', admin_last_name: '', position: '',
+  admin_firstname: '', admin_lastname: '', position: '',
   email: '', phone: '',
   family_info: {
     father_name: '', father_occupation: '', father_income: 0,

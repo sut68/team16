@@ -37,11 +37,11 @@ const save = async () => {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="form-control">
         <label class="label font-bold">ชื่อจริง</label>
-        <input v-model="form.admin_first_name" :disabled="!isEditing" class="input input-bordered focus:border-primary"/>
+        <input v-model="form.admin_firstname" :disabled="!isEditing" class="input input-bordered focus:border-primary"/>
       </div>
       <div class="form-control">
         <label class="label font-bold">นามสกุล</label>
-        <input v-model="form.admin_last_name" :disabled="!isEditing" class="input input-bordered focus:border-primary"/>
+        <input v-model="form.admin_lastname" :disabled="!isEditing" class="input input-bordered focus:border-primary"/>
       </div>
       <div class="form-control">
         <label class="label font-bold">ตำแหน่ง</label>

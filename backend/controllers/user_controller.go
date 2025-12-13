@@ -171,8 +171,8 @@ func UpdateUser(c *gin.Context) {
 		GPAX        float64   `json:"gpax"`
 		AdvisorName string    `json:"advisor_name"`
 		// Admin
-		AdminFirstname string `json:"admin_first_name"`
-		AdminLastname  string `json:"admin_last_name"`
+		AdminFirstname string `json:"admin_firstname"`
+		AdminLastname  string `json:"admin_lastname"`
 		Position       string `json:"position"`
 		// Common
 		Email    string `json:"email"`

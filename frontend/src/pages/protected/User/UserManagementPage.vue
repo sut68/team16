@@ -16,7 +16,7 @@ const initialForm = {
   student_id: '', national_id: '', first_name_th: '', last_name_th: '', 
   major_id: 0, gpax: 0, advisor_name: '',
   // Admin
-  admin_first_name: '', admin_last_name: '', position: '',
+  admin_firstname: '', admin_lastname: '', position: '',
   // Common
   email: '', phone: ''
 };
