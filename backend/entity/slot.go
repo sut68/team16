@@ -19,4 +19,5 @@ type Slot struct {
 	Location   Location `gorm:"foreignKey:LocationID" json:"location"`
 
 	InterviewerSlots []InterviewerSlot `gorm:"foreignKey:SlotID" json:"interviewer_slots"`
+	IntervieweBookings []IntervieweBooking `gorm:"foreignKey:SlotID" json:"interviewe_bookings"`
 }
