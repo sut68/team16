@@ -44,6 +44,8 @@ func main() {
 		&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
 		&entity.Requirement{},         // Added missing Requirement
 		&entity.Scholarship{},
+		&entity.Featurescholarship{},
+		&entity.Typefeature{},
 		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
@@ -72,6 +74,8 @@ func main() {
 		&entity.Major{},
 		&entity.NewsPost{},
 		&entity.Scholarship{},
+		&entity.Featurescholarship{},
+		&entity.Typefeature{},
 		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
 		&entity.Requirement{},         // Added missing Requirement
 		&entity.Screening{},
@@ -147,6 +151,19 @@ func main() {
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
+
+		api.POST("/screening", controllers.CreateScreening)
+		api.GET("/screening", controllers.GetAllScreenings)
+		api.GET("/screening/:id", controllers.GetScreeningByID)
+		api.PUT("/screening/:id", controllers.UpdateScreeningStatus)
+		api.DELETE("/screening/:id", controllers.DeleteScreening)
+
+		api.GET("/newsposts", controllers.GetAllNewsPosts)
+		api.GET("/newsposts/:id", controllers.GetNewsPostByID)
+		api.POST("/newsposts", controllers.CreateNewsPost)
+		api.PUT("/newsposts/:id", controllers.UpdateNewsPost)
+		api.DELETE("/newsposts/:id", controllers.DeleteNewsPost)
+		
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

@@ -24,7 +24,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
       {
         path: 'news',
         name: 'News',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/News/NewsList.vue'),
       },
       {
         path: 'companies',
@@ -38,8 +38,8 @@ const adminRoutes: Array<RouteRecordRaw> = [
       },
       {
         path: 'screening',
-        name: 'Screening',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        name: 'screening',
+        component: () => import('@/pages/protected/Screening/screening.vue'),
       },
       {
         path: 'interview',

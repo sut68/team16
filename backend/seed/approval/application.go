@@ -20,6 +20,9 @@ func SeedApplications(db *gorm.DB) error {
 			{
 				StudentProfileID: studentProfile.ID,
 			},
+			{
+				StudentProfileID: studentProfile.ID,
+			},
 		}
 
 		if err := db.Create(&applications).Error; err != nil {

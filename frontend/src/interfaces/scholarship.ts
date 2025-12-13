@@ -1,3 +1,4 @@
+import type { FeatureScholarshipResponse } from "./feature_scholarship";
 
 export interface ScholarshipStatusResponse {
   ID: number
@@ -30,4 +31,7 @@ export interface ScholarshipResponse {
   statusscholarship: ScholarshipStatusResponse
   typescholarship: ScholarshipTypeResponse
   approval_requirements: ApprovalRequirementResponse[]
+
+  //เพิ่ม feature scholarship เข้ามา
+  type_feature_name?: FeatureScholarshipResponse[]
 }

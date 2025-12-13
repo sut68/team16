@@ -17,7 +17,7 @@ type FamilyInfo struct {
 	GuardianIncome     float64 `gorm:"type:decimal(10,2)" json:"guardian_income"`
 	GuardianRelation   string  `json:"guardian_relation"`
 
-	// Foreign Key
+	// Foreign Key - เพิ่ม references:ID เข้ามา
 	ProfileID uint           `json:"profile_id"`
-	Profile   StudentProfile `gorm:"foreignKey:ProfileID" json:"student_profile"`
+	Profile   StudentProfile `gorm:"foreignKey:ProfileID;references:ID" json:"student_profile"`
 }

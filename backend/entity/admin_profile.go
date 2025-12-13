@@ -10,8 +10,9 @@ type AdminProfile struct {
 	Department     uint   `gorm:"not null" json:"department"`
 	Email          string `gorm:"not null" json:"email"`
 
+	//เพิ่ม refferences:ID เข้ามา
 	UserID uint `json:"user_id"`
-	User   User `gorm:"foreignKey:UserID" json:"user"`
+	User   User `gorm:"foreignKey:UserID;references:ID" json:"user"`
 
 	ApprovalTasks []ApprovalTask `gorm:"foreignKey:AdminID" json:"approval_tasks"`
 }

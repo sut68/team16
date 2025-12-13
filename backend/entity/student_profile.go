@@ -30,4 +30,7 @@ type StudentProfile struct {
 
 	Applications []Application `gorm:"foreignKey:StudentProfileID" json:"applications"`
 	StudentFavNews []StudentFavNews `gorm:"foreignKey:StudentProfileID" json:"student_fav_news"`
+
+	//เพิ่ม FamilyInfo เข้ามา
+	FamilyInfo *FamilyInfo `gorm:"foreignKey:ProfileID" json:"family_info"`
 }

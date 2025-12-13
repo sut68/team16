@@ -1,4 +1,149 @@
+// // src/services/https.ts
+// import axios from "axios";
+// import type { AxiosResponse, AxiosError } from "axios";
+
+// const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+// const getCookie = (name: string): string | null => {
+//   const cookies = document.cookie.split("; ");
+//   const cookie = cookies.find((row) => row.startsWith(`${name}=`));
+//   if (cookie) {
+//     const cookieValue = cookie.split("=")[1];
+//     if (cookieValue) {
+//       let AccessToken = decodeURIComponent(cookieValue);
+//       AccessToken = AccessToken.replace(/\\/g, "").replace(/"/g, "");
+//       return AccessToken ? AccessToken : null;
+//     }
+//   }
+//   return null;
+// };
+
+// // ✅ แก้: อ่านจาก sessionStorage ก่อน แล้วค่อย fallback
+// export const getToken = (): string | null => {
+//   return (
+//     sessionStorage.getItem("token") ||
+//     localStorage.getItem("token") ||
+//     getCookie("0195f494-feaa-734a-92a6-05739101ede9") ||
+//     null
+//   );
+// };
+
+// // ✅ แก้: token_type ก็อ่านจาก sessionStorage ก่อน
+// const getTokenType = (): string =>
+//   sessionStorage.getItem("token_type") ||
+//   localStorage.getItem("token_type") ||
+//   "Bearer";
+
+// const getConfig = () => {
+//   const token = getToken();
+//   const headers: Record<string, string> = {
+//     "Content-Type": "application/json",
+//   };
+//   if (token) headers.Authorization = `${getTokenType()} ${token}`;
+//   return { headers };
+// };
+
+// const getConfigWithoutAuth = () => ({
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+// });
+
+// export const Post = async (
+//   url: string,
+//   data: any,
+//   requireAuth: boolean = true
+// ): Promise<AxiosResponse | any> => {
+//   const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+//   return await axios
+//     .post(`${API_URL}${url}`, data, config)
+//     .then((res) => res.data)
+//     .catch((error: AxiosError) => {
+//       if (error?.response?.status === 401) {
+//         // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
+//         try { sessionStorage.clear(); } catch {}
+//         try { localStorage.clear(); } catch {}
+//         window.location.reload();
+//       }
+//       return error.response;
+//     });
+// };
+
+// export const Get = async (
+//   url: string,
+//   requireAuth: boolean = true
+// ): Promise<AxiosResponse | any> => {
+//   const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+//   return await axios
+//     .get(`${API_URL}${url}`, config)
+//     .then((res) => res.data)
+//     .catch((error: AxiosError) => {
+//       if (error?.message === "Network Error") {
+//         return error.response;
+//       }
+//       if (error?.response?.status === 401) {
+//         // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
+//         try { sessionStorage.clear(); } catch {}
+//         try { localStorage.clear(); } catch {}
+//         window.location.reload();
+//       }
+//       return error.response;
+//     });
+// };
+
+// export const Put = async (
+//   url: string,
+//   data: any,
+//   requireAuth: boolean = true
+// ): Promise<AxiosResponse | any> => {
+//   const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+//   return await axios
+//     .put(`${API_URL}${url}`, data, config)
+//     .then((res) => res.data)
+//     .catch((error: AxiosError) => {
+//       if (error?.response?.status === 401) {
+//         // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
+//         try { sessionStorage.clear(); } catch {}
+//         try { localStorage.clear(); } catch {}
+//         window.location.reload();
+//       }
+//       return error.response;
+//     });
+// };
+
+// export const Delete = async (
+//   url: string,
+//   requireAuth: boolean = true
+// ): Promise<AxiosResponse | any> => {
+//   const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+//   return await axios
+//     .delete(`${API_URL}${url}`, config)
+//     .then((res) => res.data)
+//     .catch((error: AxiosError) => {
+//       if (error?.response?.status === 401) {
+//         // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
+//         try { sessionStorage.clear(); } catch {}
+//         try { localStorage.clear(); } catch {}
+//         window.location.reload();
+//       }
+//       return error.response;
+//     });
+// };
+
+// export const axiosInstance = axios.create({
+//   baseURL: API_URL,
+// });
+
+// export const https = {
+//   get: axiosInstance.get,
+//   post: axiosInstance.post,
+//   put: axiosInstance.put,
+//   delete: axiosInstance.delete,
+//   patch: axiosInstance.patch,
+// }
 // src/services/https.ts
+
+//Bam
 import axios from "axios";
 import type { AxiosResponse, AxiosError } from "axios";
 
@@ -18,7 +163,6 @@ const getCookie = (name: string): string | null => {
   return null;
 };
 
-// ✅ แก้: อ่านจาก sessionStorage ก่อน แล้วค่อย fallback
 export const getToken = (): string | null => {
   return (
     sessionStorage.getItem("token") ||
@@ -28,39 +172,48 @@ export const getToken = (): string | null => {
   );
 };
 
-// ✅ แก้: token_type ก็อ่านจาก sessionStorage ก่อน
 const getTokenType = (): string =>
   sessionStorage.getItem("token_type") ||
   localStorage.getItem("token_type") ||
   "Bearer";
 
-const getConfig = () => {
+// ✅ แก้ไข 1: รับ data เข้ามาเพื่อเช็คว่าเป็น FormData หรือไม่
+const getConfig = (data?: any) => {
   const token = getToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const headers: Record<string, string> = {};
+
+  // 🔥 สำคัญ: ถ้าไม่ใช่ FormData ให้ใส่ JSON (ถ้าเป็น FormData ต้องห้ามใส่! ให้ axios ใส่ boundary เอง)
+  if (!(data instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
   if (token) headers.Authorization = `${getTokenType()} ${token}`;
   return { headers };
 };
 
-const getConfigWithoutAuth = () => ({
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+// ✅ แก้ไข 2: ทำเหมือนกันกับ getConfigWithoutAuth
+const getConfigWithoutAuth = (data?: any) => {
+  const headers: Record<string, string> = {};
+  
+  if (!(data instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  return { headers };
+};
 
 export const Post = async (
   url: string,
   data: any,
   requireAuth: boolean = true
 ): Promise<AxiosResponse | any> => {
-  const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+  // ✅ ส่ง data เข้าไปเช็ค config
+  const config = requireAuth ? getConfig(data) : getConfigWithoutAuth(data);
   return await axios
     .post(`${API_URL}${url}`, data, config)
     .then((res) => res.data)
     .catch((error: AxiosError) => {
       if (error?.response?.status === 401) {
-        // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
         try { sessionStorage.clear(); } catch {}
         try { localStorage.clear(); } catch {}
         window.location.reload();
@@ -82,7 +235,6 @@ export const Get = async (
         return error.response;
       }
       if (error?.response?.status === 401) {
-        // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
         try { sessionStorage.clear(); } catch {}
         try { localStorage.clear(); } catch {}
         window.location.reload();
@@ -96,13 +248,13 @@ export const Put = async (
   data: any,
   requireAuth: boolean = true
 ): Promise<AxiosResponse | any> => {
-  const config = requireAuth ? getConfig() : getConfigWithoutAuth();
+  // ✅ ส่ง data เข้าไปเช็ค config
+  const config = requireAuth ? getConfig(data) : getConfigWithoutAuth(data);
   return await axios
     .put(`${API_URL}${url}`, data, config)
     .then((res) => res.data)
     .catch((error: AxiosError) => {
       if (error?.response?.status === 401) {
-        // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
         try { sessionStorage.clear(); } catch {}
         try { localStorage.clear(); } catch {}
         window.location.reload();
@@ -121,7 +273,6 @@ export const Delete = async (
     .then((res) => res.data)
     .catch((error: AxiosError) => {
       if (error?.response?.status === 401) {
-        // ✅ แก้: เคลียร์ทั้ง sessionStorage และ localStorage
         try { sessionStorage.clear(); } catch {}
         try { localStorage.clear(); } catch {}
         window.location.reload();
@@ -140,4 +291,4 @@ export const https = {
   put: axiosInstance.put,
   delete: axiosInstance.delete,
   patch: axiosInstance.patch,
-}
+};
