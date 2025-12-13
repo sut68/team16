@@ -155,6 +155,18 @@ func main() {
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
+
+		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
+    	api.GET("/profile/me", controllers.GetMyProfile)
+    	api.PUT("/profile/me", controllers.UpdateMyProfile)
+		
+		// User Management (Admin)
+    	api.GET("/roles", controllers.ListRoles)
+    	api.GET("/majors", controllers.ListMajors)
+    	api.GET("/users", controllers.ListUsers)
+    	api.POST("/users", controllers.CreateUser)
+    	api.DELETE("/users/:id", controllers.DeleteUser)
+		api.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080
