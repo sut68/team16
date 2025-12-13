@@ -148,17 +148,17 @@ func main() {
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
 	
-		//profile
-		api.GET("/profile/student/me", controllers.GetMyStudentProfile)
-		api.PUT("/profile/student/me", controllers.UpdateMyStudentProfile)
-		api.GET("/profile/admin/me", controllers.GetMyAdminProfile)
-		api.PUT("/profile/admin/me", controllers.UpdateMyAdminProfile)
+		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
+    	api.GET("/profile/me", controllers.GetMyProfile)
+    	api.PUT("/profile/me", controllers.UpdateMyProfile)
 		
-		//users
-		api.GET("/users", controllers.ListUsers)
-		api.POST("/users", controllers.CreateUser)
-		api.PUT("/users/:id", controllers.UpdateUser)
-		api.DELETE("/users/:id", controllers.DeleteUser)
+		// User Management (Admin)
+    	api.GET("/roles", controllers.ListRoles)
+    	api.GET("/majors", controllers.ListMajors)
+    	api.GET("/users", controllers.ListUsers)
+    	api.POST("/users", controllers.CreateUser)
+    	api.DELETE("/users/:id", controllers.DeleteUser)
+		api.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
 	
 	
 	

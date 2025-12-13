@@ -1,260 +1,283 @@
 package controllers
 
 import (
-	"net/http"
-	"strconv"
-	"strings"
-	"log"
-
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
 	"backend/config"
 	"backend/entity"
 	"backend/services"
+	"fmt"
+	"net/http"
+	"strings"
+	// "time"
+
+	"github.com/gin-gonic/gin"
 )
-// helper to get user id from gin context
-func getUserIDFromContext(c *gin.Context) (uint, bool) {
-	v, ok := c.Get("user_id")
-	if !ok {
-		return 0, false
+
+// Helper
+func getUserID(c *gin.Context) (uint, error) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return 0, fmt.Errorf("no authorization header")
 	}
-	switch t := v.(type) {
-	case float64:
-		return uint(t), true
-	case int:
-		return uint(t), true
-	case int64:
-		return uint(t), true
-	case uint:
-		return t, true
-	case uint64:
-		return uint(t), true
-	case string:
-		n, err := strconv.ParseUint(t, 10, 64)
-		if err == nil {
-			return uint(n), true
-		}
+	tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+	claims, err := services.ValidateJWT(tokenString) // ใช้ Service
+	if err != nil {
+		return 0, err
 	}
-	return 0, false
+	return claims.UserID, nil
 }
 
-type createUserPayload struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Role     string `json:"role" binding:"required"`
+// ---------------------------------------------------
+//  DROPDOWN DATA (เพิ่มกลับมาให้แล้วครับ)
+// ---------------------------------------------------
+
+func ListRoles(c *gin.Context) {
+	var roles []entity.Role
+	config.DB.Find(&roles)
+	c.JSON(http.StatusOK, gin.H{"data": roles})
 }
 
-type updateUserPayload struct {
-	Username *string `json:"username,omitempty"`
-	Password *string `json:"password,omitempty"`
-	Role     *string `json:"role,omitempty"`
+func ListMajors(c *gin.Context) {
+	var majors []entity.Major
+	config.DB.Find(&majors)
+	c.JSON(http.StatusOK, gin.H{"data": majors})
 }
+
+// ---------------------------------------------------
+//  USER MANAGEMENT
+// ---------------------------------------------------
 
 func ListUsers(c *gin.Context) {
 	var users []entity.User
-	if err := config.DB.Preload("Role").Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query users"})
+	if err := config.DB.Preload("Role").
+		Preload("StudentProfiles.Major").
+		Preload("AdminProfiles").
+		Find(&users).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, users)
-}
-
-type CreateUserPayload struct {
-  Username string `json:"username" binding:"required"`
-  Password string `json:"password" binding:"required"`
-  Role     string `json:"role" binding:"required"` // expect "admin" or "student" or "user"
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
 func CreateUser(c *gin.Context) {
-  // get creator id from context (AuthMiddleware should set)
-  creator, exists := c.Get("user_id")
-  if !exists {
-    c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-    return
-  }
-  creatorID := creator.(uint)
-  if creatorID != 1 { // only admin id=1 may create admins or manage users per your rule
-    c.JSON(http.StatusForbidden, gin.H{"error": "only admin id=1 can create users"})
-    return
-  }
-
-  var payload CreateUserPayload
-  if err := c.ShouldBindJSON(&payload); err != nil {
-    log.Printf("CreateUser bind error: %v", err)
-    // return detailed error message temporarily for debugging
-    c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "detail": err.Error()})
-    return
-  }
-
-  // Normalize role
-  roleName := strings.ToLower(strings.TrimSpace(payload.Role))
-  var role entity.Role
-  if err := config.DB.Where("LOWER(name) = ?", roleName).First(&role).Error; err != nil {
-    c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
-    return
-  }
-
-  hashed, err := services.HashPassword(payload.Password)
-  if err != nil {
-    c.JSON(http.StatusInternalServerError, gin.H{"error": "hash error"})
-    return
-  }
-
-  user := entity.User{
-    Username: payload.Username,
-    Password: hashed,
-    RoleID:   &role.ID,
-  }
-
-  if err := config.DB.Create(&user).Error; err != nil {
-    c.JSON(http.StatusInternalServerError, gin.H{"error": "failed create user", "detail": err.Error()})
-    return
-  }
-
-  c.JSON(http.StatusCreated, gin.H{"message": "created", "id": user.ID})
-}
-
-
-func UpdateUser(c *gin.Context) {
-	idParam := c.Param("id")
-	targetID64, err := strconv.ParseUint(idParam, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	targetID := uint(targetID64)
-
-	callerID, ok := getUserIDFromContext(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		RoleID   uint   `json:"role_id"`
+		// Student
+		StudentID   string    `json:"student_id"`
+		FirstNameTH string    `json:"first_name_th"`
+		LastNameTH  string    `json:"last_name_th"`
+		NationalID  string    `json:"national_id"`
+		MajorID     uint      `json:"major_id"`
+		GPAX        float64   `json:"gpax"`
+		AdvisorName string    `json:"advisor_name"`
+		// Admin
+		AdminFirstname string `json:"admin_first_name"`
+		AdminLastname  string `json:"admin_last_name"`
+		Position       string `json:"position"`
+		// Common
+		Email string `json:"email"`
+		Phone string `json:"phone"`
 	}
 
-	var payload updateUserPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var target entity.User
-	if err := config.DB.Preload("Role").First(&target, targetID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lookup user"})
+	currentUserID, err := getUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	// load caller
-	var caller entity.User
-	if err := config.DB.Preload("Role").First(&caller, callerID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load caller"})
+	var targetRole entity.Role
+	config.DB.First(&targetRole, input.RoleID)
+
+	if targetRole.Name == "admin" && currentUserID != 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only Super Admin can create Admins"})
 		return
 	}
-	callerRole := ""
-	if caller.Role != nil {
-		callerRole = strings.ToLower(caller.Role.Name)
+
+	tx := config.DB.Begin()
+
+	hashedPassword, _ := services.HashPassword(input.Password)
+	user := entity.User{
+		Username: input.Username,
+		Password: hashedPassword,
+		RoleID:   &input.RoleID,
 	}
 
-	// if change role requested
-	if payload.Role != nil {
-		newRoleName := strings.ToLower(strings.TrimSpace(*payload.Role))
-		if newRoleName == "admin" && callerID != 1 {
-			c.JSON(http.StatusForbidden, gin.H{"error": "only admin id=1 can set Admin role"})
-			return
+	if err := tx.Create(&user).Error; err != nil {
+		tx.Rollback()
+		if strings.Contains(err.Error(), "Duplicate") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Username already exists"})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
-		if newRoleName == "student" && !(callerID == 1 || callerRole == "admin") {
-			c.JSON(http.StatusForbidden, gin.H{"error": "only admin can set Student role"})
-			return
-		}
-		var newRole entity.Role
-		if err := config.DB.Where("LOWER(name)=?", newRoleName).First(&newRole).Error; err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
-			return
-		}
-		target.RoleID = &newRole.ID
-	}
-
-	if payload.Username != nil {
-		target.Username = *payload.Username
-	}
-	if payload.Password != nil {
-		hash, err := services.HashPassword(*payload.Password)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
-			return
-		}
-		target.Password = hash
-	}
-
-	if err := config.DB.Save(&target).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+
+	if targetRole.Name == "student" {
+		student := entity.StudentProfile{
+			UserID:      user.ID,
+			StudentID:   input.StudentID,
+			FirstNameTH: input.FirstNameTH,
+			LastNameTH:  input.LastNameTH,
+			NationalID:  input.NationalID,
+			MajorID:     input.MajorID,
+			GPAX:        input.GPAX,
+			AdvisorName: input.AdvisorName,
+			Email:       input.Email,
+			Phone:       input.Phone,
+			// Default values to prevent errors
+			FirstNameEN: "-", LastNameEN: "-", PermanentAddress: "-", CurrentAddress: "-", Province: "-",
+		}
+		if err := tx.Create(&student).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Create Student Failed"})
+			return
+		}
+	} else if targetRole.Name == "admin" {
+		admin := entity.AdminProfile{
+			UserID:         user.ID,
+			AdminFirstname: input.AdminFirstname,
+			AdminLastname:  input.AdminLastname,
+			Position:       input.Position,
+			Email:          input.Email,
+			Phone:          input.Phone,
+		}
+		if err := tx.Create(&admin).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Create Admin Failed"})
+			return
+		}
+	}
+
+	tx.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "User created successfully"})
+}
+
+func UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+	// รับเฉพาะข้อมูลที่ Admin แก้ไขให้คนอื่นได้
+	var input struct {
+		// Student
+		StudentID   string    `json:"student_id"`
+		FirstNameTH string    `json:"first_name_th"`
+		LastNameTH  string    `json:"last_name_th"`
+		NationalID  string    `json:"national_id"`
+		MajorID     uint      `json:"major_id"`
+		GPAX        float64   `json:"gpax"`
+		AdvisorName string    `json:"advisor_name"`
+		// Admin
+		AdminFirstname string `json:"admin_first_name"`
+		AdminLastname  string `json:"admin_last_name"`
+		Position       string `json:"position"`
+		// Common
+		Email    string `json:"email"`
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUserID, err := getUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var user entity.User
+	if err := config.DB.Preload("Role").First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if user.Role.Name == "admin" && currentUserID != 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only Super Admin can update Admins"})
+		return
+	}
+
+	tx := config.DB.Begin()
+
+	if input.Password != "" {
+		hashed, _ := services.HashPassword(input.Password)
+		user.Password = hashed
+		tx.Save(&user)
+	}
+
+	if user.Role.Name == "student" {
+		var student entity.StudentProfile
+		if err := tx.Where("user_id = ?", user.ID).First(&student).Error; err == nil {
+			student.StudentID = input.StudentID
+			student.FirstNameTH = input.FirstNameTH
+			student.LastNameTH = input.LastNameTH
+			student.NationalID = input.NationalID
+			student.MajorID = input.MajorID
+			student.GPAX = input.GPAX
+			student.AdvisorName = input.AdvisorName
+			student.Email = input.Email
+			student.Phone = input.Phone
+			tx.Save(&student)
+		}
+	} else if user.Role.Name == "admin" {
+		var admin entity.AdminProfile
+		// ใช้ Where user_id เพื่อความชัวร์
+		if err := tx.Where("user_id = ?", user.ID).First(&admin).Error; err == nil {
+			admin.AdminFirstname = input.AdminFirstname
+			admin.AdminLastname = input.AdminLastname
+			admin.Position = input.Position
+			admin.Email = input.Email
+			admin.Phone = input.Phone
+			tx.Save(&admin)
+		} else {
+			// สร้างใหม่ถ้า Admin ยังไม่มี Profile
+			newAdmin := entity.AdminProfile{
+				UserID: user.ID,
+				AdminFirstname: input.AdminFirstname,
+				AdminLastname: input.AdminLastname,
+				Position: input.Position,
+				Email: input.Email,
+				Phone: input.Phone,
+			}
+			tx.Create(&newAdmin)
+		}
+	}
+
+	tx.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
 func DeleteUser(c *gin.Context) {
-	idParam := c.Param("id")
-	targetID64, err := strconv.ParseUint(idParam, 10, 64)
+	id := c.Param("id")
+	currentUserID, err := getUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	targetID := uint(targetID64)
-
-	callerID, ok := getUserIDFromContext(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	var target entity.User
-	if err := config.DB.Preload("Role").First(&target, targetID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lookup user"})
+	var user entity.User
+	if err := config.DB.Preload("Role").First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// cannot delete self
-	if callerID == targetID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "cannot delete yourself"})
+	if user.ID == 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete Super Admin"})
+		return
+	}
+	if user.Role.Name == "admin" && currentUserID != 1 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only Super Admin can delete other Admins"})
 		return
 	}
 
-	targetRoleName := ""
-	if target.Role != nil {
-		targetRoleName = strings.ToLower(target.Role.Name)
-	}
-
-	if targetRoleName == "admin" && callerID != 1 {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only admin id=1 can delete admin accounts"})
+	if err := config.DB.Delete(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Delete failed"})
 		return
 	}
-
-	// only admin family can delete users
-	var caller entity.User
-	if err := config.DB.Preload("Role").First(&caller, callerID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load caller"})
-		return
-	}
-	callerRole := ""
-	if caller.Role != nil {
-		callerRole = strings.ToLower(caller.Role.Name)
-	}
-	if !(callerID == 1 || callerRole == "admin") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only admin users can delete accounts"})
-		return
-	}
-
-	if err := config.DB.Delete(&entity.User{}, targetID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
