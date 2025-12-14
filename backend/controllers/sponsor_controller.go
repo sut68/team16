@@ -128,7 +128,7 @@ func UpdateSponsor(ctx *gin.Context) {
 
 	var inputValues struct {
 		CompanyName		*string		`json:"company_name"`
-		IndustryID    *string		`json:"industry_id"`
+		IndustryID    *uint		  `json:"industry_id"`
 		Website				*string		`json:"website"`
 		Status				*string		`json:"status"`
 		Description		*string		`json:"description"`

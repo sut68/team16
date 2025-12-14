@@ -1,24 +1,26 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { makeApprovalDecision } from '@/services/api/approval';
-// Import Interfaces
-import type { ApprovalTaskResponse } from '@/interfaces';
+import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
-// Local interface to include mocked/client-side-only properties
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
-  round?: string;
-  submission_date?: string;
+    roundText?: string;
+    submission_date?: string;
+    semaster?: SemasterResponse;
 }
 
 interface TimelineEvent {
-    id: number | string;
+id: number | string;
     title: string;
     date: string;
     description: string;
     actor: string;
-    status: string
+    status: string;
     type: 'task' | 'decision';
     timestamp: number;
+    filePath?: string;
+    fileName?: string;
+    isOldFile?: boolean;
 }
 
 const props = defineProps<{
@@ -28,97 +30,179 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'action-completed']);
 
-// State
 const comment = ref('');
 const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
 
+const semesterText = computed(() => {
+  const semaster = props.documentData?.semaster;
+  if (!semaster) return 'N/A';
+  return `ปีการศึกษา ${semaster.academic_year} เทอม ${semaster.term} รอบ ${semaster.round}`;
+});
+
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
-    
-    let dateStr: string = String(dateString);
-
-    if (dateStr.includes(' m=')) {
-        const parts: string[] = dateStr.split(' m=');
-        dateStr = parts[0] as string;
-    }
-
-    if (dateStr.includes('+0000 UTC')) {
-        dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
-    }
-
+    let dateStr = String(dateString);
+    if (dateStr.includes(' m=')) dateStr = dateStr.split(' m=')[0] || dateStr;
+    if (dateStr.includes('+0000 UTC')) dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
     dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
-
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? null : date;
 };
 
 const formatDate = (dateString: string | undefined | number) => {
     if (!dateString) return 'เมื่อสักครู่';
-
     if (typeof dateString === 'number') {
         return new Date(dateString).toLocaleDateString('th-TH', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
         });
     }
-
     const date = parseGoDate(dateString);
-    if (!date) return 'เมื่อสักครู่'; 
-    
+    if (!date) return 'เมื่อสักครู่';
     return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
 };
 
 const canAction = computed(() => {
     if (!props.documentData?.status) return false;
     const s = props.documentData.status.toLowerCase();
-    return s === 'pending' || s === 'request-change';
+    if (s === 'approved' || s === 'rejected') return false;
+    return true;
+});
+
+const latestDocument = computed(() => {
+    const currentDoc = props.documentData?.application_document;
+    if (!currentDoc) return null;
+
+    const appScholarship = currentDoc.application_scholarship;
+    const allDocs = appScholarship?.application_documents || appScholarship?.application_documents;
+
+    if (allDocs && Array.isArray(allDocs) && allDocs.length > 0) {
+        const sortedDocs = [...allDocs].sort((a, b) =>
+            (parseGoDate(b.CreatedAt)?.getTime() || 0) - (parseGoDate(a.CreatedAt)?.getTime() || 0)
+        );
+        return sortedDocs[0];
+    }
+    return currentDoc;
+});
+
+const isResubmitted = computed(() => {
+    if (!props.documentData?.approval_decisions || !latestDocument.value) return false;
+
+    const uploadTime = parseGoDate(latestDocument.value.CreatedAt)?.getTime() || 0;
+    const decisions = [...props.documentData.approval_decisions];
+
+    if (decisions.length === 0) return false;
+
+    decisions.sort((a, b) => (Number(b.ID) || 0) - (Number(a.ID) || 0));
+    const lastDecision = decisions[0];
+    if (!lastDecision) return false;
+
+    const decisionTime = parseGoDate(lastDecision.decision_at)?.getTime() || 0;
+    return lastDecision.decision === 'request-change' && uploadTime > decisionTime;
 });
 
 const processedTimelineEvents = computed(() => {
-    if (!props.documentData) return [];
+    if (!props.documentData || !props.documentData.application_document) return [];
 
     const events: TimelineEvent[] = [];
     const doc = props.documentData;
+    const currentDoc = doc.application_document;
 
-    const adminActorName = (doc.admin_profile && doc.admin_profile.admin_firstname) ? doc.admin_profile.admin_firstname : 'ระบบ';
+    const appScholarship = currentDoc.application_scholarship;
+    const application = appScholarship?.application;
+    let studentName = 'ผู้สมัคร';
+    if (application?.student_profile) {
+        studentName = `${application.student_profile.first_name_th} ${application.student_profile.last_name_th}`;
+    }
+    const adminName = doc.admin_profile?.admin_firstname || 'เจ้าหน้าที่';
 
-    const createdDate = parseGoDate(doc.CreatedAt);
+    if (appScholarship) {
+        const applyDateRaw = appScholarship.CreatedAt;
+        const applyTs = parseGoDate(applyDateRaw)?.getTime();
+        if (applyTs) {
+            events.push({
+                id: `app-scholarship-${appScholarship.ID}`,
+                title: 'ยื่นใบสมัครทุน',
+                date: formatDate(applyDateRaw),
+                description: 'นักศึกษายื่นความประสงค์ขอรับทุนการศึกษา',
+                actor: studentName,
+                status: 'past-submitted',
+                type: 'task',
+                timestamp: applyTs,
+            });
+        }
+    }
 
-    let createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
+    const allDocsRaw = appScholarship?.application_documents || appScholarship?.application_documents;
 
-    events.push({
-        id: 'created',
-        title: 'ยื่นใบสมัครแล้ว',
-        date: formatDate(doc.CreatedAt),
-        description: 'ส่งเอกสารเข้าสู่ระบบเรียบร้อยแล้ว',
-        actor: 'ผู้สมัคร',
-        status: 'past-submitted', 
-        type: 'task',
-        timestamp: createdTs,
-    });
+    if (allDocsRaw && Array.isArray(allDocsRaw) && allDocsRaw.length > 0) {
+        const sortedDocs = [...allDocsRaw].sort((a, b) =>
+            (parseGoDate(a.CreatedAt)?.getTime() || 0) - (parseGoDate(b.CreatedAt)?.getTime() || 0)
+        );
+
+        sortedDocs.forEach((d, index) => {
+            const uploadTs = parseGoDate(d.CreatedAt)?.getTime();
+            if (uploadTs) {
+                const isFirstUpload = index === 0;
+                const isCurrentFile = d.ID === latestDocument.value?.ID;
+
+                let titleLabel = isFirstUpload ? 'อัปโหลดเอกสาร (ครั้งแรก)' : 'อัปโหลดเอกสารแก้ไข';
+                if (isFirstUpload && isResubmitted.value && isCurrentFile) {
+                    titleLabel = 'อัปโหลดเอกสารแก้ไข';
+                }
+
+                events.push({
+                    id: `doc-history-${d.ID}`,
+                    title: titleLabel,
+                    date: formatDate(d.CreatedAt),
+                    description: '',
+                    actor: studentName,
+                    status: 'past-submitted',
+                    type: 'task',
+                    timestamp: uploadTs,
+                    filePath: d.file_path,
+                    fileName: d.file_name,
+                    isOldFile: !isCurrentFile
+                });
+            }
+        });
+    } else {
+        const uploadDateRaw = currentDoc.CreatedAt;
+        const uploadTs = parseGoDate(uploadDateRaw)?.getTime();
+        let titleLabel = isResubmitted.value ? 'อัปโหลดเอกสารแก้ไข' : 'อัปโหลดเอกสาร';
+
+        if (uploadDateRaw) {
+            events.push({
+                id: `doc-${currentDoc.ID}`,
+                title: titleLabel,
+                date: formatDate(uploadDateRaw),
+                description: '',
+                actor: studentName,
+                status: 'past-submitted',
+                type: 'task',
+                timestamp: uploadTs || Date.now(),
+                filePath: currentDoc.file_path,
+                fileName: currentDoc.file_name,
+                isOldFile: false
+            });
+        }
+    }
 
     if (doc.approval_decisions && doc.approval_decisions.length > 0) {
         doc.approval_decisions.forEach(decision => {
+            const dateRaw = decision.decision_at;
+            const decisionTs = parseGoDate(dateRaw)?.getTime();
+            if (!decisionTs) return;
+
             let title = '';
             let status = '';
             let description = decision.comment || '';
-            const dType = decision.decision?.toLowerCase() || '';
-            if (!['approve', 'reject', 'request-change'].includes(dType)) {
-                return;
-            }
+            const type = decision.decision?.toLowerCase();
 
-            switch (dType) {
+            switch (type) {
                 case 'approve':
                     title = 'อนุมัติแล้ว';
                     status = 'past-approved';
@@ -127,88 +211,103 @@ const processedTimelineEvents = computed(() => {
                 case 'reject':
                     title = 'ปฏิเสธคำขอ';
                     status = 'past-rejected';
+                    description = `เหตุผล: ${description || 'ไม่ระบุ'}`;
                     break;
                 case 'request-change':
-                    title = 'ขอข้อมูลเพิ่มเติม/แก้ไข';
+                    title = isResubmitted.value ? 'ขอข้อมูลเพิ่มเติม (ส่งแก้ไขแล้ว)' : 'ขอข้อมูลเพิ่มเติม/แก้ไข';
                     status = 'past-request-change';
+                    description = `สิ่งที่ต้องแก้ไข: ${description || 'ไม่ระบุ'}`;
                     break;
+                default:
+                    return;
             }
 
-            const decisionDate = parseGoDate(decision.decision_at);
-            const ts = decisionDate ? decisionDate.getTime() : Date.now();
-            
             events.push({
                 id: decision.ID,
                 title: title,
-                date: formatDate(decision.decision_at),
+                date: formatDate(dateRaw),
                 description: description,
-                actor: doc.admin_profile ? doc.admin_profile.admin_firstname : 'เจ้าหน้าที่',
+                actor: adminName,
                 status: status,
                 type: 'decision',
-                timestamp: ts, 
+                timestamp: decisionTs,
             });
         });
     }
 
-    const currentStatus = doc.status?.toLowerCase() || '';
-    const nowTs = Date.now();
+    const currentStatus = doc.status?.toLowerCase();
+    const hasDecisions = doc.approval_decisions && doc.approval_decisions.length > 0;
 
-    if (currentStatus === 'pending') {
-        const updateDate = parseGoDate(doc.UpdatedAt);
-        const updateTs = updateDate ? updateDate.getTime() : nowTs;
-
+    if (isResubmitted.value) {
         events.push({
-            id: 'reviewing',
-            title: 'เจ้าหน้าที่กำลังตรวจสอบ',
-            date: formatDate(doc.UpdatedAt || doc.CreatedAt), 
-            description: 'อยู่ในระหว่างการพิจารณาตรวจสอบความถูกต้อง',
-            actor: adminActorName, 
+            id: 'reviewing-new',
+            title: 'รอตรวจสอบการแก้ไข',
+            date: 'กำลังดำเนินการ',
+            description: 'ผู้สมัครได้ส่งเอกสารแก้ไขเข้ามาใหม่แล้ว รอเจ้าหน้าที่ตรวจสอบ',
+            actor: adminName,
             status: 'current',
             type: 'task',
-            timestamp: updateTs > createdTs ? updateTs : createdTs + 1000,
+            timestamp: Date.now() + 10000,
         });
     }
-    else if (currentStatus === 'approved') {
-        const hasApprovedEvent = events.some(e => e.status === 'past-approved');
-        if (!hasApprovedEvent) {
+    else if (currentStatus === 'pending' && !hasDecisions) {
+        const reviewingTs = parseGoDate(doc.CreatedAt)?.getTime();
+        if (reviewingTs) {
             events.push({
-                id: 'auto-approved',
-                title: 'อนุมัติแล้ว',
-                date: formatDate(doc.UpdatedAt || doc.CreatedAt),
-                description: 'เอกสารได้รับการอนุมัติ (สิ้นสุดกระบวนการ)',
-                actor: 'เจ้าหน้าที่',
-                status: 'past-approved',
+                id: 'reviewing',
+                title: 'เจ้าหน้าที่กำลังตรวจสอบ',
+                date: formatDate(doc.CreatedAt),
+                description: 'อยู่ในระหว่างการพิจารณาตรวจสอบความถูกต้อง',
+                actor: adminName,
+                status: 'current',
                 type: 'task',
-                timestamp: nowTs,
-            });
-        }
-    }
-    else if (currentStatus === 'rejected') {
-        const hasRejectedEvent = events.some(e => e.status === 'past-rejected');
-        if (!hasRejectedEvent) {
-            events.push({
-                id: 'auto-rejected',
-                title: 'ปฏิเสธคำขอ',
-                date: formatDate(doc.UpdatedAt || doc.CreatedAt),
-                description: 'คำขอถูกปฏิเสธ',
-                actor: 'เจ้าหน้าที่',
-                status: 'past-rejected',
-                type: 'task',
-                timestamp: nowTs,
+                timestamp: reviewingTs,
             });
         }
     }
 
     events.sort((a, b) => b.timestamp - a.timestamp);
+
     if (events.length > 0) {
-        const firstEvent = events[0];
-        if (firstEvent && firstEvent.status === 'past') {
-            firstEvent.status = 'current';
-        }
-        for(let i=1; i<events.length; i++) {
-            const event = events[i];
-            if (event && event.status === 'current') {
-                event.status = 'past';
+        let currentSet = false;
+
+        for (const event of events) {
+            if (event.id === 'reviewing-new') {
+                event.status = 'current';
+                currentSet = true;
+                continue;
+            }
+
+            if (!currentSet) {
+                const decisionType = event.type === 'decision' ? (doc.approval_decisions.find(d => d.ID === event.id)?.decision?.toLowerCase() || '') : '';
+
+                if (event.id === 'reviewing') {
+                    event.status = 'current';
+                    currentSet = true;
+                } else {
+                    const isMatch = (currentStatus === decisionType) ||
+                        (currentStatus === 'approved' && decisionType === 'approve') ||
+                        (currentStatus === 'rejected' && decisionType === 'reject');
+
+                    if (isMatch) {
+                        if (decisionType === 'approve' || decisionType === 'approved') {
+                            event.status = 'past-approved';
+                        } else if (decisionType === 'reject' || decisionType === 'rejected') {
+                            event.status = 'past-rejected';
+                        } else {
+                            if (isResubmitted.value) {
+                                event.status = 'past-request-change';
+                            } else {
+                                event.status = 'current';
+                            }
+                        }
+                        currentSet = true;
+                    } else {
+                        event.status = event.status.replace('current', 'past');
+                    }
+                }
+            } else {
+                event.status = event.status.replace('current', 'past');
             }
         }
     }
@@ -247,7 +346,6 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
             decision: type,
             comment: comment.value
         });
-
         emit('action-completed');
         closeModal();
     } catch (error) {
@@ -259,13 +357,21 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 };
 
 const openDocument = () => {
-    const filePath = props.documentData?.application_document?.file_path;
+    const filePath = latestDocument.value?.file_path;
     if (filePath) {
-        const backendBaseUrl = 'http://localhost:8080'; 
+        const backendBaseUrl = 'http://localhost:8080';
         const fileUrl = `${backendBaseUrl}/${filePath}`;
         window.open(fileUrl, '_blank');
     } else {
         alert('ไม่พบไฟล์เอกสาร');
+    }
+};
+
+const openSpecificDocument = (path: string) => {
+    if (path) {
+        const backendBaseUrl = 'http://localhost:8080';
+        const fileUrl = `${backendBaseUrl}/${path}`;
+        window.open(fileUrl, '_blank');
     }
 };
 </script>
@@ -278,23 +384,33 @@ const openDocument = () => {
             <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
                 <div>
                     <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">
-                        {{ documentData.application_document.application_scholarship?.scholarship?.scholarship_name || 'รายละเอียดทุนการศึกษา'
-                        }}
+                        {{ documentData.application_document.application_scholarship?.scholarship?.scholarship_name ||
+                        'รายละเอียดทุนการศึกษา' }}
 
-                        <span class="badge badge-warning text-white"
-                            v-if="documentData.status?.toLowerCase() === 'pending'">รอตรวจสอบ</span>
-                        <span class="badge badge-warning text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'request-change'">รอแก้ไข</span>
+                        <span class="badge badge-info text-white animate-pulse" v-if="isResubmitted">
+                            มีการส่งแก้ไขใหม่ (รอตรวจสอบ)
+                        </span>
                         <span class="badge badge-success text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'approved'">อนุมัติแล้ว</span>
+                            v-else-if="documentData.status?.toLowerCase() === 'approved'">
+                            อนุมัติแล้ว
+                        </span>
                         <span class="badge badge-error text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'rejected'">ปฏิเสธ</span>
+                            v-else-if="documentData.status?.toLowerCase() === 'rejected'">
+                            ปฏิเสธ
+                        </span>
+                        <span class="badge badge-warning text-white"
+                            v-else-if="documentData.status?.toLowerCase() === 'request-change'">
+                            รอผู้สมัครแก้ไข
+                        </span>
+                        <span class="badge badge-warning text-white" v-else>
+                            รอตรวจสอบ
+                        </span>
                     </h2>
                     <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
                         <span>Task ID: #{{ documentData.ID }}</span>
                         <span>•</span>
                         <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs">
-                            รอบ: {{ documentData.round || '1/2568' }}
+                            {{ semesterText }}
                         </span>
                     </div>
                 </div>
@@ -309,37 +425,48 @@ const openDocument = () => {
 
             <div class="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+
                     <div class="lg:col-span-2 space-y-6">
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อมูลผู้สมัคร</h3>
-                                <div v-if="documentData.application_document.application_scholarship?.application?.student_profile"
+                                <div v-if="documentData.application_document?.application_scholarship?.application?.student_profile"
                                     class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <span class="block text-gray-400">ชื่อ-นามสกุล</span>
                                         <span class="font-semibold text-slate-800 text-lg">
-                                            {{ documentData.application_document.application_scholarship.application.student_profile.first_name_th }}
-                                            {{ documentData.application_document.application_scholarship.application.student_profile.last_name_th }}
+                                            {{
+                                                documentData.application_document.application_scholarship.application.student_profile.first_name_th
+                                            }}
+                                            {{
+                                                documentData.application_document.application_scholarship.application.student_profile.last_name_th
+                                            }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">รหัสนักศึกษา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application_document.application_scholarship.application.student_profile.student_id || '-' }}
+                                            {{
+                                                documentData.application_document.application_scholarship.application.student_profile.student_id
+                                            || '-' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">สาขาวิชา</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application_document.application_scholarship.application.student_profile.major?.major_name || 'N/A' }}
+                                            {{
+                                                documentData.application_document.application_scholarship.application.student_profile.major?.major_name
+                                            || 'N/A' }}
                                         </span>
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">เกรดเฉลี่ย (GPAX)</span>
                                         <span class="font-semibold text-slate-800">
-                                            {{ documentData.application_document.application_scholarship.application.student_profile.gpax ?
-                                                documentData.application_document.application_scholarship.application.student_profile.gpax.toFixed(2) : '-' }}
+                                            {{
+                                                documentData.application_document.application_scholarship.application.student_profile.gpax
+                                                    ?
+                                                    documentData.application_document.application_scholarship.application.student_profile.gpax.toFixed(2)
+                                            : '-' }}
                                         </span>
                                     </div>
                                 </div>
@@ -349,10 +476,13 @@ const openDocument = () => {
 
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
-                                <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">เอกสารแนบ (ฉบับล่าสุด)
+                                <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">
+                                    เอกสารแนบ (ฉบับล่าสุด)
+                                    <span v-if="isResubmitted"
+                                        class="ml-2 badge badge-info text-white text-xs">NEW</span>
                                 </h3>
                                 <div class="space-y-3">
-                                    <div v-if="documentData.application_document"
+                                    <div v-if="latestDocument"
                                         class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-gray-200">
                                         <div class="flex items-center gap-3">
                                             <div
@@ -361,10 +491,10 @@ const openDocument = () => {
                                             </div>
                                             <div>
                                                 <p class="font-medium text-slate-700 truncate max-w-[300px]">
-                                                    {{ documentData.application_document.file_name }}
+                                                    {{ latestDocument.file_name }}
                                                 </p>
                                                 <p class="text-xs text-gray-400">
-                                                    อัปโหลดโดย {{ documentData.application_document.uploaded_by }}
+                                                    อัปโหลดเมื่อ {{ formatDate(latestDocument.CreatedAt) }}
                                                 </p>
                                             </div>
                                         </div>
@@ -378,27 +508,26 @@ const openDocument = () => {
 
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
-                                <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">
-                                    ข้อกำหนดทั้งหมดของทุนนี้
+                                <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อกำหนดทั้งหมดของทุนนี้
                                 </h3>
-                                
-                                <div v-if="documentData.application_document.application_scholarship?.scholarship?.approval_requirements?.length">
+                                <div
+                                    v-if="documentData.application_document?.application_scholarship?.scholarship?.approval_requirements?.length">
                                     <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm">
-                                        <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements" :key="req.ID">
+                                        <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements"
+                                            :key="req.ID">
                                             {{ req.requirement.name }}
                                         </li>
                                     </ul>
                                 </div>
-                                
                                 <div v-else class="text-center text-gray-400 py-4">
                                     ไม่พบข้อมูลข้อกำหนด
                                 </div>
                             </div>
                         </div>
-                        </div>
+                    </div>
 
                     <div class="lg:col-span-1 space-y-6">
-                        
+
                         <div v-if="canAction"
                             class="card bg-white shadow-md border border-blue-100 ring-4 ring-blue-50/50">
                             <div class="card-body p-5">
@@ -448,7 +577,7 @@ const openDocument = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div v-else class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5 items-center text-center">
                                 <div class="badge badge-lg p-4 font-bold text-white mb-2"
@@ -463,19 +592,17 @@ const openDocument = () => {
                         <div class="card bg-white shadow-sm border border-gray-100">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4">ประวัติการดำเนินการ</h3>
-
                                 <ul class="timeline timeline-vertical timeline-compact -ml-4">
                                     <li v-for="(event, index) in processedTimelineEvents" :key="event.id">
-                                        
                                         <hr v-if="index > 0" class="bg-gray-200" />
-
                                         <div class="timeline-middle">
                                             <div v-if="event.status === 'current'"
                                                 class="relative flex items-center justify-center w-6 h-6">
-                                                <span class="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
-                                                <span class="relative inline-flex rounded-full h-6 w-6 bg-[#1e3a8a] border-4 border-blue-100"></span>
+                                                <span
+                                                    class="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+                                                <span
+                                                    class="relative inline-flex rounded-full h-6 w-6 bg-[#1e3a8a] border-4 border-blue-100"></span>
                                             </div>
-                                            
                                             <div v-else-if="event.status === 'past-approved' || event.status === 'past-submitted'"
                                                 class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -485,7 +612,6 @@ const openDocument = () => {
                                                         clip-rule="evenodd" />
                                                 </svg>
                                             </div>
-
                                             <div v-else-if="event.status === 'past-rejected'"
                                                 class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -495,7 +621,6 @@ const openDocument = () => {
                                                         clip-rule="evenodd" />
                                                 </svg>
                                             </div>
-
                                             <div v-else-if="event.status === 'past-request-change'"
                                                 class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
@@ -505,31 +630,52 @@ const openDocument = () => {
                                                         clip-rule="evenodd" />
                                                 </svg>
                                             </div>
-
                                             <div v-else
                                                 class="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center">
                                                 <div class="w-2 h-2 bg-white rounded-full"></div>
                                             </div>
                                         </div>
 
-                                        <div class="timeline-end timeline-box w-full border-none shadow-none p-0 pl-2 mb-6">
+                                        <div
+                                            class="timeline-end timeline-box w-full border-none shadow-none p-0 pl-2 mb-6">
                                             <div class="font-bold text-slate-800 text-sm"
-                                                :class="{'text-[#1e3a8a]': event.status === 'current'}">
-                                                {{ event.title }}
-                                            </div>
-                                            <div class="text-xs text-gray-500 mb-1">
-                                                {{ event.date }} • โดย {{ event.actor }}
-                                            </div>
-                                            <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description" 
-                                                 class="mt-2 p-2 rounded-lg text-xs border"
-                                                 :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">
+                                                :class="{ 'text-[#1e3a8a]': event.status === 'current' }">{{ event.title
+                                                }}</div>
+                                            <div class="text-xs text-gray-500 mb-1">{{ event.date }} • โดย {{
+                                                event.actor }}</div>
+
+                                            <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description"
+                                                class="mt-2 p-2 rounded-lg text-xs border"
+                                                :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">
                                                 {{ event.description }}
                                             </div>
-                                            <div v-else class="text-xs text-gray-600 break-words">
-                                                {{ event.description }}
+
+                                            <div v-else-if="event.filePath"
+                                                class="bg-white border border-gray-200 rounded-lg p-2.5 mt-2 shadow-sm max-w-sm">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <div class="flex items-center gap-2 overflow-hidden">
+                                                        <div
+                                                            class="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-500 shrink-0">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4"
+                                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div class="truncate text-xs font-medium text-slate-700"
+                                                            :title="event.fileName">{{ event.fileName }}</div>
+                                                    </div>
+                                                    <button @click.prevent="openSpecificDocument(event.filePath)"
+                                                        class="btn btn-xs btn-outline bg-white text-gray-600 hover:bg-gray-50 shrink-0 font-normal">
+                                                        {{ event.isOldFile ? 'ดูไฟล์เก่า' : 'ดูไฟล์' }}
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            <div v-else class="text-xs text-gray-600 break-words mt-1">{{
+                                                event.description }}</div>
                                         </div>
-                                        
                                         <hr v-if="index < processedTimelineEvents.length - 1" class="bg-gray-200" />
                                     </li>
                                 </ul>

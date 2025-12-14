@@ -15,9 +15,15 @@ type Scholarship struct {
 	TypescholarshipID uint            `json:"typescholarship_id"`
 	Typescholarship   Typescholarship `gorm:"foreignKey:TypescholarshipID" json:"typescholarship"`
 
+	SemasterID uint     `json:"semaster_id"`
+	Semaster   Semaster `gorm:"foreignKey:SemasterID" json:"semaster"`
+	
 	ApprovalRequirements    []ApprovalRequirement    `gorm:"foreignKey:ScholarshipID" json:"approval_requirements"`
 	ApplicationScholarships []ApplicationScholarship `gorm:"foreignKey:ScholarshipID" json:"application_scholarships"`
 
+
 	//เพิ่ม Featurescholarships เข้ามา
 	Featurescholarships []Featurescholarship `gorm:"foreignKey:ScholarshipID" json:"featurescholarships"`
+
+	InterviewRounds         []InterviewRound         `gorm:"foreignKey:ScholarshipID" json:"interview_rounds"`
 }

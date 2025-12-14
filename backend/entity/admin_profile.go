@@ -15,4 +15,5 @@ type AdminProfile struct {
 	User   User `gorm:"foreignKey:UserID;references:ID" json:"user"`
 
 	ApprovalTasks []ApprovalTask `gorm:"foreignKey:AdminID" json:"approval_tasks"`
+	InterviewRounds []InterviewRound `gorm:"foreignKey:AdminProfileID" json:"interview_rounds"`
 }

@@ -386,7 +386,6 @@ aside p {
   overflow-x: hidden;
   overflow-y: hidden;
   margin-left: 30px;
-  max-width: 1500px;
   margin: 0 0;
 }
 

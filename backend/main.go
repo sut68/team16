@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,7 @@ import (
 
 func main() {
 	r := gin.New()
+	r.Use(gin.LoggerWithWriter(os.Stdout))
 	r.Use(gin.Recovery())
 
 	// Configure CORS
@@ -33,6 +35,7 @@ func main() {
 		&entity.Role{},
 		&entity.User{},
 		&entity.AdminProfile{},
+		&entity.Semaster{},
 		&entity.Application{},
 		&entity.ApplicationScholarship{},
 		&entity.ApplicationDocument{},
@@ -65,6 +68,7 @@ func main() {
 		&entity.Role{},
 		&entity.User{},
 		&entity.AdminProfile{},
+		&entity.Semaster{},
 		&entity.Application{},
 		&entity.ApplicationScholarship{},
 		&entity.ApplicationDocument{},
@@ -79,6 +83,8 @@ func main() {
 		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
 		&entity.Requirement{},         // Added missing Requirement
 		&entity.Screening{},
+		&entity.Featurescholarship{},
+		&entity.Typefeature{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
 		&entity.SponsorContact{},

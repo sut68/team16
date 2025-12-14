@@ -28,6 +28,8 @@ func GetAllScreenings(c *gin.Context) {
     tx := config.DB.
         Preload("StatusScreening").
         Preload("Scholarship").
+		Preload("Application.Semaster").
+		Preload("Scholarship.Semaster").
         Preload("Application.StudentProfile")
 
     if err := tx.Find(&screenings).Error; err != nil {

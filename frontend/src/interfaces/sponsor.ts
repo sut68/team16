@@ -1,4 +1,5 @@
-
+// Response from backend
+// ----------------------
 export interface IndustryResponse {
   ID: number
   name: string
@@ -10,19 +11,23 @@ export interface ContactResponse {
   email: string
   phone: string
   position?: string | null
-  sponsor_id?: number
 }
 
 export interface SponsorResponse {
   ID: number
   company_name: string
   industry_id?: number | null
-  industry?: IndustryResponse | null
   website?: string | null
   status: string
   description?: string | null
   contacts?: ContactResponse[]
+  industry?: IndustryResponse | null
 }
+// ----------------------
+
+
+// Payload send to Backend
+// ----------------------
 export interface ContactPayload {
   ID?: number
   name: string
@@ -40,7 +45,11 @@ export interface SponsorPayload {
   description?: string | null
   contacts?: ContactPayload[]
 }
+// ----------------------
 
+
+// For UI
+// ----------------------
 export interface SponsorView {
   ID: number
   company_name: string

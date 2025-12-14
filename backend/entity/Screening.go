@@ -24,4 +24,5 @@ type Screening struct {
 
 	ScholarshipID uint        `json:"scholarship_id" gorm:"not null"`
 	Scholarship   Scholarship `json:"scholarship" gorm:"foreignKey:ScholarshipID"`
+	
 }

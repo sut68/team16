@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,7 +15,7 @@ import (
 func GetApplications(ctx *gin.Context) {
 	var applications []entity.Application
 
-	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").Find(&applications).Error; err != nil {
+	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").Preload("Semaster").Find(&applications).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -33,7 +34,7 @@ func GetApplicationByID(ctx *gin.Context) {
 
 	var application entity.Application
 
-	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").First(&application, id).Error; err != nil {
+	if err := config.DB.Preload("StudentProfile").Preload("ApplicationScholarships").Preload("Semaster").First(&application, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Application not found"})
 		return
 	}
@@ -45,6 +46,7 @@ func GetApplicationByID(ctx *gin.Context) {
 func CreateApplication(ctx *gin.Context) {
 	var input struct {
 		StudentProfileID uint `json:"student_profile_id" binding:"required"`
+		ScholarshipID    uint `json:"scholarship_id" binding:"required"`
 	}
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -52,16 +54,60 @@ func CreateApplication(ctx *gin.Context) {
 		return
 	}
 
-	application := entity.Application{
-		StudentProfileID: input.StudentProfileID,
-	}
+	// Start a transaction
+	tx := config.DB.Begin()
 
-	if err := config.DB.Create(&application).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Find the active semester
+	var activeSemester entity.Semaster
+	if err := tx.Where("is_active = ?", true).First(&activeSemester).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "No active semester found"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, application)
+	// Find or create the main application record for the student and semester
+	var application entity.Application
+	err := tx.Where("student_profile_id = ? AND semaster_id = ?", input.StudentProfileID, activeSemester.ID).
+		FirstOrCreate(&application, entity.Application{
+			StudentProfileID: input.StudentProfileID,
+			SemasterID:       activeSemester.ID,
+		}).Error
+
+	if err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find or create application: " + err.Error()})
+		return
+	}
+
+	// Create the specific scholarship application entry
+	appScholarship := entity.ApplicationScholarship{
+		ApplicationID: application.ID,
+		ScholarshipID: input.ScholarshipID,
+	}
+
+	if err := tx.Create(&appScholarship).Error; err != nil {
+		tx.Rollback()
+		// Check for duplicate entry error
+		if IsDuplicateKeyError(err) {
+			ctx.JSON(http.StatusConflict, gin.H{"error": "You have already applied for this scholarship."})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create scholarship application: " + err.Error()})
+		}
+		return
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message":                   "Application successful!",
+		"application":               application,
+		"application_scholarship": appScholarship,
+	})
 }
 
 // DELETE /applications/:id
@@ -90,9 +136,22 @@ func GetStudentApplications(ctx *gin.Context) {
 		return
 	}
 
-	// Find the parent Application record for the student
+	// Find the active semester
+	var activeSemester entity.Semaster
+	if err := config.DB.Where("is_active = ?", true).First(&activeSemester).Error; err != nil {
+		// If no active semester, the student has no active applications
+		if err.Error() == "record not found" {
+			ctx.JSON(http.StatusOK, []entity.ApplicationScholarship{})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find active semester: " + err.Error()})
+		return
+	}
+
+	// Find the parent Application record for the student FOR THE CURRENT SEMESTER
 	var application entity.Application
-	if err := config.DB.Where("student_profile_id = ?", studentID).First(&application).Error; err != nil {
+	if err := config.DB.Where("student_profile_id = ? AND semaster_id = ?", studentID, activeSemester.ID).First(&application).Error; err != nil {
+		// If no application for this student in this semester, return empty list
 		if err.Error() == "record not found" {
 			ctx.JSON(http.StatusOK, []entity.ApplicationScholarship{})
 			return
@@ -115,4 +174,8 @@ func GetStudentApplications(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, appScholarships)
+}
+
+func IsDuplicateKeyError(err error) bool {
+	return strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed")
 }

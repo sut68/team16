@@ -21,6 +21,7 @@ func GetAllScholarship(c *gin.Context) {
 		CloseDate         string                   `json:"close_date"`
 		Statusscholarship entity.Statusscholarship `json:"statusscholarship"`
 		Typescholarship   entity.Typescholarship   `json:"typescholarship"`
+		Semaster          entity.Semaster          `json:"semaster"`
 	}
 
 	var scholarships []entity.Scholarship
@@ -29,6 +30,7 @@ func GetAllScholarship(c *gin.Context) {
 	if err := config.DB.
 		Preload("Statusscholarship").
 		Preload("Typescholarship").
+		Preload("Semaster").
 		Find(&scholarships).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -45,6 +47,7 @@ func GetAllScholarship(c *gin.Context) {
 			CloseDate:         s.CloseDate,
 			Statusscholarship: s.Statusscholarship,
 			Typescholarship:   s.Typescholarship,
+			Semaster:          s.Semaster,
 		})
 	}
 
@@ -54,7 +57,7 @@ func GetAllScholarship(c *gin.Context) {
 func GetScholarshipByID(c *gin.Context) {
 	id := c.Param("id")
 	var item entity.Scholarship
-	if err := config.DB.Preload("Statusscholarship").Preload("Typescholarship").First(&item, id).Error; err != nil {
+	if err := config.DB.Preload("Statusscholarship").Preload("Typescholarship").Preload("Semaster").First(&item, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -127,17 +130,29 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 2. Find or Create parent Application record for the student ---
+	// --- 2. Find the currently active semester ---
+	var activeSemester entity.Semaster
+	if err := tx.Where("is_active = ?", true).First(&activeSemester).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "No active semester found. Cannot process application."})
+		return
+	}
+
+	// --- 3. Find or Create parent Application record for the student in the active semester ---
 	application := entity.Application{
 		StudentProfileID: input.StudentProfileID,
+		SemasterID:       activeSemester.ID,
 	}
-	if err := tx.Where(entity.Application{StudentProfileID: input.StudentProfileID}).FirstOrCreate(&application).Error; err != nil {
+	if err := tx.Where(entity.Application{
+		StudentProfileID: input.StudentProfileID,
+		SemasterID:       activeSemester.ID,
+	}).FirstOrCreate(&application).Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find or create application: " + err.Error()})
 		return
 	}
 
-	// --- 3. Create the ApplicationScholarship join record ---
+	// --- 4. Create the ApplicationScholarship join record ---
 	appScholarship := entity.ApplicationScholarship{
 		ApplicationID: application.ID,
 		ScholarshipID: uint(scholarshipID),
@@ -149,11 +164,12 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 4. Commit Transaction ---
+	// --- 5. Commit Transaction ---
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
-		return	}
+		return
+	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message":                "Application created successfully. Please proceed to upload documents.",

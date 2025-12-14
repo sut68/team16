@@ -27,9 +27,14 @@ const adminRoutes: Array<RouteRecordRaw> = [
         component: () => import('@/pages/protected/News/NewsList.vue'),
       },
       {
-        path: 'companies',
-        name: 'Companies',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        path: 'sponsors',
+        name: 'Sponsors',
+        component: () => import('../pages/protected/Sponsor/SponsorList.vue'),
+      },
+      {
+        path: 'sponsors/profile',
+        name: 'SponsorsProfile',
+        component: () => import('../pages/protected/Sponsor/SponsorProfile.vue'),
       },
       {
         path: 'projects',

@@ -1,6 +1,7 @@
 import type { StudentProfileResponse } from './user'
 import type { ApprovalTaskResponse } from './approval'
 import type { ApplicationScholarshipResponse } from './application_scholarship'
+import type { SemasterResponse } from './semaster'
 
 export interface ApplicationDocumentResponse {
   ID: number
@@ -20,6 +21,8 @@ export interface ApplicationResponse {
   CreatedAt: string
   UpdatedAt: string
   student_profile_id: number
+  semaster_id: number
   student_profile: StudentProfileResponse
-  application_scholarships: any[] // Using any to avoid circular dependency issues for now
+  semaster: SemasterResponse
+  application_scholarships: any[]
 }

@@ -16,6 +16,7 @@ func SeedScholarships(db *gorm.DB) error {
 			CloseDate:           time.Now().AddDate(0, 1, 0).Format("2006-01-02"),
 			StatusscholarshipID: 1, // Assumes "Open" is ID 1
 			TypescholarshipID:   1, // Assumes "Full" is ID 1
+			SemasterID:          1, // Link to the first semester
 		},
 		{
 			ScholarshipName:     "Beasiswa Olahraga Nasional",
@@ -24,6 +25,7 @@ func SeedScholarships(db *gorm.DB) error {
 			CloseDate:           time.Now().AddDate(0, 2, 0).Format("2006-01-02"),
 			StatusscholarshipID: 1, // Assumes "Open" is ID 1
 			TypescholarshipID:   2, // Assumes "Partial" is ID 2
+			SemasterID:          1, // Link to the first semester
 		},
 	}
 
