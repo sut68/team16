@@ -49,7 +49,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
       {
         path: 'interview',
         name: 'Interview',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/Interview/admin/InterviewRoundManager.vue'),
       },
       {
         path: 'consider',
