@@ -19,6 +19,7 @@ func GetApprovalTasks(ctx *gin.Context) {
 	if err := config.DB.
 		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
 		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
 		Preload("ApprovalDecisions").
@@ -46,6 +47,7 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 	if err := config.DB.
 		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
 		Preload("ApprovalDecisions").
 		First(&task, id).Error; err != nil {

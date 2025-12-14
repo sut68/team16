@@ -13,10 +13,9 @@ func SeedAdminProfiles(db *gorm.DB) error {
 		}
 
 		adminProfile := entity.AdminProfile{
-			AdminFirstname: "Admin",
-			AdminLastname:  "User",
-			Position:       1,
-			Department:     1,
+			AdminFirstname: "Super",
+			AdminLastname:  "Admin",
+			Position:       "SuperAdmin",
 			Email:          "admin@example.com",
 			UserID:         adminUser.ID,
 		}

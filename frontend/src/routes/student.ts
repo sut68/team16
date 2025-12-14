@@ -26,6 +26,11 @@ const studentRoutes: Array<RouteRecordRaw> = [
         name: 'StudentAssistance',
         component: () => import('@/pages/protected/DashboardPage.vue'),
       },
+      {
+        path: 'profilestudent',
+        name: 'ProfileStudent',
+        component: () => import('@/pages/protected/User/MyProfile.vue'),
+      },
     ],
     meta: { requiresAuth: true, role: 'user' },
   },

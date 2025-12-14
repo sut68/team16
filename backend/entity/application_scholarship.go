@@ -13,4 +13,5 @@ type ApplicationScholarship struct {
 	Scholarship   Scholarship `gorm:"foreignKey:ScholarshipID" json:"scholarship"`
 
 	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationScholarshipID" json:"application_documents"`
+	IntervieweBookings  []IntervieweBooking   `gorm:"foreignKey:ApplicationScholarshipID" json:"interviewe_bookings"`
 }
