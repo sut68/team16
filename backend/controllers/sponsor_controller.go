@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
 	"net/http"
 	"strconv"
 
@@ -46,7 +47,7 @@ func GetSponsorsByID(ctx *gin.Context) {
 // POST /sponsors
 func CreateSponsor(ctx *gin.Context) {
 	var inputValues struct {
-		CompanyName		string		`json:"company_name" binding:"required"`
+		CompanyName		string		`json:"company_name"`
 		IndustryID		*uint     `json:"industry_id"`
 		Website				*string		`json:"website"`
 		Status				string		`json:"status"`
@@ -71,7 +72,27 @@ func CreateSponsor(ctx *gin.Context) {
 		Website:				inputValues.Website,
 		Status:					inputValues.Status,
 		Description:		inputValues.Description,
-		Contacts:			inputValues.Contacts,
+		Contacts:				inputValues.Contacts,
+	}
+
+	// Validate Sponsor
+	if err := validators.ValidateStruct(&sponsor); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Validate Contacts
+	for _, c := range sponsor.Contacts {
+		if err := validators.ValidateStruct(&c); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "contact validation failed",
+				"error": err.Error(),
+			})
+			return
+		}
 	}
 
 	// เริ่มต้นการดำเนินการฐานข้อมูล
@@ -127,15 +148,24 @@ func UpdateSponsor(ctx *gin.Context) {
 	}
 
 	var inputValues struct {
-		CompanyName		*string		`json:"company_name"`
-		IndustryID    *uint		  `json:"industry_id"`
-		Website				*string		`json:"website"`
-		Status				*string		`json:"status"`
-		Description		*string		`json:"description"`
+		CompanyName		*string		`json:"company_name" valid:"optional,stringlength(2|100)~Company name must be 2-100 characters"`
+		IndustryID    *uint		  `json:"industry_id"  valid:"optional"`
+		Website				*string		`json:"website"      valid:"optional,url~Website must be a valid URL"`
+		Status				*string		`json:"status"       valid:"optional,in(active|inactive)~Invalid status"`
+		Description		*string		`json:"description"  valid:"optional,stringlength(1|500)~Description too long"`
 	}
 
 	if err := ctx.ShouldBindJSON(&inputValues); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&inputValues); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error": err.Error(),
+		})
 		return
 	}
 
@@ -173,10 +203,17 @@ func UpdateSponsor(ctx *gin.Context) {
 
 	if len(updates) > 0 {
 		// UPDATE
-		if err := config.DB.Model(&sponsor).Updates(updates).Error; err != nil {
+		if err := tx.Model(&sponsor).Updates(updates).Error; err != nil {
+			tx.Rollback()
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	if err := config.DB.Preload("Contacts").First(&sponsor, sponsor.ID).Error; err != nil {
@@ -189,8 +226,8 @@ func UpdateSponsor(ctx *gin.Context) {
 
 // PATCH /sponsors/:id/contacts
 type BatchContactsPayload struct {
-	Upsert			[]entity.SponsorContact	 `json:"upsert"`
-	DeleteIDs		[]uint									 `json:"delete_ids"`
+	Upsert			[]entity.SponsorContact	 `json:"upsert"      valid:"optional"`
+	DeleteIDs		[]uint									 `json:"delete_ids"  valid:"optional"`
 }
 
 func UpdateSponsorContacts(ctx *gin.Context) {
@@ -205,6 +242,15 @@ func UpdateSponsorContacts(ctx *gin.Context) {
 	var payload BatchContactsPayload
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error": err.Error(),
+		})
 		return
 	}
 
@@ -232,6 +278,14 @@ func UpdateSponsorContacts(ctx *gin.Context) {
 	// บังคับใส่ sponsorID ให้ทุกรายการ
 	for i := range payload.Upsert {
 		payload.Upsert[i].SponsorID = sponsorID
+
+		if err := validators.ValidateStruct(&payload.Upsert[i]); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "contact validation failed",
+				"error": err.Error(),
+			})
+			return
+		}
 	}
 
 	if len(payload.Upsert) > 0 {
