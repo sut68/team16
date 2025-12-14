@@ -531,7 +531,7 @@ async function removeOne(id: number) {
 
               <td class="px-4 py-3">
                 <router-link 
-                  :to="`/sponsors/${s.ID}/profile`" 
+                  :to="{ name: 'SponsorsProfile', params: { id: s.ID }}"
                   class="font-semibold text-gray-800 hover:text-blue-600 transition-colors duration-150 block truncate"
                   :title="s.company_name"
                 >
