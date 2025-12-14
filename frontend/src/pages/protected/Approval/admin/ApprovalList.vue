@@ -182,41 +182,45 @@ const handleActionCompleted = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f0f2f5] p-6 font-sans text-slate-800">
-    <div class="flex flex-col xl:flex-row items-center justify-between gap-4 mb-6 px-1">
-      <div class="flex items-center gap-2 overflow-x-auto pb-2 xl:pb-0 hide-scrollbar shrink-0">
-        <button
-          class="relative btn btn-sm h-11 px-6 rounded-full border-0 text-base font-bold transition-all whitespace-nowrap"
-          :class="activeTab === 'pending' ? 'bg-white shadow text-[#1e3a8a]' : 'btn-ghost text-gray-500 hover:bg-white/50'"
-          @click="activeTab = 'pending'">
-          <div class="flex items-center gap-2">
-            <span>เอกสารที่รอการอนุมัติ</span>
-            <span v-if="pendingItems.length > 0" class="badge badge-error badge-sm text-white border-none h-5 px-1.5">{{
-              pendingItems.length }}</span>
-          </div>
-          <div v-if="activeTab === 'pending'"
-            class="absolute bottom-1 left-6 right-6 h-[3px] bg-[#1e3a8a] rounded-full"></div>
-        </button>
-        <button
-          class="relative btn btn-sm h-11 px-6 rounded-full border-0 text-base font-bold transition-all whitespace-nowrap"
-          :class="activeTab === 'history' ? 'bg-white shadow text-[#1e3a8a]' : 'btn-ghost text-gray-500 hover:bg-white/50'"
-          @click="activeTab = 'history'">
-          <span>ประวัติการอนุมัติ</span>
-          <div v-if="activeTab === 'history'"
-            class="absolute bottom-1 left-6 right-6 h-[3px] bg-[#1e3a8a] rounded-full"></div>
-        </button>
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light">
+    
+    <div class="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 mb-6 border-b border-gray-200">
+      
+      <div class="flex gap-8 -mb-[1px] w-full xl:w-auto overflow-x-auto hide-scrollbar">
+        <a 
+          @click="activeTab = 'pending'" 
+          class="pb-3 px-1 text-base font-medium cursor-pointer transition-all duration-200 border-b-[3px] flex items-center gap-2 whitespace-nowrap"
+          :class="activeTab === 'pending' 
+            ? 'text-[#1e3a8a] border-[#1e3a8a]' 
+            : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+        >
+           เอกสารที่รอการอนุมัติ
+           <span v-if="pendingItems.length > 0" 
+             class="badge badge-error text-white border-none h-5 px-1.5 text-xs"
+             :class="activeTab === 'pending' ? '' : 'opacity-70'">
+             {{ pendingItems.length }}
+           </span>
+        </a> 
+        <a 
+          @click="activeTab = 'history'" 
+          class="pb-3 px-1 text-base font-medium cursor-pointer transition-all duration-200 border-b-[3px] whitespace-nowrap"
+          :class="activeTab === 'history' 
+            ? 'text-[#1e3a8a] border-[#1e3a8a]' 
+            : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+        >
+           ประวัติการอนุมัติ
+        </a>
       </div>
-      <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto">
+
+      <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto pb-4 xl:pb-2">
         
-        <!-- Sort for PENDING tab -->
         <select v-if="activeTab === 'pending'" v-model="sortOrder"
           class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
           <option value="newest">ใหม่ล่าสุด</option>
           <option value="oldest">ส่งมานานสุด</option>
         </select>
 
-        <!-- Filter Button and Modal for HISTORY tab -->
-        <div v-if="activeTab === 'history'" class="relative">
+        <div v-if="activeTab === 'history'" class="relative w-full md:w-auto">
           <button @click="isFilterOpen = !isFilterOpen" class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
@@ -224,7 +228,6 @@ const handleActionCompleted = () => {
             ตัวกรอง
           </button>
 
-          <!-- Filter Popup -->
           <div v-if="isFilterOpen" class="fixed inset-0 z-20" @click="isFilterOpen = false"></div>
           <div v-if="isFilterOpen" class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl z-30 border p-4 animate-pop-in">
               <p class="font-bold text-base mb-3 text-slate-700">ตัวกรองประวัติ</p>
@@ -266,7 +269,6 @@ const handleActionCompleted = () => {
           </div>
         </div>
         
-        <!-- Search bar - always visible -->
         <div class="relative w-full md:w-64">
           <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
@@ -280,6 +282,7 @@ const handleActionCompleted = () => {
         </div>
       </div>
     </div>
+
     <div v-if="isLoading" class="text-center py-20 text-gray-500">
       <span class="loading loading-spinner loading-lg"></span>
       <p>Loading data...</p>
@@ -288,10 +291,11 @@ const handleActionCompleted = () => {
       <p>{{ error }}</p>
       <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
-    <div v-if="!isLoading && !error" class="space-y-4 pb-10">
+    
+    <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1">
       <transition-group name="fade" tag="div" class="space-y-4">
         <div v-for="item in filteredItems" :key="item.ID" @click="handleCardClick(item)"
-          class="card bg-white shadow-sm rounded-2xl cursor-pointer border border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+          class="card bg-white border border-gray-250 shadow-sm rounded-2xl cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
           <div class="card-body p-4 md:p-5 flex flex-row items-center justify-between min-h-[6rem]">
             <div class="flex flex-col overflow-hidden pr-2">
               <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -299,22 +303,18 @@ const handleActionCompleted = () => {
                   {{ item.application_document.application_scholarship?.scholarship?.scholarship_name || 'N/A' }}
                 </h3>
                 <template v-if="activeTab === 'pending'">
-
                   <span v-if="item.status?.toLowerCase() === 'request-change'"
                     class="badge bg-orange-500 text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">
                     รอผู้สมัครแก้ไข
                   </span>
-
                   <span v-else-if="checkIsResubmitted(item)"
                     class="badge badge-info text-white badge-xs py-2 px-2 font-normal animate-pulse shadow-sm">
                     มีการส่งแก้ไขใหม่
                   </span>
-
                   <span v-else-if="item.status?.toLowerCase() === 'pending'"
                     class="badge badge-ghost bg-blue-50 text-blue-700 badge-xs py-2 px-2 border-none font-normal">
                     ยื่นใหม่
                   </span>
-
                 </template>
               </div>
               <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mt-1 text-sm text-gray-500">
@@ -331,8 +331,7 @@ const handleActionCompleted = () => {
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-gray-600 truncate">
                     {{ item.application_document.application_scholarship?.application?.student_profile?.first_name_th }}
-                    {{
-                      item.application_document.application_scholarship?.application?.student_profile?.last_name_th }}
+                    {{ item.application_document.application_scholarship?.application?.student_profile?.last_name_th }}
                   </span>
                   <span class="hidden md:inline text-gray-300">|</span>
                   <span class="text-xs md:text-sm text-gray-400">ส่งเมื่อ {{ item.submission_date }}</span>
@@ -359,7 +358,7 @@ const handleActionCompleted = () => {
         </div>
         <div v-if="filteredItems.length === 0" :key="'empty'"
           class="flex flex-col items-center justify-center py-16 text-gray-400">
-          <div class="bg-white/50 p-4 rounded-full mb-3">
+          <div class="bg-gray-50 p-4 rounded-full mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-50" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -377,6 +376,7 @@ const handleActionCompleted = () => {
 </template>
 
 <style scoped>
+/* Style เดิม */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -395,5 +395,16 @@ const handleActionCompleted = () => {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
 }
 </style>
