@@ -37,8 +37,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Leading energy and petroleum company in Thailand."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Nawaporn S.", Email: "nawaporn.ptt@example", Phone: "0812345670", Position: utils.StrPtr("Head of Procurement")},
-				{Name: "Chaiyapol K.", Email: "chaiyapol.ptt@example", Phone: "0891234501", Position: utils.StrPtr("Senior Engineer")},
+				{Name: "Nawaporn S.", Email: "nawaporn.ptt@example.com", Phone: "0812345670", Position: utils.StrPtr("Head of Procurement")},
+				{Name: "Chaiyapol K.", Email: "chaiyapol.ptt@example.com", Phone: "0891234501", Position: utils.StrPtr("Senior Engineer")},
 			},
 		},
 		{
@@ -48,8 +48,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Top industrial manufacturing and construction solutions provider."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Somsri L.", Email: "somsri.scg@example", Phone: "0861122334", Position: utils.StrPtr("Project Manager")},
-				{Name: "Anan P.", Email: "anan.scg@example", Phone: "0823344556", Position: utils.StrPtr("Business Development")},
+				{Name: "Somsri L.", Email: "somsri.scg@example.com", Phone: "0861122334", Position: utils.StrPtr("Project Manager")},
+				{Name: "Anan P.", Email: "anan.scg@example.com", Phone: "0823344556", Position: utils.StrPtr("Business Development")},
 			},
 		},
 		{
@@ -59,8 +59,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Thailand’s largest telecommunication company."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Kanya M.", Email: "kanya.ais@example", Phone: "0901234567", Position: utils.StrPtr("Sales Engineer")},
-				{Name: "Worawit T.", Email: "worawit.ais@example", Phone: "0859988776", Position: utils.StrPtr("Network Specialist")},
+				{Name: "Kanya M.", Email: "kanya.ais@example.com", Phone: "0901234567", Position: utils.StrPtr("Sales Engineer")},
+				{Name: "Worawit T.", Email: "worawit.ais@example.com", Phone: "0859988776", Position: utils.StrPtr("Network Specialist")},
 			},
 		},
 		{
@@ -70,8 +70,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Major beverage manufacturing company in Thailand."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Pimchanok S.", Email: "pim.thaibev@example", Phone: "0819988776", Position: utils.StrPtr("Supply Chain Manager")},
-				{Name: "Phumipat R.", Email: "phumipat.thaibev@example", Phone: "0894455667", Position: utils.StrPtr("QA Engineer")},
+				{Name: "Pimchanok S.", Email: "pim.thaibev@example.com", Phone: "0819988776", Position: utils.StrPtr("Supply Chain Manager")},
+				{Name: "Phumipat R.", Email: "phumipat.thaibev@example.com", Phone: "0894455667", Position: utils.StrPtr("QA Engineer")},
 			},
 		},
 		{
@@ -81,8 +81,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Thailand's largest retail and logistics network operator."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Suphachai C.", Email: "suphachai.cpall@example", Phone: "0867778899", Position: utils.StrPtr("Operations Manager")},
-				{Name: "Kanya R.", Email: "kanya.cpall@example", Phone: "0829988776", Position: utils.StrPtr("Logistics Coordinator")},
+				{Name: "Suphachai C.", Email: "suphachai.cpall@example.com", Phone: "0867778899", Position: utils.StrPtr("Operations Manager")},
+				{Name: "Kanya R.", Email: "kanya.cpall@example.com", Phone: "0829988776", Position: utils.StrPtr("Logistics Coordinator")},
 			},
 		},
 		{
@@ -92,8 +92,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Regional airline operator in Thailand."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Narin S.", Email: "narin.bangkokair@example", Phone: "0831234987", Position: utils.StrPtr("Operations Engineer")},
-				{Name: "May P.", Email: "may.bangkokair@example", Phone: "0897766554", Position: utils.StrPtr("Safety Officer")},
+				{Name: "Narin S.", Email: "narin.bangkokair@example.com", Phone: "0831234987", Position: utils.StrPtr("Operations Engineer")},
+				{Name: "May P.", Email: "may.bangkokair@example.com", Phone: "0897766554", Position: utils.StrPtr("Safety Officer")},
 			},
 		},
 		{
@@ -103,8 +103,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Leader in power electronics and automation solutions."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Aroon M.", Email: "aroon.delta@example", Phone: "0845566778", Position: utils.StrPtr("Embedded Engineer")},
-				{Name: "Ploy T.", Email: "ploy.delta@example", Phone: "0873344556", Position: utils.StrPtr("Product Manager")},
+				{Name: "Aroon M.", Email: "aroon.delta@example.com", Phone: "0845566778", Position: utils.StrPtr("Embedded Engineer")},
+				{Name: "Ploy T.", Email: "ploy.delta@example.com", Phone: "0873344556", Position: utils.StrPtr("Product Manager")},
 			},
 		},
 		{
@@ -114,8 +114,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Power producer and infrastructure company in Thailand."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Jirayut N.", Email: "jirayut.bgrimm@example", Phone: "0903344556", Position: utils.StrPtr("Power Systems Engineer")},
-				{Name: "Pimlada K.", Email: "pimlada.bgrimm@example", Phone: "0824455667", Position: utils.StrPtr("Project Coordinator")},
+				{Name: "Jirayut N.", Email: "jirayut.bgrimm@example.com", Phone: "0903344556", Position: utils.StrPtr("Power Systems Engineer")},
+				{Name: "Pimlada K.", Email: "pimlada.bgrimm@example.com", Phone: "0824455667", Position: utils.StrPtr("Project Coordinator")},
 			},
 		},
 		{
@@ -125,8 +125,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("One of Thailand's largest financial institutions."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Suthida W.", Email: "suthida.kbank@example", Phone: "0861230987", Position: utils.StrPtr("Corporate Relations")},
-				{Name: "Thiti C.", Email: "thiti.kbank@example", Phone: "0899088776", Position: utils.StrPtr("Partnerships Manager")},
+				{Name: "Suthida W.", Email: "suthida.kbank@example.com", Phone: "0861230987", Position: utils.StrPtr("Corporate Relations")},
+				{Name: "Thiti C.", Email: "thiti.kbank@example.com", Phone: "0899088776", Position: utils.StrPtr("Partnerships Manager")},
 			},
 		},
 		{
@@ -136,8 +136,8 @@ func SeedSponsors(db *gorm.DB) error {
 			Description: utils.StrPtr("Leading automotive manufacturing & engineering company."),
 			Status:      "active",
 			Contacts: []entity.SponsorContact{
-				{Name: "Krit S.", Email: "krit.toyota@example", Phone: "0813344556", Position: utils.StrPtr("Mechanical Engineer")},
-				{Name: "Natcha R.", Email: "natcha.toyota@example", Phone: "0827766554", Position: utils.StrPtr("Supplier Relations")},
+				{Name: "Krit S.", Email: "krit.toyota@example.com", Phone: "0813344556", Position: utils.StrPtr("Mechanical Engineer")},
+				{Name: "Natcha R.", Email: "natcha.toyota@example.com", Phone: "0827766554", Position: utils.StrPtr("Supplier Relations")},
 			},
 		},
 	}
@@ -146,10 +146,12 @@ func SeedSponsors(db *gorm.DB) error {
 	for _, sponsor := range sponsors {
 		var existing entity.Sponsor
 		err := db.Where("company_name = ?", sponsor.CompanyName).First(&existing).Error
+		
 		if err == nil {
 			continue
 		}
-		if err != nil && err != gorm.ErrRecordNotFound {
+		
+		if err != gorm.ErrRecordNotFound {
 			return err
 		}
 
