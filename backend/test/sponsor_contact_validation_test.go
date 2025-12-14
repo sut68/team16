@@ -10,6 +10,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// unit test Sponsor Contact
+
 // case ปกติ
 func TestSponsorContactValidation_AllValid(t *testing.T) {
 	g := NewWithT(t)
