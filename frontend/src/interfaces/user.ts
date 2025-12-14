@@ -1,3 +1,4 @@
+import type { FamilyInfoResponse } from "./family_info";
 export interface LoginUserRequest {
   username: string;
   password: string;
@@ -59,6 +60,9 @@ export interface StudentProfileResponse {
   user: UserResponse;
   major_id: number;
   major: MajorResponse | null;
+
+  //เพิ่ม FamilyInfo เข้ามา
+  family_info: FamilyInfoResponse[];
 }
 
 

@@ -158,6 +158,18 @@ func main() {
 		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
 
+		api.POST("/screening", controllers.CreateScreening)
+		api.GET("/screening", controllers.GetAllScreenings)
+		api.GET("/screening/:id", controllers.GetScreeningByID)
+		api.PUT("/screening/:id", controllers.UpdateScreeningStatus)
+		api.DELETE("/screening/:id", controllers.DeleteScreening)
+
+		api.GET("/newsposts", controllers.GetAllNewsPosts)
+		api.GET("/newsposts/:id", controllers.GetNewsPostByID)
+		api.POST("/newsposts", controllers.CreateNewsPost)
+		api.PUT("/newsposts/:id", controllers.UpdateNewsPost)
+		api.DELETE("/newsposts/:id", controllers.DeleteNewsPost)
+
 		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
     	api.GET("/profile/me", controllers.GetMyProfile)
     	api.PUT("/profile/me", controllers.UpdateMyProfile)
