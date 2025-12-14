@@ -64,3 +64,55 @@ export interface StudentProfileResponse {
   //เพิ่ม FamilyInfo เข้ามา
   family_info: FamilyInfoResponse[];
 }
+
+
+// --- เพิ่มต่อท้ายไฟล์เดิม ---
+
+export interface FamilyInfo {
+  ID?: number;
+  father_name?: string;
+  father_occupation?: string;
+  father_income?: number;
+  mother_name?: string;
+  mother_occupation?: string;
+  mother_income?: number;
+  guardian_name?: string;
+  guardian_occupation?: string;
+  guardian_income?: number;
+  guardian_relation?: string;
+  profile_id?: number;
+}
+
+// ใช้สำหรับฟอร์มสร้าง User ใหม่ (Admin Dashboard)
+export interface CreateUserPayload {
+  username: string;
+  password?: string;
+  role_id: number;
+  
+  // Student Fields
+  student_id?: string;
+  first_name_th?: string;
+  last_name_th?: string;
+  first_name_en?: string;
+  last_name_en?: string;
+  national_id?: string;
+  major_id?: number;
+  gpax?: number;
+  advisor_name?: string;
+
+  // Admin Fields
+  admin_firstname?: string;
+  admin_lastname?: string;
+  position?: string; // แก้เป็น string ให้ตรงกับ Backend
+
+  // Common Fields
+  email?: string;
+  phone?: string;
+}
+
+// ใช้สำหรับ Response หน้า Profile (รวม Role + Data)
+export interface MyProfileResponse {
+  role: 'student' | 'admin';
+  data: StudentProfileResponse | AdminProfileResponse;
+  family?: FamilyInfo; // มีเฉพาะ Student
+}
