@@ -1,158 +1,225 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+  import SponsorService, { type BatchContactsPayload } from '@/services/sponsor/sponsor';
+  import type { ContactPayload, ContactResponse, SponsorResponse } from '../../../interfaces/sponsor';
+  import { computed, ref, watch } from 'vue';
+  import { useRoute } from 'vue-router';
+  import { Building2, Globe } from 'lucide-vue-next';
 
-type Contact = {
-  id: number
-  name: string
-  position?: string
-  email?: string
-  phone?: string
-}
+  const route = useRoute();
+  const sponsorId = computed<number | null>(() => {
+    const param = route.params.id
+    if (!param) return null
 
-type Sponsor = {
-  id: number | null
-  name: string
-  logo_url: string
-  industry?: { id: number; name: string } | null
-  email?: string
-  phone?: string
-  website?: string
-  scholarship_count?: number
-  contacts?: Contact[]
-}
+    const value = Array.isArray(param) ? param[0] : param
+    const id = Number(value)
 
-// --- Mock data (ให้เห็นหน้าได้เลย) ---
-const sponsor = ref<Sponsor>({
-  id: 1,
-  name: 'ACME Scholarship Foundation',
-  logo_url: 'https://via.placeholder.com/150?text=Logo',
-  industry: { id: 10, name: 'Technology' },
-  email: 'contact@acme.example',
-  phone: '+66 2 123 4567',
-  website: 'www.acme.example',
-  scholarship_count: 5,
-  contacts: []
-})
+    return Number.isNaN(id) ? null : id
+  })
 
-// แยก contacts เพื่อให้ใช้งานง่าย (template ใช้ contacts)
-const contacts = ref<Contact[]>([
-  { id: 1, name: 'นางสาวปรียา ชาญชัย', position: 'HR Manager', email: 'priya@acme.example', phone: '+66 89 111 2222' },
-  { id: 2, name: 'นายสมชาย ใจดี', position: 'PR Officer', email: 'somchai@acme.example', phone: '+66 85 333 4444' }
-])
+  const sponsor = ref<SponsorResponse | null>(null)
+  const loading = ref(true)
+  const error = ref<string | null>(null)
 
-// ถ้าต้องการ ให้ sponsor.contacts ชี้ไปที่ contacts (ไม่บังคับ)
-sponsor.value.contacts = contacts.value
+  // Data Fetching ขอข้อมูลจาก Backend
+  const fetchSponsor = async () => {
+    if (sponsorId.value === null) {
+      error.value = "Invalid Sponsor ID in URL."
+      return
+    }
 
-// --- Simple handlers (local only, ให้ลองคลิกดูงาน) ---
-// function onAddContact() {
-//   // สร้าง dummy contact ใหม่แล้ว push เข้า list (เพื่อ preview หน้า)
-//   const nextId = (contacts.value.length ? Math.max(...contacts.value.map(c => c.id)) : 0) + 1
-//   const newC: Contact = {
-//     id: nextId,
-//     name: `New Contact ${nextId}`,
-//     position: 'Position',
-//     email: `new${nextId}@example.com`,
-//     phone: 'N/A'
-//   }
-//   contacts.value.push(newC)
-//   sponsor.value.contacts = contacts.value
-//   window.alert('เพิ่มผู้ติดต่อตัวอย่างแล้ว — เปลี่ยนข้อมูลได้เอง')
-// }
+    loading.value = true
+    error.value = null
 
-// function onEditContact(c: Contact) {
-//   const newName = window.prompt('แก้ไขชื่อผู้ติดต่อ', c.name)
-//   if (newName != null) {
-//     const idx = contacts.value.findIndex(x => x.id === c.id)
-//     if (idx !== -1) {
-//       contacts.value[idx].name = newName   
-//     }
-//     sponsor.value.contacts = contacts.value 
-//   }
-// }
+    try {
+      sponsor.value = await SponsorService.getById(sponsorId.value)
+    } catch (err) {
+      error.value = "Failed to load sponsor data."
+    } finally {
+      loading.value = false
+    }
+  }
 
-// function onDeleteContact(c: Contact) {
-//   const ok = window.confirm(`ลบผู้ติดต่อ ${c.name} จริงหรือไม่?`)
-//   if (!ok) return
-//   contacts.value = contacts.value.filter(x => x.id !== c.id)
-//   sponsor.value.contacts = contacts.value
-// }
+  watch(sponsorId, (id) => {
+    if (id === null) return
+    fetchSponsor()
+  }, { immediate: true })
 
-// // เพื่อให้ template ใช้ชื่อเดียวกับเดิม (ปุ่มใน template ต้องเรียกชื่อเหล่านี้)
-// const addContact = onAddContact
-// // const editContact = onEditContact
-// const deleteContact = onDeleteContact
+  const savingContacts = ref(false)
+  const updateSponsorContacts = async (payload: BatchContactsPayload) => {
+    if (!sponsor.value) return;
+    savingContacts.value = true
+
+    try {
+      const { contacts } = await SponsorService.updateContacts(
+        sponsor.value.ID,
+        payload
+      )
+      sponsor.value.contacts = contacts
+      window.alert("บันทึกผู้ติดต่อสำเร็จ")
+
+    } catch {
+      window.alert("บันทึกผู้ติดต่อไม่สำเร็จ")
+
+    } finally {
+      savingContacts.value = false
+
+    }
+  }
+
+  // handlers
+  const onAddContact = () => {
+    const name = window.prompt('ชื่อผู้ติดต่อใหม่:');
+    if (!name) return;
+    const newContactPayload: ContactPayload = {
+      name,
+      email: window.prompt('อีเมล:', 'new@example.com') || '',
+      phone: window.prompt('เบอร์โทรศัพท์:', 'N/A') || '',
+      position: window.prompt('ตำแหน่ง:', 'General Contact'),
+    };
+
+    updateSponsorContacts({
+      upsert: [newContactPayload]
+    });
+  }
+
+  const onDeleteContact = (contact: ContactResponse) => {
+    const ok = window.confirm(`ลบผู้ติดต่อ ${contact.name} จริงหรือไม่?`);
+    if (!ok) return;
+
+    updateSponsorContacts({
+      delete_ids: [contact.ID]
+    });
+  };
+
 </script>
 
-
 <template>
-  <div class="space-y-6">
-    <!-- ================= Row 1: Summary ================= -->
-    <section class="bg-white p-6 rounded-lg shadow">
-      <div class="flex items-center gap-6">
-        <img
-          :src="sponsor.logo_url"
-          class="w-20 h-20 rounded object-cover"
-          alt="logo"
-        />
+  <div class="space-y-10 min-h-screen">
+    <div v-if="loading" class="text-center p-10">
+      Loading Sponsor Data...
+    </div>
+    <div v-else-if="error" class="text-center p-10 text-red-600">
+      Error: {{ error }}
+    </div>
 
-        <div class="flex-1">
-          <h1 class="text-2xl font-semibold">{{ sponsor.name }}</h1>
+    <div v-else-if="sponsor">
+      <!-- header -->
+      <section class="bg-white mb-6 rounded-xl rounded-tl-[30px] shadow-sm ring-1 ring-gray-200 p-6">
+        <div class="flex items-start gap-6">
+          <div class="w-20 h-20 flex items-center justify-center shrink-0">
+            <Building2 class="w-full h-full text-[#F37021]" />
+          </div>
 
-          <p class="text-gray-500">
-            Industry: {{ sponsor.industry?.name || '-' }}
+          <div class="flex-1 space-y-1">
+            <h1 class="text-2xl font-semibold text-gray-900">
+              {{ sponsor.company_name }}
+            </h1>
+
+            <p class="text-m text-gray-500">
+              {{ sponsor.industry?.name || '—' }}
+            </p>
+
+            <div class="flex flex-wrap items-center gap-4 mt-2 text-m">
+              <span v-if="sponsor.website" class="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                <Globe class="text-gray-400"/>
+                <a :href="sponsor.website" target="_blank">
+                  {{ sponsor.website }}
+                </a>
+              </span>
+              <span v-else class="text-gray-400"><Globe class="text-gray-400"/> N/A</span>
+
+              <span class="text-gray-600">
+                Status:
+                <span class="font-medium text-green-600 capitalize">
+                  {{ sponsor.status }}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="text-right shrink-0">
+            <div class="text-2xl font-semibold text-gray-900">5</div>
+            <div class="text-xs text-gray-500">จำนวนทุน</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- content -->
+      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-stretch">
+        <!-- main -->
+        <section class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 flex flex-col h-full">
+          <h2 class="text-lg font-semibold text-gray-900 mb-3">
+            ข้อมูลทุนทั้งหมด
+          </h2>
+
+          <p class="text-gray-700 leading-relaxed">
+            {{ sponsor.description || 'ไม่มีคำอธิบาย...' }}
           </p>
 
-          <div class="flex gap-4 mt-2 text-sm text-gray-600">
-            <span>📧 {{ sponsor.email }}</span>
-            <span>📞 {{ sponsor.phone }}</span>
-            <span>🌐 {{ sponsor.website }}</span>
+          <div class="mt-4 text-sm text-gray-400">
+            (ส่วนนี้จะแสดงรายการทุนที่เกี่ยวข้องกับผู้สนับสนุนรายนี้)
           </div>
-        </div>
+        </section>
 
-        <div class="text-right">
-          <div class="text-lg font-semibold">{{ sponsor.scholarship_count }}</div>
-          <div class="text-xs text-gray-500">จำนวนทุน</div>
-        </div>
+        <!-- contact -->
+        <section class="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6 flex flex-col h-full">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">
+              ผู้ติดต่อบริษัท
+            </h2>
+
+            <button
+              @click="onAddContact"
+              class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              + เพิ่มผู้ติดต่อ
+            </button>
+          </div>
+
+          <div class="flex-1">
+
+            <div v-if="!sponsor.contacts?.length" class="text-gray-500 text-sm">
+              ยังไม่มีผู้ติดต่อ
+            </div>
+  
+            <div
+              v-for="c in sponsor.contacts"
+              :key="c.ID"
+              class="py-3 border-t first:border-t-0"
+            >
+              <div class="flex items-start justify-between">
+                <div class="space-y-0.5">
+                  <div class="font-medium text-gray-900">
+                    {{ c.name }}
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    {{ c.position || 'N/A' }}
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    📧 {{ c.email }}
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    📞 {{ c.phone }}
+                  </div>
+                </div>
+  
+                <div class="flex gap-3 text-xs">
+                  <button class="text-blue-600 hover:underline">
+                    แก้ไข
+                  </button>
+                  <button
+                    @click="onDeleteContact(c)"
+                    class="text-red-600 hover:underline"
+                  >
+                    ลบ
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
-    </section>
-
-    <!-- ================= Row 2: Main + Contact ================= -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Main Content (ทุน + รายละเอียด) -->
-      <section class="lg:col-span-2 bg-white p-6 rounded-lg shadow min-h-[300px]">
-        <h2 class="text-xl font-semibold mb-4">ข้อมูลทุนทั้งหมด</h2>
-        <div class="text-gray-500 text-sm">
-          (เตรียมวางข้อมูลทุนในอนาคต)
-        </div>
-      </section>
-
-      <!-- Contacts -->
-      <section class="bg-white p-6 rounded-lg shadow">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">ผู้ติดต่อบริษัท</h2>
-          <button class="px-3 py-1 text-sm bg-blue-600 text-white rounded">
-            + เพิ่มผู้ติดต่อ
-          </button>
-        </div>
-
-        <div v-if="contacts?.length === 0" class="text-gray-500 text-sm">
-          ยังไม่มีผู้ติดต่อ
-        </div>
-
-        <div v-for="c in contacts" :key="c.id" class="border-b py-3">
-          <div class="font-medium">{{ c.name }}</div>
-          <div class="text-sm text-gray-500">{{ c.position }}</div>
-          <div class="text-sm text-gray-500">📧 {{ c.email }}</div>
-          <div class="text-sm text-gray-500">📞 {{ c.phone }}</div>
-
-          <div class="flex gap-2 mt-2">
-            <button class="text-blue-600 text-xs">แก้ไข</button>
-            <button class="text-red-600 text-xs">ลบ</button>
-          </div>
-        </div>
-      </section>
-
     </div>
   </div>
 </template>

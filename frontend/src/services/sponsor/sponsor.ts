@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ContactPayload, SponsorPayload, SponsorResponse } from "../../interfaces/sponsor";
+import type { ContactPayload, SponsorPayload, SponsorResponse, ContactResponse } from "../../interfaces/sponsor";
 
 const api = axios.create({
   baseURL: "http://localhost:8080/api",
@@ -32,9 +32,9 @@ export const SponsorService = {
   async updateContacts(
     id: number, 
     payload: BatchContactsPayload
-  ): Promise<{ contacts: ContactPayload[] }> {
+  ): Promise<{ contacts: ContactResponse[] }> {
     const body = stripUndefined(payload);
-    const res = await api.patch<{ contacts: any[] }>(`/sponsors/${id}/contacts`, body);
+    const res = await api.patch<{ contacts: ContactResponse[] }>(`/sponsors/${id}/contacts`, body);
     return res.data;
   },
   

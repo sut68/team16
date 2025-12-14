@@ -32,7 +32,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
         component: () => import('../pages/protected/Sponsor/SponsorList.vue'),
       },
       {
-        path: 'sponsors/profile',
+        path: 'sponsors/:id/profile',
         name: 'SponsorsProfile',
         component: () => import('../pages/protected/Sponsor/SponsorProfile.vue'),
       },

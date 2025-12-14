@@ -316,10 +316,10 @@ function submit() {
         <!-- Footer -->
         <div class="px-6 py-4 border-t bg-slate-50 flex items-center justify-end gap-2">
           <button 
-            class="btn btn-sm bg-white border border-gray-300 text-gray-700
+            class="btn btn-sm btn-ghost text-gray-700
                 hover:bg-red-100 hover:border-red-400 hover:text-red-700
                 flex items-center justify-center gap-2
-                rounded-full px-5 h-10 w-full md:w-auto shadow-sm
+                rounded-full px-5 h-10 w-full md:w-auto
                 transition-all duration-150" 
             @click="close" 
             type="button"
