@@ -39,7 +39,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
       {
         path: 'projects',
         name: 'Projects',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        component: () => import('../pages/protected/Scholarship/Scholarship.vue'),
       },
       {
         path: 'screening',
