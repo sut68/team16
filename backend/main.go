@@ -124,7 +124,7 @@ func main() {
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
-		api.GET("/scholarships", controllers.GetAllScholarship)
+		// api.GET("/scholarships", controllers.GetAllScholarship)
 		api.POST("/scholarships/:id/apply", controllers.ApplyForScholarship)
 
 		//scholarship
@@ -134,12 +134,40 @@ func main() {
 		api.PUT("/scholarship/:id", controllers.UpdateScholarship)
 		api.DELETE("/scholarship/:id", controllers.DeleteScholarship)
 
-		//assistance
-		// api.GET("/assistance", controllers.GetAllAssistance)
-		// api.GET("/assistance/:id", controllers.GetAssistanceByID)
-		// api.POST("/assistance", controllers.CreateAssistance)
-		// api.PUT("/assistance/:id", controllers.UpdateAssistance)
-		// api.DELETE("/assistance/:id", controllers.DeleteAssistance)
+		//statusscholarship
+		api.GET("/statusscholarship", controllers.GetAllStatusscholarship)
+		api.GET("/statusscholarship/:id", controllers.GetStatusscholarshipByID)
+		api.POST("/statusscholarship", controllers.CreateStatusscholarship)
+		api.PUT("/statusscholarship/:id", controllers.UpdateStatusscholarship)
+		api.DELETE("/statusscholarship/:id", controllers.DeleteStatusscholarship)
+
+		//typescholarship
+		api.GET("/typescholarship", controllers.GetAllTypescholarship)
+		api.GET("/typescholarship/:id", controllers.GetTypescholarshipByID)
+		api.POST("/typescholarship", controllers.CreateTypescholarship)
+		api.PUT("/typescholarship/:id", controllers.UpdateTypescholarship)
+		api.DELETE("/typescholarship/:id", controllers.DeleteTypescholarship)
+
+		//featurescholarship
+		api.GET("/featurescholarship", controllers.GetAllFeaturescholarship)
+		api.GET("/featurescholarship/:id", controllers.GetFeaturescholarshipByID)
+		api.POST("/featurescholarship", controllers.CreateFeaturescholarship)
+		api.PUT("/featurescholarship/:id", controllers.UpdateFeaturescholarship)
+		api.DELETE("/featurescholarship/:id", controllers.DeleteFeaturescholarship)
+
+		//typefeature
+		api.GET("/typefeature", controllers.GetAllTypefeature)
+		api.GET("/typefeature/:id", controllers.GetTypefeatureByID)
+		api.POST("/typefeature", controllers.CreateTypefeature)
+		api.PUT("/typefeature/:id", controllers.UpdateTypefeature)
+		api.DELETE("/typefeature/:id", controllers.DeleteTypefeature)
+
+		// assistance
+		api.GET("/assistance", controllers.GetAllAssistance)
+		api.GET("/assistance/:id", controllers.GetAssistanceByID)
+		api.POST("/assistance", controllers.CreateAssistance)
+		api.PUT("/assistance/:id", controllers.UpdateAssistance)
+		api.DELETE("/assistance/:id", controllers.DeleteAssistance)
 
 		api.GET("/approval-tasks", controllers.GetApprovalTasks)
 		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)

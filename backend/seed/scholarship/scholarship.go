@@ -17,6 +17,7 @@ func SeedScholarships(db *gorm.DB) error {
 			StatusscholarshipID: 1, // Assumes "Open" is ID 1
 			TypescholarshipID:   1, // Assumes "Full" is ID 1
 			SemasterID:          1, // Link to the first semester
+			SponsorID: 1,
 		},
 		{
 			ScholarshipName:     "Beasiswa Olahraga Nasional",
@@ -26,6 +27,7 @@ func SeedScholarships(db *gorm.DB) error {
 			StatusscholarshipID: 1, // Assumes "Open" is ID 1
 			TypescholarshipID:   2, // Assumes "Partial" is ID 2
 			SemasterID:          1, // Link to the first semester
+			SponsorID: 1,
 		},
 	}
 
