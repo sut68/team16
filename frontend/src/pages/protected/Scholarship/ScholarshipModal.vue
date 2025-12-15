@@ -211,7 +211,7 @@ const addFeature = () => {
     ID: 0,
     scholarship_id: props.scholarship?.ID ?? 0,
     typefeature_id: featureForm.value.typefeature_id!,
-    typefeature: tf as any,
+    Typefeature: tf as any,
     operator: featureForm.value.operator,
     value: featureForm.value.value,
     tempId: nextTempId++,
@@ -311,7 +311,7 @@ const deleteFeature = (f: LocalFeature) => {
               class="flex justify-between items-center border-b py-1"
             >
               <span>
-                {{ f.typefeature?.type_feature_name }}
+                {{ f.Typefeature?.type_feature_name }}
                 {{ f.operator }}
                 {{ f.value }}
                 <span v-if="f.ID === 0" class="text-xs text-gray-400 ml-1">
