@@ -1,5 +1,5 @@
-import { Get, Post } from './https';
-import type { ScholarshipResponse } from '@/interfaces';
+import { Get, Post, Put, Delete } from './https';
+import type { ScholarshipCreate, ScholarshipUpdate, ScholarshipResponse } from '@/interfaces';
 
 /**
  * Fetches all scholarships from the backend.
@@ -23,4 +23,12 @@ export const applyForScholarship = async (scholarshipId: number, studentProfileI
   };
   const response = await Post(`/scholarships/${scholarshipId}/apply`, payload);
   return response;
+};
+
+export const ScholarshipAPI = {
+  create: (data: ScholarshipCreate) => Post("/scholarship", data),
+  getAll: () => Get("/scholarship"),
+  getById: (id: number) => Get(`/scholarship/${id}`),
+  update: (id: number, data: ScholarshipUpdate) => Put(`/scholarship/${id}`, data),
+  delete: (id: number) => Delete(`/scholarship/${id}`),
 };
