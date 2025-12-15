@@ -20,7 +20,7 @@ export interface FeatureScholarshipResponse {
   scholarship_id: number
 
   typefeature_id: number
-  typefeature: TypeFeatureResponse
+  Typefeature: TypeFeatureResponse
 }
 
 export interface FeatureScholarshipCreate {

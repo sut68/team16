@@ -97,7 +97,7 @@ watch(
             :key="f.ID"
             class="border-b py-1 text-sm"
           >
-            {{ f.typefeature?.type_feature_name }}
+            {{ f.Typefeature?.type_feature_name }}
             {{ f.operator }}
             {{ f.value }}
           </li>
