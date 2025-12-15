@@ -6,10 +6,7 @@ import(
 
 type Featurescholarship struct{
 	gorm.Model
-
-	//แก้ให้ชื่อมันถูกต้อง - เติม e เข้ามา
-	Featurescholarshipname string `json:"feature_scholarship_name"`
-
+	
 	Operator string `json:"operator"`
 	Value string `json:"value"`
 

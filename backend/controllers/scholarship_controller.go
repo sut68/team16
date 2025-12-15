@@ -22,6 +22,7 @@ func GetAllScholarship(c *gin.Context) {
 		Statusscholarship entity.Statusscholarship `json:"statusscholarship"`
 		Typescholarship   entity.Typescholarship   `json:"typescholarship"`
 		Semaster          entity.Semaster          `json:"semaster"`
+		Sponsor           entity.Sponsor           `json:"sponsor"`
 	}
 
 	var scholarships []entity.Scholarship
@@ -31,6 +32,7 @@ func GetAllScholarship(c *gin.Context) {
 		Preload("Statusscholarship").
 		Preload("Typescholarship").
 		Preload("Semaster").
+		Preload("Sponsor").
 		Find(&scholarships).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -48,16 +50,18 @@ func GetAllScholarship(c *gin.Context) {
 			Statusscholarship: s.Statusscholarship,
 			Typescholarship:   s.Typescholarship,
 			Semaster:          s.Semaster,
+			Sponsor:           s.Sponsor,
 		})
 	}
 
 	c.JSON(http.StatusOK, response)
 }
+
 // getby id
 func GetScholarshipByID(c *gin.Context) {
 	id := c.Param("id")
 	var item entity.Scholarship
-	if err := config.DB.Preload("Statusscholarship").Preload("Typescholarship").Preload("Semaster").First(&item, id).Error; err != nil {
+	if err := config.DB.Preload("Statusscholarship").Preload("Typescholarship").Preload("Semaster").Preload("Sponsor").First(&item, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -172,8 +176,8 @@ func ApplyForScholarship(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":                "Application created successfully. Please proceed to upload documents.",
-		"applicationId":          application.ID,
+		"message":                  "Application created successfully. Please proceed to upload documents.",
+		"applicationId":            application.ID,
 		"applicationScholarshipId": appScholarship.ID,
 	})
 }
