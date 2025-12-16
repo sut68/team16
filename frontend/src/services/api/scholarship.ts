@@ -7,7 +7,7 @@ import type { ScholarshipCreate, ScholarshipUpdate, ScholarshipResponse } from '
  */
 export const getScholarships = async (): Promise<ScholarshipResponse[]> => {
   // The Get function in https.ts already extracts the .data property on success
-  const scholarships = await Get('/scholarships');
+  const scholarships = await Get('/scholarship');
   return scholarships as ScholarshipResponse[];
 };
 
