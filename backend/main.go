@@ -59,6 +59,11 @@ func main() {
 		&entity.StudentFavNews{},
 		&entity.StudentProfile{},
 		&entity.Typescholarship{},
+		&entity.InterviewRound{},
+		&entity.Interviewer{},
+		&entity.Slot{},
+		&entity.InterviewerSlot{},
+		&entity.IntervieweBooking{},
 	); err != nil {
 		log.Fatalf("DropTable failed: %v", err)
 	}
@@ -94,6 +99,11 @@ func main() {
 		&entity.StudentFavNews{},
 		&entity.StudentProfile{},
 		&entity.Typescholarship{},
+		&entity.InterviewRound{},
+		&entity.Interviewer{},
+		&entity.Slot{},
+		&entity.InterviewerSlot{},
+		&entity.IntervieweBooking{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -195,6 +205,18 @@ func main() {
 		api.POST("/newsposts", controllers.CreateNewsPost)
 		api.PUT("/newsposts/:id", controllers.UpdateNewsPost)
 		api.DELETE("/newsposts/:id", controllers.DeleteNewsPost)
+
+		// Interview
+		api.GET("/interview-rounds", controllers.GetAllInterviewRounds)
+		api.GET("/interview-rounds/:id", controllers.GetInterviewRoundByID)
+		api.POST("/interview-rounds", controllers.CreateInterviewRound)
+		api.PUT("/interview-rounds/:id", controllers.UpdateInterviewRound)
+		api.DELETE("/interview-rounds/:id", controllers.DeleteInterviewRound)
+		api.GET("/interviewers", controllers.GetAllInterviewers)
+		api.POST("/interviewers", controllers.CreateInterviewer)
+		api.POST("/interview-bookings", controllers.CreateInterviewBooking)
+		api.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings)
+
 
 		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
     	api.GET("/profile/me", controllers.GetMyProfile)
