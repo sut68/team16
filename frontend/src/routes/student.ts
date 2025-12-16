@@ -31,6 +31,11 @@ const studentRoutes: Array<RouteRecordRaw> = [
         name: 'ProfileStudent',
         component: () => import('@/pages/protected/User/MyProfile.vue'),
       },
+      {
+        path: 'schedule',
+        name: 'Schedule',
+        component: () => import('@/pages/protected/Interview/student/StudentInterviewBooking.vue'),
+      },
     ],
     meta: { requiresAuth: true, role: 'user' },
   },
