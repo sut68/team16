@@ -9,5 +9,5 @@ type ApprovalDecision struct {
 	Comment     string `gorm:"not null" json:"comment"`
 
 	TaskID       uint         `json:"task_id" valid:"required~Task ID is required"`
-	ApprovalTask ApprovalTask `gorm:"foreignKey:TaskID" json:"approval_task"`
+	ApprovalTask ApprovalTask `gorm:"foreignKey:TaskID" json:"approval_task" valid:"-"`
 }
