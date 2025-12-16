@@ -1,32 +1,27 @@
-import axios from "axios";
 import type { ContactPayload, SponsorPayload, SponsorResponse, ContactResponse } from "../../interfaces/sponsor";
-
-const api = axios.create({
-  baseURL: "http://localhost:8080/api",
-  timeout: 10000,
-})
+import { Get, Patch, Post, Delete } from "../api";
 
 export const SponsorService = {
   async getAll(): Promise<SponsorResponse[]> {
-    const res = await api.get<SponsorResponse[]>('/sponsors');
-    return res.data;
+    const data: SponsorResponse[] = await Get("/sponsors");
+    return data;
   },
   
   async getById(id: number): Promise<SponsorResponse> {
-    const res = await api.get<SponsorResponse>(`/sponsors/${id}`);
-    return res.data;
+    const data: SponsorResponse = await Get(`/sponsors/${id}`);
+    return data;
   },
   
   async create(payload: SponsorPayload): Promise<SponsorResponse> {
     const body = stripUndefined(payload)
-    const res = await api.post<SponsorResponse>('/sponsors', body);
-    return res.data;
+    const data: SponsorResponse = await Post("/sponsors", body);
+    return data;
   },
   
   async update(id: number, payload: SponsorUpdatePayload): Promise<SponsorResponse> {
     const body = stripUndefined(payload);
-    const res = await api.patch<SponsorResponse>(`/sponsors/${id}`, body);
-    return res.data;
+    const data: SponsorResponse = await Patch(`/sponsors/${id}`, body);
+    return data;
   },
   
   async updateContacts(
@@ -34,12 +29,12 @@ export const SponsorService = {
     payload: BatchContactsPayload
   ): Promise<{ contacts: ContactResponse[] }> {
     const body = stripUndefined(payload);
-    const res = await api.patch<{ contacts: ContactResponse[] }>(`/sponsors/${id}/contacts`, body);
-    return res.data;
+    const data: { contacts: ContactResponse[] } = await Patch(`/sponsors/${id}/contacts`, body);
+    return data;
   },
   
   async delete(id: number): Promise<void> {
-    await api.delete(`/sponsors/${id}`);
+    await Delete(`/sponsors/${id}`);
   },
 };
 
