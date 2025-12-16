@@ -8,7 +8,7 @@ import (
 	"backend/seed/sponsor"
 	"backend/seed/user"
 	"backend/seed/screening"
-	"backend/seed/news"
+	// "backend/seed/news"
 )
 
 func SeedAll(db *gorm.DB) error {
@@ -97,13 +97,13 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	if err := news.SeedStatusNews(db); err != nil {
-		return err
-	}
+	// if err := news.SeedStatusNews(db); err != nil {
+	// 	return err
+	// }
 
-	if err := news.SeedNewsPosts(db); err != nil {
-		return err
-	}
+	// if err := news.SeedNewsPosts(db); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
