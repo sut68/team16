@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetApprovalTasks(ctx *gin.Context) {
@@ -71,13 +72,24 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Status  *string `json:"status"`
-		AdminID *uint   `json:"admin_id"`
+		Status  *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
+		AdminID *uint   `json:"admin_id" valid:"optional"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	if err := validators.ValidateStruct(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	tx := config.DB.Begin()
+
 	updates := make(map[string]interface{})
 	if input.Status != nil {
 		updates["status"] = *input.Status
@@ -86,11 +98,24 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		updates["admin_id"] = *input.AdminID
 	}
 	if len(updates) > 0 {
-		if err := config.DB.Model(&task).Updates(updates).Error; err != nil {
+		if err := tx.Model(&task).Updates(updates).Error; err != nil {
+			tx.Rollback()
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
+		return
+	}
+
+	if err := config.DB.Preload("Admin").Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, task)
 }
 
@@ -164,39 +189,20 @@ func GetApplicationDocumentByID(ctx *gin.Context) {
 
 // POST /application-documents
 func CreateApplicationDocument(ctx *gin.Context) {
-	tx := config.DB.Begin()
-
 	// --- 1. Get Input & Handle File Upload ---
 	appScholarshipIDStr := ctx.PostForm("application_scholarship_id")
-	if appScholarshipIDStr == "" {
-		tx.Rollback()
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "application_scholarship_id is a required field"})
-		return
-	}
 	appScholarshipID, _ := strconv.ParseUint(appScholarshipIDStr, 10, 64)
 
 	uploadedBy := ctx.PostForm("uploaded_by") // Assuming student profile ID is sent
-	if uploadedBy == "" {
-		tx.Rollback()
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "uploaded_by is a required field"})
-		return
-	}
 
 	file, err := ctx.FormFile("document")
 	if err != nil {
-		tx.Rollback()
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
 		return
 	}
 
 	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
 	filePath := fmt.Sprintf("uploads/%s", uniqueFileName)
-
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
-		return
-	}
 
 	// --- 2. Create ApplicationDocument record ---
 	document := entity.ApplicationDocument{
@@ -206,6 +212,23 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		UploadedBy:               uploadedBy,
 		ApplicationScholarshipID: uint(appScholarshipID),
 	}
+	
+	if err := validators.ValidateStruct(&document); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	tx := config.DB.Begin()
+
+	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
+		return
+	}
+
 
 	if err := tx.Create(&document).Error; err != nil {
 		tx.Rollback()
@@ -216,8 +239,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	// --- 3. Create associated ApprovalTask ---
 	var existingTask entity.ApprovalTask
 	
-	// ค้นหา Task เดิมที่ผูกกับ Scholarship ID นี้
-	// โดยการ Join ตารางกลับไปเช็คที่ application_documents
 	errTask := tx.Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
 		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
 		First(&existingTask).Error
@@ -271,18 +292,42 @@ func UpdateApplicationDocument(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		FileName *string `json:"file_name"`
+		FileName *string `json:"file_name" valid:"optional,stringlength(1|255)~File name is too long"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	if err := validators.ValidateStruct(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	tx := config.DB.Begin()
+
 	if input.FileName != nil {
-		if err := config.DB.Model(&document).Update("file_name", *input.FileName).Error; err != nil {
+		if err := tx.Model(&document).Update("file_name", *input.FileName).Error; err != nil {
+			tx.Rollback()
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
+		return
+	}
+
+	if err := config.DB.First(&document, id).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, document)
 }
 
@@ -330,9 +375,9 @@ func GetApprovalDecisionByID(ctx *gin.Context) {
 // POST /approval-decisions
 func CreateApprovalDecision(ctx *gin.Context) {
 	var input struct {
-		Decision string `json:"decision" binding:"required"`
+		Decision string `json:"decision"`
 		Comment  string `json:"comment"`
-		TaskID   uint   `json:"task_id" binding:"required"`
+		TaskID   uint   `json:"task_id"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -344,6 +389,15 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		Comment:    input.Comment,
 		TaskID:     input.TaskID,
 	}
+
+	if err := validators.ValidateStruct(&decision); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
 	if err := config.DB.Create(&decision).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -365,13 +419,24 @@ func UpdateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Decision *string `json:"decision"`
-		Comment  *string `json:"comment"`
+		Decision *string `json:"decision" valid:"optional,in(approve|reject|request-change)~Invalid decision"`
+		Comment  *string `json:"comment" valid:"optional,stringlength(0|500)~Comment too long"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	
+	if err := validators.ValidateStruct(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	tx := config.DB.Begin()
+
 	updates := make(map[string]interface{})
 	if input.Decision != nil {
 		updates["decision"] = *input.Decision
@@ -380,10 +445,22 @@ func UpdateApprovalDecision(ctx *gin.Context) {
 		updates["comment"] = *input.Comment
 	}
 	if len(updates) > 0 {
-		if err := config.DB.Model(&decision).Updates(updates).Error; err != nil {
+		if err := tx.Model(&decision).Updates(updates).Error; err != nil {
+			tx.Rollback()
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
+		return
+	}
+
+	if err := config.DB.Preload("ApprovalTask").First(&decision, id).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
+		return
 	}
 	ctx.JSON(http.StatusOK, decision)
 }
@@ -431,18 +508,20 @@ func GetApprovalRequirementByID(ctx *gin.Context) {
 
 // POST /approval-requirements
 func CreateApprovalRequirement(ctx *gin.Context) {
-	var input struct {
-		ScholarshipID uint `json:"scholarship_id" binding:"required"`
-		RequirementID uint `json:"requirement_id" binding:"required"`
-	}
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	var requirement entity.ApprovalRequirement
+	if err := ctx.ShouldBindJSON(&requirement); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	requirement := entity.ApprovalRequirement{
-		ScholarshipID: input.ScholarshipID,
-		RequirementID: input.RequirementID,
+
+	if err := validators.ValidateStruct(&requirement); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
 	}
+
 	if err := config.DB.Create(&requirement).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -463,6 +542,7 @@ func UpdateApprovalRequirement(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval requirement not found"})
 		return
 	}
+	// no update logic was implemented in original, so we just return the entity.
 	ctx.JSON(http.StatusOK, requirement)
 }
 
