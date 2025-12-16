@@ -263,6 +263,25 @@ export const Put = async (
     });
 };
 
+export const Patch = async (
+  url: string,
+  data: any,
+  requireAuth: boolean = true
+): Promise<AxiosResponse | any> => {
+  const config = requireAuth ? getConfig(data) : getConfigWithoutAuth(data);
+  return await axios
+    .patch(`${API_URL}${url}`, data, config)
+    .then((res) => res.data)
+    .catch((error: AxiosError) => {
+      if (error?.response?.status === 401) {
+        try { sessionStorage.clear(); } catch {}
+        try { localStorage.clear(); } catch {}
+        window.location.reload();
+      }
+    return error.response;
+  });
+}
+
 export const Delete = async (
   url: string,
   requireAuth: boolean = true
