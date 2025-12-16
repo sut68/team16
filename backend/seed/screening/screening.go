@@ -11,7 +11,7 @@ func SeedScreenings(db *gorm.DB) error {
 			AdminProfileID:   1,
 			ApplicationID:    1,
 			StatusScreeningID: 1,
-			ScholarshipID:    1,
+			ApplicationScholarshipID:    1,
 			RejectionReason:  nil,
 		},
 

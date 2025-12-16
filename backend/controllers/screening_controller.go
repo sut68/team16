@@ -7,6 +7,7 @@ import (
 )
 
 func GetAllScreenings(c *gin.Context) {
+
 	var screenings []entity.Screening
 
 	err := config.DB.
@@ -104,8 +105,8 @@ func UpdateScreeningStatus(c *gin.Context) {
 	}
 
 	const (
-		PASS = 1
-		FAIL = 2
+		PASS = 2
+		FAIL = 3
 	)
 
 	if input.StatusScreeningID == FAIL && input.RejectionReason == nil {

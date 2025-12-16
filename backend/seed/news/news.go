@@ -43,12 +43,6 @@ func SeedNewsPosts(db *gorm.DB) error {
         return err
     }
 
-    // ===== 4) ดึง Scholarship =====
-    var scholarship entity.Scholarship
-    if err := db.Preload("Featurescholarships").First(&scholarship).Error; err != nil {
-        return err
-    }
-
     // ===== 5) เตรียม file path =====
     file1 := "uploads/news/scholarship_announcement_2024.pdf"
     file2 := "uploads/news/new_scholarship_opportunities.pdf"
@@ -63,7 +57,7 @@ func SeedNewsPosts(db *gorm.DB) error {
             PostDetail:    "We are excited to announce...",
             FilePath:      file1,
             AdminID:       admin.ID,
-            ScholarshipID: scholarship.ID,
+            ScholarshipID: 1,
             StatusNewsID:  statusPub.ID,
         },
         {
@@ -71,7 +65,7 @@ func SeedNewsPosts(db *gorm.DB) error {
             PostDetail:    "Discover new scholarship...",
             FilePath:      file2,
             AdminID:       admin.ID,
-            ScholarshipID: scholarship.ID,
+            ScholarshipID: 2,
             StatusNewsID:  statusPub.ID,
         },
     }
