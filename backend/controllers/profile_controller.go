@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Helper (Copy มาหรือ Import ก็ได้)
 func getUserIDFromToken(c *gin.Context) (uint, error) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
@@ -42,13 +43,18 @@ func GetMyProfile(c *gin.Context) {
 
 	if user.Role.Name == "student" {
 		var student entity.StudentProfile
-		if err := config.DB.Preload("Major").Where("user_id = ?", userID).First(&student).Error; err != nil {
+		// Preload FamilyInfo ด้วย เพื่อส่งไปให้ครบ
+		if err := config.DB.Preload("Major").Preload("FamilyInfo").Where("user_id = ?", userID).First(&student).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 			return
 		}
-		var family entity.FamilyInfo
-		config.DB.Where("profile_id = ?", student.ID).First(&family)
-		c.JSON(http.StatusOK, gin.H{"role": "student", "data": student, "family": family})
+		// ส่งข้อมูลกลับแบบ Flatten เล็กน้อยเพื่อให้ Frontend ใช้ง่าย
+		// หรือส่ง struct student ตรงๆ ก็ได้ เพราะเรา Preload FamilyInfo เข้าไปใน student แล้ว
+		c.JSON(http.StatusOK, gin.H{
+			"role": "student", 
+			"data": student, 
+			"family": student.FamilyInfo, // ส่งแยกด้วยเผื่อ Frontend เรียกใช้ง่ายๆ
+		})
 
 	} else if user.Role.Name == "admin" {
 		var admin entity.AdminProfile
@@ -71,7 +77,7 @@ func UpdateMyProfile(c *gin.Context) {
 	var user entity.User
 	config.DB.Preload("Role").First(&user, userID)
 
-	// 1. STUDENT
+	// 1. STUDENT UPDATE
 	if user.Role.Name == "student" {
 		var student entity.StudentProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&student).Error; err != nil {
@@ -79,9 +85,9 @@ func UpdateMyProfile(c *gin.Context) {
 			return
 		}
 
+		// Input struct รับเฉพาะข้อมูลส่วนตัวที่อนุญาตให้แก้
 		var input struct {
-			// Fields ที่ Student แก้ได้
-			FirstNameEN      string            `json:"first_name_en"`
+			FirstNameEN      string            `json:"first_name_en"` // อนุญาตให้แก้ชื่ออังกฤษได้
 			LastNameEN       string            `json:"last_name_en"`
 			BirthDate        time.Time         `json:"birth_date"`
 			Phone            string            `json:"phone"`
@@ -90,7 +96,7 @@ func UpdateMyProfile(c *gin.Context) {
 			CurrentAddress   string            `json:"current_address"`
 			Province         string            `json:"province"`
 			SiblingsCount    int               `json:"siblings_count"`
-			Family           entity.FamilyInfo `json:"family_info"`
+			FamilyInfo       entity.FamilyInfo `json:"family_info"` // รับ Object Family ทั้งก้อน
 		}
 
 		if err := c.ShouldBindJSON(&input); err != nil {
@@ -100,7 +106,7 @@ func UpdateMyProfile(c *gin.Context) {
 
 		tx := config.DB.Begin()
 
-		// **สำคัญ: Map ค่าให้ครบ**
+		// Update Student Personal Data
 		student.FirstNameEN = input.FirstNameEN
 		student.LastNameEN = input.LastNameEN
 		student.BirthDate = input.BirthDate
@@ -110,38 +116,50 @@ func UpdateMyProfile(c *gin.Context) {
 		student.CurrentAddress = input.CurrentAddress
 		student.Province = input.Province
 		student.SiblingsCount = input.SiblingsCount
-
+		
 		if err := tx.Save(&student).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Update profile failed"})
 			return
 		}
 
-		// Family Info
+		// Update/Create Family Info
 		var family entity.FamilyInfo
 		err := tx.Where("profile_id = ?", student.ID).First(&family).Error
+		
+		// Map Data from Input
+		family.FatherName = input.FamilyInfo.FatherName
+		family.FatherOccupation = input.FamilyInfo.FatherOccupation
+		family.FatherIncome = input.FamilyInfo.FatherIncome
+		family.MotherName = input.FamilyInfo.MotherName
+		family.MotherOccupation = input.FamilyInfo.MotherOccupation
+		family.MotherIncome = input.FamilyInfo.MotherIncome
+		family.GuardianName = input.FamilyInfo.GuardianName
+		family.GuardianRelation = input.FamilyInfo.GuardianRelation
+		family.GuardianOccupation = input.FamilyInfo.GuardianOccupation
+		family.GuardianIncome = input.FamilyInfo.GuardianIncome
+
 		if err == gorm.ErrRecordNotFound {
-			input.Family.ProfileID = student.ID
-			tx.Create(&input.Family)
+			// Create New
+			family.ProfileID = student.ID
+			if err := tx.Create(&family).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Create family info failed"})
+				return
+			}
 		} else {
 			// Update Existing
-			family.FatherName = input.Family.FatherName
-			family.FatherOccupation = input.Family.FatherOccupation
-			family.FatherIncome = input.Family.FatherIncome
-			family.MotherName = input.Family.MotherName
-			family.MotherOccupation = input.Family.MotherOccupation
-			family.MotherIncome = input.Family.MotherIncome
-			family.GuardianName = input.Family.GuardianName
-			family.GuardianOccupation = input.Family.GuardianOccupation
-			family.GuardianIncome = input.Family.GuardianIncome
-			family.GuardianRelation = input.Family.GuardianRelation
-			tx.Save(&family)
+			if err := tx.Save(&family).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Update family info failed"})
+				return
+			}
 		}
 
 		tx.Commit()
 		c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 
-	// 2. ADMIN
+	// 2. ADMIN UPDATE (Personal)
 	} else if user.Role.Name == "admin" {
 		var admin entity.AdminProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
