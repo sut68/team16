@@ -21,7 +21,7 @@ export const applyForScholarship = async (scholarshipId: number, studentProfileI
   const payload = {
     student_profile_id: studentProfileId,
   };
-  const response = await Post(`/scholarships/${scholarshipId}/apply`, payload);
+  const response = await Post(`/scholarship/${scholarshipId}/apply`, payload);
   return response;
 };
 
