@@ -7,7 +7,7 @@ import type { ScholarshipCreate, ScholarshipUpdate, ScholarshipResponse } from '
  */
 export const getScholarships = async (): Promise<ScholarshipResponse[]> => {
   // The Get function in https.ts already extracts the .data property on success
-  const scholarships = await Get('/scholarships');
+  const scholarships = await Get('/scholarship');
   return scholarships as ScholarshipResponse[];
 };
 
@@ -21,7 +21,7 @@ export const applyForScholarship = async (scholarshipId: number, studentProfileI
   const payload = {
     student_profile_id: studentProfileId,
   };
-  const response = await Post(`/scholarships/${scholarshipId}/apply`, payload);
+  const response = await Post(`/scholarship/${scholarshipId}/apply`, payload);
   return response;
 };
 
