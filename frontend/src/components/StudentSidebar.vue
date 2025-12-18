@@ -431,5 +431,6 @@ aside p {
 div.sidebar-closed .logo-and-menu-header::after {
   display: none;
 }
+
 </style>
 
