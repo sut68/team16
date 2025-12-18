@@ -9,7 +9,7 @@ import (
 	"backend/seed/interview"
 	"backend/seed/location"
 	"backend/seed/scholarship"
-	"backend/seed/screening"
+	//"backend/seed/screening"
 	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
@@ -103,13 +103,13 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	if err := screening.SeedStatusScreenings(db); err != nil {
-		return err
-	}
+	// if err := screening.SeedStatusScreenings(db); err != nil {
+	// 	return err
+	// }
 
-	if err := screening.SeedScreenings(db); err != nil {
-		return err
-	}
+	// if err := screening.SeedScreenings(db); err != nil {
+	// 	return err
+	// }
 
 	// if err := news.SeedStatusNews(db); err != nil {
 	// 	return err
