@@ -205,8 +205,8 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin-top: 5px;
+  margin-bottom: 5px;
   position: relative;
 }
 
@@ -303,6 +303,7 @@ div.sidebar-closed .logo {
   margin: 0;
   margin-top: 30px;
   width: 50px;
+  margin-bottom: -20px;
 }
 
 div.sidebar-closed .menu-link {
@@ -311,7 +312,7 @@ div.sidebar-closed .menu-link {
   border-radius: 15px;
   margin-left: 10px;
   margin-right: 10px;
-  margin-top: 17px;
+  margin-top: 10px;
 }
 
 div.sidebar-closed .menu-link svg {
@@ -343,8 +344,8 @@ aside {
 }
 
 aside .logo {
-  width: 70px;
-  margin-top: 60px;
+  width: 60px;
+  margin-top: 35px;
   margin-bottom: 20px;
   margin-left: -10px;
   flex-shrink: 0;
@@ -363,13 +364,14 @@ aside p {
   margin-top: -40px;
   padding: 40px 0;
   transition: all 0.3s ease-in-out;
+
 }
 
 .header-text-wrapper {
   display: flex;
   flex-direction: column;
   line-height: 1.3;
-  transform: translateY(20px);
+  transform: translateY(10px);
 }
 
 .header-text-wrapper span {
@@ -390,19 +392,23 @@ aside p {
 .main-content {
   height: 100vh;
   position: relative;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  /* overflow: visible; */
   margin-left: 260px;
 }
 
 .main-scroll {
+  flex: 1;
   width: 100%;
   padding: 20px;
-  height: 100%;
+  /* height: 100%; */
   border-top-left-radius: 50px;
   background-color: #f0f2f5;
   overflow-x: hidden;
   overflow-y: hidden;
   margin-left: 30px;
+  /* max-width: 1500px; */
   margin: 0 0;
 }
 
@@ -416,12 +422,16 @@ aside p {
   position: absolute;
   bottom: 17px;
   left: -15px;
-  width: 95%;        
-  height: 2.5px;       
-  background-color: #ffffff;      
-  margin-left: 10px; 
+  width: 95%;
+  height: 2.5px;
+  
+  background-color: #ffffff;
+  margin-left: 10px;
 }
+
 div.sidebar-closed .logo-and-menu-header::after {
   display: none;
 }
+
 </style>
+
