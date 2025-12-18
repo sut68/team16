@@ -1,9 +1,12 @@
 package seed
 
 import (
+	"log"
 	"backend/seed/scholarship"
 	"gorm.io/gorm"
 	"backend/seed/approval"
+	"backend/seed/interview"
+	"backend/seed/location"
 	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
@@ -12,10 +15,21 @@ import (
 )
 
 func SeedAll(db *gorm.DB) error {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	location.SeedLocations(db)
+	log.Println("Location seed completed")
+
+	interview.SeedInterviewers(db)
+	log.Println("Interviewer seed completed")
+
+	interview.SeedInterviewModes(db)
+	log.Println("Interview mode seed completed")
 
 	if err := sponsor.SeedIndustries(db); err != nil {
 		return err
 	}
+
 
 	if err := sponsor.SeedSponsors(db); err != nil {
 		return err
@@ -78,11 +92,11 @@ func SeedAll(db *gorm.DB) error {
 	}
 	// if err := approval.SeedApplicationScholarships(db); err != nil {
 	// 	return err
-	// }
+	// } ห้ามเปิด
 
 	// if err := approval.SeedApplicationDocuments(db); err != nil {
 	// 	return err
-	// }
+	// } ห้ามเปิด
 
 	if err := approval.SeedApprovalRequirements(db); err != nil {
 		return err
