@@ -4,80 +4,98 @@ import (
 	"backend/config"
 	"backend/entity"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
-// ---------------------- CREATE SCREENING ----------------------
-func CreateScreening(c *gin.Context) {
-	var screening entity.Screening
-	if err := c.ShouldBindJSON(&screening); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-	if err := config.DB.Create(&screening).Error; err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(200, gin.H{"data": screening})
-}
-
-// ---------------------- GET ALL ----------------------
 func GetAllScreenings(c *gin.Context) {
-    var screenings []entity.Screening
 
-    tx := config.DB.
-        Preload("StatusScreening").
-        Preload("Scholarship").
-		Preload("Application.Semaster").
-		Preload("Scholarship.Semaster").
-        Preload("Application.StudentProfile")
+	var screenings []entity.Screening
 
-    if err := tx.Find(&screenings).Error; err != nil {
-        c.JSON(400, gin.H{"error": err.Error()})
-        return
-    }
+	err := config.DB.
+		Preload("StatusScreening").
+		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Scholarship").
+        Preload("ApplicationScholarship.Scholarship.Semaster").
+		Find(&screenings).Error
 
-    c.JSON(200, gin.H{"data": screenings})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"data": screenings})
 }
 
-
-// ---------------------- GET BY ID ----------------------
 func GetScreeningByID(c *gin.Context) {
     var screening entity.Screening
     id := c.Param("id")
 
-    tx := config.DB.
-        Preload("AdminProfile").
+    // Load screening + related
+    if err := config.DB.
         Preload("StatusScreening").
-        Preload("Scholarship").
-        Preload("Scholarship.Featurescholarships").
-        Preload("Scholarship.Featurescholarships.Typefeature"). // ดึงชื่อเกณฑ์ (GPA, Income, etc.)
-        Preload("Application").                               // (Optional) Preload แม่ข่ายให้ชัดเจน
-        Preload("Application.StudentProfile").                // ดึง GPAX, Siblings
-        Preload("Application.StudentProfile.FamilyInfo")      // ดึงรายได้พ่อแม่
-
-    // เปลี่ยนจาก err != nil เฉยๆ เป็นการเช็ค RecordNotFound เพื่อส่ง 404
-    if err := tx.First(&screening, id).Error; err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Data not found"}) // ใช้ 404 ถ้าหาไม่เจอ
+        Preload("AdminProfile").
+        Preload("ApplicationScholarship.Application.StudentProfile").
+        Preload("ApplicationScholarship.Application.StudentProfile.FamilyInfo").
+        Preload("ApplicationScholarship.Scholarship"). // ไม่โหลด Sponsor
+        First(&screening, "id = ?", id).Error; err != nil {
+        c.JSON(404, gin.H{"error": "Data not found"})
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"data": screening})
+    // Load features separately
+    var features []entity.Featurescholarship
+    if err := config.DB.
+        Preload("Typefeature").
+        Where("scholarship_id = ?", screening.ApplicationScholarship.ScholarshipID).
+        Find(&features).Error; err != nil {
+        features = []entity.Featurescholarship{}
+    }
+
+    // Wrap JSON manually without Sponsor
+    response := gin.H{
+        "data": gin.H{
+            "ID":                   screening.ID,
+            "CreatedAt":            screening.CreatedAt,
+            "UpdatedAt":            screening.UpdatedAt,
+            "DeletedAt":            screening.DeletedAt,
+            "admin_profile_id":     screening.AdminProfileID,
+            "admin_profile":        screening.AdminProfile,
+            "application_scholarship_id": screening.ApplicationScholarshipID,
+            "application_scholarship": gin.H{
+                "ID":           screening.ApplicationScholarship.ID,
+                "status":       screening.ApplicationScholarship.Status,
+                "application_id": screening.ApplicationScholarship.ApplicationID,
+                "application": screening.ApplicationScholarship.Application,
+                "scholarship_id": screening.ApplicationScholarship.ScholarshipID,
+                "scholarship": gin.H{
+                    "ID":                 screening.ApplicationScholarship.Scholarship.ID,
+                    "scholarship_name":   screening.ApplicationScholarship.Scholarship.ScholarshipName,
+                    "description":        screening.ApplicationScholarship.Scholarship.Description,
+                    "open_date":          screening.ApplicationScholarship.Scholarship.OpenDate,
+                    "close_date":         screening.ApplicationScholarship.Scholarship.CloseDate,
+                    "featurescholarships": features, // attach แยก
+                },
+            },
+            "status_screening_id": screening.StatusScreeningID,
+            "status_screening":    screening.StatusScreening,
+            "rejection_reason":    screening.RejectionReason,
+        },
+    }
+
+    c.JSON(200, response)
 }
 
 
-// ---------------------- UPDATE STATUS ----------------------
 func UpdateScreeningStatus(c *gin.Context) {
 	var screening entity.Screening
 	id := c.Param("id")
 
 	if err := config.DB.First(&screening, id).Error; err != nil {
-		c.JSON(400, gin.H{"error": "Screening not found"})
+		c.JSON(404, gin.H{"error": "Screening not found"})
 		return
 	}
 
 	var input struct {
-		StatusScreeningID uint    `json:"status_screening_id"`
+		StatusScreeningID uint    `json:"status_screening_id" binding:"required"`
 		RejectionReason   *string `json:"rejection_reason"`
 	}
 
@@ -86,31 +104,24 @@ func UpdateScreeningStatus(c *gin.Context) {
 		return
 	}
 
-	screening.StatusScreeningID = input.StatusScreeningID
-	screening.RejectionReason = input.RejectionReason
+	const (
+		PASS = 2
+		FAIL = 3
+	)
+
+	if input.StatusScreeningID == FAIL && input.RejectionReason == nil {
+		c.JSON(400, gin.H{"error": "Rejection reason is required"})
+		return
+	}
+
+	if input.StatusScreeningID == PASS {
+		input.RejectionReason = nil
+	}
 
 	if err := config.DB.Model(&screening).Updates(map[string]interface{}{
 		"status_screening_id": input.StatusScreeningID,
 		"rejection_reason":    input.RejectionReason,
 	}).Error; err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, gin.H{"data": screening})
-}
-
-// ---------------------- DELETE ----------------------
-func DeleteScreening(c *gin.Context) {
-	var screening entity.Screening
-	id := c.Param("id")
-
-	if err := config.DB.First(&screening, id).Error; err != nil {
-		c.JSON(400, gin.H{"error": "Screening not found"})
-		return
-	}
-
-	if err := config.DB.Delete(&screening).Error; err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}

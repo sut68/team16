@@ -18,8 +18,6 @@ function convertToFormData(payload: Partial<UpdateNewsPost>): FormData {
     return formData;
 }
 
-
-
 export const getAllNewsPosts = async (): Promise<NewsPost[]> => {
     const response: any = await Get('/newsposts');
     if (Array.isArray(response)) return response;
@@ -27,9 +25,28 @@ export const getAllNewsPosts = async (): Promise<NewsPost[]> => {
     return [];
 }
 
-export const getNewsPostById = async (id: number): Promise<NewsPost> => {
+interface NewsPostDetailResponse {
+    news_post: NewsPost;
+    features: any[]; // ใช้ any[] เพื่อความยืดหยุ่น ถ้าไม่ต้องการ import FeaturescholarshipResponse
+}
+
+/**
+ * ดึงข้อมูลข่าวสารพร้อมคุณสมบัติทุนตาม ID
+ * @param id ID ของข่าวสาร
+ * @returns Promise<NewsPostDetailResponse> โครงสร้าง { news_post: NewsPost, features: [...] }
+ */
+export const getNewsPostById = async (id: number): Promise<NewsPostDetailResponse> => {
+    // 1. เรียก API
     const response: any = await Get(`/newsposts/${id}`);
-    return response; 
+    
+    // 2. ตรวจสอบโครงสร้าง Response ที่ Go Backend ส่งมา
+    if (response && response.news_post) {
+        // ถ้าโครงสร้างถูกต้อง (มี news_post อยู่) ให้ return ออกไป
+        return response as NewsPostDetailResponse; 
+    }
+    
+    // 3. ถ้าไม่พบ หรือเป็น Error ให้โยน Error
+    throw new Error('Invalid or empty API response structure for NewsPost ID: ' + id);
 }
 
 export const createNewsPost = async (payload: CreateNewsPostPayload | FormData): Promise<NewsPost> => {
@@ -38,12 +55,6 @@ export const createNewsPost = async (payload: CreateNewsPostPayload | FormData):
     return response.data;
 }
 
-
-// export const updateNewsPost = async (id: number, data: CreateNewsPostPayload | FormData): Promise<any> => {
-    
-//     const response: any = await Put(`/newsposts/${id}`, data); 
-//     return response;
-// };
 export const updateNewsPost = async (id: number, data: UpdateNewsPost | FormData): Promise<any> => {
     const response: any = await Put(`/newsposts/${id}`, data); 
     return response;

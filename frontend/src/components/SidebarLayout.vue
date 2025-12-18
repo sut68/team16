@@ -19,8 +19,10 @@
       </router-link>
 
       <router-link to="/admin/news" class="menu-link" active-class="active">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+          class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
         </svg>
         <span v-show="isSidebarOpen" class="menu-text">ข่าวสาร</span>
       </router-link>
@@ -97,14 +99,15 @@
       <router-link to="/admin/users" class="menu-link" active-class="active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          <path strokeLinecap="round" strokeLinejoin="round"
+            d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
         </svg>
+
 
         <span v-show="isSidebarOpen" class="menu-text">จัดการผู้ใช้</span>
       </router-link>
 
-       <router-link to="/admin/profileadmin" class="menu-link" active-class="active">
+      <router-link to="/admin/profileadmin" class="menu-link" active-class="active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -117,8 +120,10 @@
       <div class="flex-grow"></div> <!-- Spacer -->
 
       <a @click="handleLogout" class="menu-link cursor-pointer mt-auto mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+          class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
         </svg>
         <span v-show="isSidebarOpen" class="menu-text">ออกจากระบบ</span>
       </a>
@@ -151,16 +156,16 @@ export default defineComponent({
     const asideRef = ref<HTMLElement | null>(null);
     const route = useRoute();
     const router = useRouter();
-    
+
     const TRANSITION_DURATION = 300; // ms
-    
+
     // สำหรับ debounce
     let updateTimeout: ReturnType<typeof setTimeout> | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
     const handleLogout = () => {
-      try { sessionStorage.clear(); } catch {}
-      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch { }
+      try { localStorage.clear(); } catch { }
       router.push('/');
     };
 
@@ -171,19 +176,19 @@ export default defineComponent({
 
       updateTimeout = setTimeout(async () => {
         await nextTick();
-        
+
         if (!asideRef.value) return;
 
         const activeLink = asideRef.value.querySelector('.menu-link.active') as HTMLElement;
-        
+
         if (activeLink) {
           const asideRect = asideRef.value.getBoundingClientRect();
           const linkRect = activeLink.getBoundingClientRect();
-          
+
           const buttonHeight = 40;
           const linkCenterY = linkRect.top - asideRect.top + (linkRect.height / 2);
           const newTop = Math.max(0, linkCenterY - (buttonHeight / 2));
-          
+
           toggleButtonTop.value = `${newTop}px`;
         }
       }, 50); // debounce 50ms
@@ -191,7 +196,7 @@ export default defineComponent({
 
     const toggleSidebar = () => {
       isSidebarOpen.value = !isSidebarOpen.value;
-      
+
       // รอให้ transition เสร็จก่อนคำนวณใหม่
       setTimeout(() => {
         updateButtonPosition();
@@ -200,11 +205,11 @@ export default defineComponent({
 
     const setupResizeObserver = () => {
       if (!asideRef.value) return;
-      
+
       resizeObserver = new ResizeObserver(() => {
         updateButtonPosition();
       });
-      
+
       resizeObserver.observe(asideRef.value);
     };
 
@@ -261,8 +266,8 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin-top: 5px;
+  margin-bottom: 5px;
   position: relative;
 }
 
@@ -359,6 +364,7 @@ div.sidebar-closed .logo {
   margin: 0;
   margin-top: 30px;
   width: 50px;
+  margin-bottom: -20px;
 }
 
 div.sidebar-closed .menu-link {
@@ -367,7 +373,7 @@ div.sidebar-closed .menu-link {
   border-radius: 15px;
   margin-left: 10px;
   margin-right: 10px;
-  margin-top: 17px;
+  margin-top: 10px;
 }
 
 div.sidebar-closed .menu-link svg {
@@ -399,8 +405,8 @@ aside {
 }
 
 aside .logo {
-  width: 70px;
-  margin-top: 60px;
+  width: 60px;
+  margin-top: 35px;
   margin-bottom: 20px;
   margin-left: -10px;
   flex-shrink: 0;
@@ -419,13 +425,14 @@ aside p {
   margin-top: -40px;
   padding: 40px 0;
   transition: all 0.3s ease-in-out;
+
 }
 
 .header-text-wrapper {
   display: flex;
   flex-direction: column;
   line-height: 1.3;
-  transform: translateY(20px);
+  transform: translateY(10px);
 }
 
 .header-text-wrapper span {
@@ -476,11 +483,12 @@ aside p {
   position: absolute;
   bottom: 17px;
   left: -15px;
-  width: 95%;        
-  height: 2.5px;       
-  background-color: #ffffff;      
-  margin-left: 10px; 
+  width: 95%;
+  height: 2.5px;
+  background-color: #ffffff;
+  margin-left: 10px;
 }
+
 div.sidebar-closed .logo-and-menu-header::after {
   display: none;
 }

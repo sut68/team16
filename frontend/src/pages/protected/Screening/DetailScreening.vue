@@ -240,7 +240,7 @@ const screeningCriteria = computed(() => {
 
 const passCount = computed(() => screeningCriteria.value.filter(c => c.isPassed).length);
 const totalCriteria = computed(() => screeningCriteria.value.length);
-const isAllPassed = computed(() => totalCriteria.value > 0 && passCount.value === totalCriteria.value);
+const isAllPassed = computed(() => totalCriteria.value === 0 || passCount.value === totalCriteria.value);
 
 const canTakeAction = computed(() => {
   const status = headerInfo.value.status?.toLowerCase() || '';
@@ -271,7 +271,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
     try {
         await updateScreeningStatus(root.ID, {
             status_screening_id: statusId,
-            rejection_reason: type === 'reject' ? comment.value : null
+            rejection_reason: type === 'reject' ? comment.value.trim() : null
         });
 
         emit('action-completed');
@@ -370,7 +370,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         :disabled="isSubmitting || !isAllPassed"
                                         class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none shadow-sm disabled:bg-slate-200 disabled:text-slate-400">
                                         <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
-                                        <span v-if="!isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
+                                        <span v-if="isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
                                         <span v-else>ผ่านการคัดกรอง</span>
                                     </button>
                                     
