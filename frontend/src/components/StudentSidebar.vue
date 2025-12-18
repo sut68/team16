@@ -424,6 +424,7 @@ aside p {
   left: -15px;
   width: 95%;
   height: 2.5px;
+  
   background-color: #ffffff;
   margin-left: 10px;
 }
