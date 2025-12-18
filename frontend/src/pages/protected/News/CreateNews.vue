@@ -2,203 +2,128 @@
 import { ref, computed, onMounted } from 'vue';
 import { createNewsPost } from '@/services/api/news_post';
 import { getScholarships } from '@/services/api/scholarship';
-import type { ScholarshipResponse } from '@/interfaces/scholarship';
 
 const emit = defineEmits(['close', 'success']);
 const isSaving = ref(false);
-
-// --- List ทุน ---
 const scholarships = ref<{id: number, name: string}[]>([]);
 
-// --- Form state ---
-const form = ref({
-  title: '',
-  post_detail: '',
-  file_path: '',
-  admin_id: null,          // รับจาก props หรือ session
-  scholarship_id: null,    // เลือกจาก dropdown
-  status_news_id: null     // เลือกจาก select
-});
+const statusOptions = [
+  { id: 1, label: 'สาธารณะ (Public)', class: 'text-emerald-600' },
+  { id: 5, label: 'เฉพาะสมาชิก (Members)', class: 'text-indigo-600' },
+  { id: 2, label: 'ฉบับร่าง (Draft)', class: 'text-orange-500' },
+  { id: 3, label: 'จัดเก็บ (Archived)', class: 'text-slate-500' }
+];
 
+const form = ref({ title: '', post_detail: '', file_path: '', admin_id: 1, scholarship_id: null as number | null, status_news_id: 1 });
 const newImageFile = ref<File | null>(null);
 const previewImage = ref<string | null>(null);
 
-const displayImage = computed(() => {
-  if (previewImage.value) return previewImage.value;
-  if (form.value.file_path) return form.value.file_path;
-  return null;
-});
+const displayImage = computed(() => previewImage.value || form.value.file_path || null);
 
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement;
-  if (target.files && target.files[0]) {
+  if (target.files?.[0]) {
     const file = target.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      //alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
-      return;
-    }
     newImageFile.value = file;
     previewImage.value = URL.createObjectURL(file);
   }
 };
 
 const handleSave = async () => {
-  // 1. Validation พื้นฐาน
-  if (!form.value.title || !form.value.post_detail) {
-    //alert('กรุณากรอกหัวข้อและเนื้อหาข่าว');
-    return;
-  }
-
-  // 2. ตรวจสอบค่า ID (กันส่ง null/undefined ไปให้ Server)
-  // สมมติ: ถ้าไม่มี admin_id ให้ลองดึงจาก localStorage หรือใส่ค่า Default ชั่วคราวเพื่อ Test
-  const safeAdminId = form.value.admin_id ? String(form.value.admin_id) : '1'; 
-  const safeScholarshipId = form.value.scholarship_id ? String(form.value.scholarship_id) : '1'; 
-
+  if (!form.value.title || !form.value.post_detail) return alert('กรุณากรอกข้อมูลให้ครบ');
   isSaving.value = true;
-
   try {
-    const formData = new FormData();
-    formData.append('title', form.value.title.trim());
-    formData.append('post_detail', form.value.post_detail.trim());
-    
-    // ส่งค่า ID ที่เช็คแล้วว่าไม่ว่าง
-    formData.append('admin_id', safeAdminId);
-    formData.append('scholarship_id', safeScholarshipId);
-    formData.append('status_news_id', String(form.value.status_news_id));
-    
-    // จัดการไฟล์
-    if (newImageFile.value) {
-      formData.append('file_path', newImageFile.value);
-    }
-
-    // *** Debug: ดูว่าส่งอะไรไปบ้างใน Console ***
-    console.log('--- Sending FormData ---');
-    for (const pair of formData.entries()) {
-        console.log(`${pair[0]}: ${pair[1]}`);
-    }
-
-    // ยิง API
-    await createNewsPost(formData);
-
-    //alert('บันทึกข้อมูลสำเร็จ');
+    const fd = new FormData();
+    fd.append('title', form.value.title);
+    fd.append('post_detail', form.value.post_detail);
+    fd.append('admin_id', String(form.value.admin_id));
+    if (form.value.scholarship_id) fd.append('scholarship_id', String(form.value.scholarship_id));
+    fd.append('status_news_id', String(form.value.status_news_id));
+    if (newImageFile.value) fd.append('file_path', newImageFile.value);
+    await createNewsPost(fd);
     emit('success');
-    emit('close');
-
-  } catch (error: any) {
-    console.error('Save Failed:', error);
-    
-    // ดักจับ Error Response จาก Server มาแสดง
-    if (error.response) {
-        console.log('Server Response Data:', error.response.data);
-        //alert(`เกิดข้อผิดพลาด: ${JSON.stringify(error.response.data)}`);
-    } else {
-        //alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Server (500)');
-    }
-  } finally {
-    isSaving.value = false;
-  }
+  } catch (error) { console.error(error); alert('บันทึกไม่สำเร็จ'); } 
+  finally { isSaving.value = false; }
 };
 
-// ดึงทุนจาก API
 onMounted(async () => {
   try {
-    const res: ScholarshipResponse[] = await getScholarships();
-    scholarships.value = res.map(s => ({
-      id: s.ID,
-      name: s.scholarship_name
-    }));
-  } catch (error) {
-    console.error('ไม่สามารถดึงทุนได้', error);
-  }
+    const res: any = await getScholarships();
+    const data = Array.isArray(res) ? res : (res.data || []);
+    scholarships.value = data.map((s: any) => ({ id: s.ID, name: s.scholarship_name }));
+  } catch (e) { console.error(e); }
 });
-
-
-const handleCancel = () => emit('close');
 </script>
 
 <template>
-  <div class="w-full font-sans text-slate-800 flex justify-center items-start">
-    <div class="w-full max-w-6xl bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      
-      <!-- Header -->
-      <div class="px-8 py-5 border-b border-gray-100 flex flex-row justify-between items-center bg-white">
-        <div>
-          <h1 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">เพิ่มข่าวสารใหม่</h1>
-        </div>
-        <div class="flex gap-3">
-          <button @click="handleCancel" class="btn btn-sm btn-ghost text-gray-500">ยกเลิก</button>
-          <button @click="handleSave" class="btn btn-sm bg-[#1e3a8a] hover:bg-[#152c6f] text-white border-none px-6" :disabled="isSaving">
-            <span v-if="isSaving" class="loading loading-spinner loading-xs"></span>
-            บันทึก
-          </button>
-        </div>
+  <div class="h-full flex flex-col bg-white">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center shrink-0">
+      <div>
+        <h1 class="text-xl font-bold text-[#1e3a8a]">เพิ่มข่าวสารใหม่</h1>
+        <p class="text-xs text-gray-500">Create New Post</p>
       </div>
+      <div class="flex gap-2">
+        <button @click="emit('close')" class="btn btn-sm btn-ghost text-gray-500 font-normal">ยกเลิก</button>
+        <button @click="handleSave" class="btn btn-sm bg-[#1e3a8a] text-white border-none hover:bg-[#152c6f]" :disabled="isSaving">
+          <span v-if="isSaving" class="loading loading-spinner loading-xs"></span> บันทึก
+        </button>
+      </div>
+    </div>
 
-      <!-- Form -->
-      <div class="p-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-          
-          <!-- Left: Title + Detail -->
-          <div class="lg:col-span-2 space-y-6">
+    <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2 space-y-6">
+          <div class="form-control w-full">
+            <label class="label pt-0 pb-1"><span class="label-text font-bold text-slate-700">หัวข้อข่าว <span class="text-red-500">*</span></span></label>
+            <input v-model="form.title" type="text" class="input input-bordered w-full bg-slate-50 focus:border-[#1e3a8a]" placeholder="ระบุหัวข้อ..." />
+          </div>
+          <div class="form-control w-full">
+            <label class="label pb-1"><span class="label-text font-bold text-slate-700">เนื้อหาข่าว <span class="text-red-500">*</span></span></label>
+            <textarea v-model="form.post_detail" class="textarea textarea-bordered min-h-[400px] bg-slate-50 focus:border-[#1e3a8a] text-base leading-relaxed" placeholder="รายละเอียด..."></textarea>
+          </div>
+        </div>
+
+        <div class="lg:col-span-1 space-y-6">
+          <div class="p-5 border border-gray-200 rounded-xl bg-white shadow-sm space-y-4">
             <div class="form-control w-full">
-              <label class="label pt-0"><span class="label-text font-bold text-slate-700 text-base">หัวข้อข่าว <span class="text-red-500">*</span></span></label>
-              <input v-model="form.title" type="text" placeholder="ระบุหัวข้อข่าว..." class="input input-bordered w-full h-11 text-base bg-gray-50/50" />
+                <label class="label pt-0 pb-1"><span class="label-text font-bold text-slate-700">ทุนการศึกษา</span></label>
+                <select v-model="form.scholarship_id" class="select select-bordered w-full bg-slate-50">
+                    <option :value="null">เลือกทุนการศึกษา</option>
+                    <option v-for="s in scholarships" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
             </div>
-
             <div class="form-control w-full">
-              <label class="label"><span class="label-text font-bold text-slate-700 text-base">เนื้อหาข่าว <span class="text-red-500">*</span></span></label>
-              <textarea v-model="form.post_detail" class="textarea textarea-bordered h-64 text-base leading-relaxed p-4 bg-gray-50/50 resize-none" placeholder="รายละเอียด..."></textarea>
+                <label class="label pt-0 pb-1"><span class="label-text font-bold text-slate-700">สถานะการเผยแพร่</span></label>
+                <select v-model="form.status_news_id" class="select select-bordered w-full bg-slate-50">
+                    <option v-for="opt in statusOptions" :key="opt.id" :value="opt.id" :class="opt.class">{{ opt.label }}</option>
+                </select>
             </div>
           </div>
 
-          <!-- Right: Scholarship + Status + Image -->
-          <div class="lg:col-span-1 space-y-6">
-
-            <!-- Scholarship Dropdown -->
-            <div class="form-control w-full">
-              <label class="label pt-0 pb-2"><span class="label-text font-bold text-slate-700 text-base">ทุนการศึกษา <span class="text-red-500">*</span></span></label>
-              <select v-model="form.scholarship_id" class="select select-bordered w-full text-base bg-white focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]">
-                <option value="" disabled>เลือกทุนการศึกษา</option>
-                <option v-for="scholarship in scholarships" :key="scholarship.id" :value="scholarship.id">
-                  {{ scholarship.name }}
-                </option>
-              </select>
-            </div>
-
-            <!-- Status Dropdown -->
-            <div class="form-control w-full">
-              <label class="label pt-0 pb-2"><span class="label-text font-bold text-slate-700 text-base">สถานะการแสดงผล <span class="text-red-500">*</span></span></label>
-              <select v-model="form.status_news_id" class="select select-bordered w-full text-base bg-white focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]">
-                <option value="" disabled>เลือกสถานะข่าว</option>
-                <option :value="1" class="text-green-600 font-bold">● เผยแพร่ (Published)</option>
-                <option :value="2" class="text-orange-500 font-bold">● ฉบับร่าง (Draft)</option>
-                <option :value="3" class="text-red-600 font-bold">● ซ่อน (Hidden)</option>
-              </select>
-              <div class="mt-2 text-xs text-gray-400">
-                <span v-if="form.status_news_id === 1">ข่าวจะแสดงบนหน้าเว็บไซต์ทันที</span>
-                <span v-else>ข่าวจะถูกซ่อนไว้เฉพาะผู้ดูแลระบบ</span>
-              </div>
-            </div>
-
-            <!-- Cover Image Upload -->
-            <div>
-              <label class="label pt-0 pb-2"><span class="label-text font-bold text-slate-700 text-base">รูปภาพหน้าปก</span></label>
-              <div class="relative group">
-                <div class="w-full aspect-[4/3] rounded-xl border-2 border-dashed border-gray-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center text-center hover:border-[#1e3a8a] hover:bg-blue-50/30">
-                  <img v-if="displayImage" :src="displayImage" class="w-full h-full object-cover" />
-                  <div v-else class="p-6 flex flex-col items-center">
-                    <span class="text-sm font-semibold text-gray-600">อัปโหลดรูปภาพ</span>
-                  </div>
-                  <input type="file" accept="image/*" @change="handleFileUpload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+          <div class="p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
+            <label class="label pt-0 pb-2 flex justify-between">
+                <span class="label-text font-bold text-slate-700">รูปภาพหน้าปก</span>
+                <span v-if="newImageFile" class="text-xs text-green-600 font-medium">เลือกแล้ว</span>
+            </label>
+            <div class="relative group w-full aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 bg-slate-50 flex items-center justify-center overflow-hidden hover:border-[#1e3a8a] transition-colors cursor-pointer">
+                <img v-if="displayImage" :src="displayImage" class="w-full h-full object-cover" />
+                <div v-else class="text-center text-gray-400">
+                    <span class="text-sm block">คลิกเพื่ออัปโหลด</span>
                 </div>
-              </div>
+                <input type="file" accept="image/*" @change="handleFileUpload" class="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
-
+            <p class="text-xs text-center text-gray-400 mt-2">รองรับไฟล์ JPG, PNG</p>
           </div>
-
         </div>
-      </div>
 
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
+</style>

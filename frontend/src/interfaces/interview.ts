@@ -1,5 +1,5 @@
 import type { ScholarshipResponse } from "./scholarship";
-import type { User } from "./user";
+import type { AdminProfileResponse } from "./user";
 
 
 export interface InterviewRound {
@@ -12,8 +12,18 @@ export interface InterviewRound {
     scholarship_id: number;
     scholarship: ScholarshipResponse;
     admin_profile_id: number;
-    admin_profile: User;
+    admin_profile: AdminProfileResponse;
+    interview_mode_id?: number;
+    interview_mode?: InterviewMode;
+    location_id?: number | null;
+    location?: Location | null;
+    meeting_link?: string;
     slots: Slot[];
+}
+
+export interface InterviewMode {
+    ID: number;
+    name: string;
 }
 
 export interface Interviewer {
@@ -30,7 +40,7 @@ export interface Slot {
     is_booked: boolean;
     interview_round_id: number;
     interviewer_slots: InterviewerSlot[];
-    interview_booking: InterviewBooking | null;
+    interviewe_bookings: InterviewBooking[];
 }
 
 export interface InterviewerSlot {
@@ -42,9 +52,15 @@ export interface InterviewerSlot {
 
 export interface InterviewBooking {
     ID: number;
-    booking_date: string;
-    booking_time: string;
     status: string;
     slot_id: number;
     application_scholarship_id: number;
+}
+
+export interface Location {
+    ID: number;
+    name: string;
+    building: string;
+    room: string;
+    floor: number;
 }

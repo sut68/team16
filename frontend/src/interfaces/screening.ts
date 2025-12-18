@@ -1,7 +1,8 @@
 import type { StatusScreening } from "./status_screening";
-//import type { ApplicationResponse } from "./application";
-//import type { AdminProfileResponse } from "./user";
 import type { ScholarshipResponse } from "./scholarship";
+import type { AdminProfileResponse, ApplicationResponse, FeatureScholarshipResponse, StudentProfileResponse } from ".";
+import type { SemasterResponse } from "./semaster";
+
 export interface Screening {
     id: number;
     admin_profile_id: number;
@@ -16,22 +17,25 @@ export interface Screening {
 export interface ScreeningResponse extends Screening {
     status_screening?: StatusScreening;
     scholarship?: ScholarshipResponse;
+    application_scholarship?: ApplicationResponse;
 
-    application?: any;       
-    student_profile?: any;   
-    admin_profile?: any; 
+    student_profile?: StudentProfileResponse;   
+    admin_profile?: AdminProfileResponse; 
+
+    feature_scholarships?: FeatureScholarshipResponse[];
+    semaster?: SemasterResponse[];
+}
+
+
+export interface UpdateScreeningStatusPayload {
+    status_screening_id: number;
+    rejection_reason?: string | null; 
 }
 
 export interface CreateScreeningPayload {
     admin_profile_id: number;
-    scholarship_id: number;
     student_profile_id: number;
     application_id: number;
-    status_screening_id: number;
-    rejection_reason?: string | null;
-}
-
-export interface UpdateScreeningStatusPayload {
     status_screening_id: number;
     rejection_reason?: string | null; 
 }

@@ -2,15 +2,17 @@ package seed
 
 import (
 	"log"
-	"backend/seed/scholarship"
+
 	"gorm.io/gorm"
+
 	"backend/seed/approval"
 	"backend/seed/interview"
 	"backend/seed/location"
+	"backend/seed/scholarship"
+	"backend/seed/screening"
 	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
-	"backend/seed/screening"
 	// "backend/seed/news"
 )
 
@@ -29,7 +31,6 @@ func SeedAll(db *gorm.DB) error {
 	if err := sponsor.SeedIndustries(db); err != nil {
 		return err
 	}
-
 
 	if err := sponsor.SeedSponsors(db); err != nil {
 		return err
@@ -55,9 +56,9 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	 if err := user.SeedFamilyInfos(db); err != nil {
-		 return err
-	 }
+	if err := user.SeedFamilyInfos(db); err != nil {
+		return err
+	}
 
 	if err := semaster.CreateSemasters(db); err != nil {
 		return err
@@ -101,7 +102,6 @@ func SeedAll(db *gorm.DB) error {
 	if err := approval.SeedApprovalRequirements(db); err != nil {
 		return err
 	}
-
 
 	if err := screening.SeedStatusScreenings(db); err != nil {
 		return err

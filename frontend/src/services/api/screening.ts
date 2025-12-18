@@ -30,7 +30,6 @@ export const getAllScreenings = async (): Promise<ScreeningResponse[]> => {
   }
 };
 
-
 /**
  * ดึงข้อมูลการคัดกรองตาม ID
  * GET /screenings/:id
@@ -55,11 +54,15 @@ export const createScreening = async (payload: CreateScreeningPayload): Promise<
  * อัปเดตสถานะการคัดกรอง
  * PUT /screenings/:id
  */
-export const updateScreeningStatus = async (id: number, payload: UpdateScreeningStatusPayload): Promise<ScreeningResponse> => {
-  // 🔥 แก้ path: เติม s
+export const updateScreeningStatus = async (
+  id: number,
+  payload: UpdateScreeningStatusPayload
+): Promise<ScreeningResponse> => {
+
   const response: any = await Put(`/screening/${id}`, payload);
   return response.data;
 };
+
 
 /**
  * ลบการคัดกรอง

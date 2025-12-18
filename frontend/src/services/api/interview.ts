@@ -1,8 +1,20 @@
 import { Get, Post, Put, Delete } from './https';
-import type { InterviewRound, Interviewer, InterviewBooking } from '@/interfaces/interview';
+import type { InterviewRound, Interviewer, InterviewBooking, InterviewMode } from '@/interfaces/interview';
 
 // We can define more specific types for create/update if they differ from the response types
-export type InterviewRoundCreate = Omit<InterviewRound, 'ID' | 'scholarship' | 'admin_profile' | 'slots'>;
+export interface InterviewRoundCreate {
+  name: string;
+  description: string;
+  start_date_time: string;
+  end_date_time: string;
+  slot_duration: number;
+  scholarship_id: number;
+  admin_profile_id: number;
+  interview_mode_id: number;
+  location_id?: number | null;
+  meeting_link?: string;
+  interviewer_ids: number[];
+}
 export type InterviewRoundUpdate = Partial<InterviewRoundCreate>;
 
 export type InterviewerCreate = Omit<Interviewer, 'ID'>;
@@ -25,4 +37,8 @@ export const InterviewAPI = {
   // Interview Bookings
   createBooking: (data: InterviewBookingCreate): Promise<InterviewBooking> => Post("/interview-bookings", data),
   getStudentBookings: (studentProfileId: number): Promise<InterviewBooking[]> => Get(`/students/${studentProfileId}/interview-bookings`),
+  deleteBooking: (id: number): Promise<any> => Delete(`/interview-bookings/${id}`),
+
+  // Interview Modes
+  getAllModes: (): Promise<InterviewMode[]> => Get("/interview-modes"),
 };
