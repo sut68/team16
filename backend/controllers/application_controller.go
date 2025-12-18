@@ -173,6 +173,36 @@ func GetStudentApplications(ctx *gin.Context) {
 		return
 	}
 
+	for i := range appScholarships {
+		isQualified := true
+		if len(appScholarships[i].ApplicationDocuments) == 0 {
+			isQualified = false
+		}
+		for _, doc := range appScholarships[i].ApplicationDocuments {
+			isDocApproved := false
+			hasReject := false
+			for _, task := range doc.ApprovalTasks {
+				for _, decision := range task.ApprovalDecisions {
+					if decision.Decision == "approve" {
+						isDocApproved = true
+					}
+					if decision.Decision == "reject" {
+						hasReject = true
+					}
+				}
+			}
+			if !isDocApproved || hasReject {
+				isQualified = false
+				break
+			}
+		}
+		if isQualified {
+			appScholarships[i].Status = "qualified"
+		} else {
+			appScholarships[i].Status = "pending"
+		}
+	}
+
 	ctx.JSON(http.StatusOK, appScholarships)
 }
 

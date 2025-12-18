@@ -59,7 +59,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
       {
         path: 'assistance',
         name: 'AdminAssistance',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/Test/InterviewRoundManagerTest.vue'),
       },
       {
         path: 'profileadmin',
