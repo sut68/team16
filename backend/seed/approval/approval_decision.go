@@ -1,11 +1,11 @@
-
 package approval
 
 import (
 	"time"
 
-	"backend/entity"
 	"gorm.io/gorm"
+
+	"backend/entity"
 )
 
 func SeedApprovalDecisions(db *gorm.DB) error {
@@ -28,13 +28,13 @@ func SeedApprovalDecisions(db *gorm.DB) error {
 
 		decisions := []entity.ApprovalDecision{
 			{
-				DecisionAt: time.Now().String(),
+				DecisionAt: time.Now(),
 				Decision:   "Approved",
 				Comment:    "Dokumen valid.",
 				TaskID:     task1.ID,
 			},
 			{
-				DecisionAt: time.Now().String(),
+				DecisionAt: time.Now(),
 				Decision:   "Rejected",
 				Comment:    "Tanda tangan tidak sesuai.",
 				TaskID:     task2.ID,
