@@ -5,99 +5,95 @@ import (
 	"time"
 
 	"backend/entity"
-	"backend/validators"
+	"github.com/asaskevich/govalidator"
 	. "github.com/onsi/gomega"
 )
+// 1. กรณี Positive (ข้อมูลถูกต้องทั้งหมด)
+func TestStudentProfileCorrect(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-func TestStudentProfileValidation(t *testing.T) {
-	g := NewWithT(t)
-
-	// Mock ข้อมูลที่ "ถูกต้อง" ไว้ก่อน (ใช้เป็นฐาน)
-	validStudent := entity.StudentProfile{
-		StudentID: "B6630409", // รหัสถูกต้อง
-		FirstNameTH: "สมชาย", LastNameTH: "เรียนดี",
-		FirstNameEN: "Somchai", LastNameEN: "Reandee",
-		NationalID: "1100012345678",
-		BirthDate:  time.Now(), CurrentYear: 1, GPAX: 3.50,
-		AdvisorName: "Dr.Smith", Phone: "0812345678", Email: "b6630409@g.sut.ac.th",
-		PermanentAddress: "Korat", CurrentAddress: "SUT Dorm", Province: "Nakhon Ratchasima",
-		UserID: 1, MajorID: 1,
+	student := entity.StudentProfile{
+		StudentID:        "B6630409",      // ถูกต้อง: ขึ้นต้น B ตามด้วยเลข 7 ตัว
+		FirstNameTH:      "สมชาย",
+		LastNameTH:       "ใจดี",
+		FirstNameEN:      "Somchai",       // ถูกต้อง: ภาษาอังกฤษล้วน
+		LastNameEN:       "Jaidee",
+		NationalID:       "1234567890123", // ถูกต้อง: 13 หลัก
+		BirthDate:        time.Now(),
+		CurrentYear:      2,
+		GPAX:             3.50,            // ถูกต้อง: 0.00 - 4.00
+		AdvisorName:      "Dr.Smith",
+		Phone:            "0812345678",
+		Email:            "test@student.com",
+		PermanentAddress: "Address 1",
+		CurrentAddress:   "Address 2",
+		Province:         "Nakhon Ratchasima",
+		SiblingsCount:    1,
+		UserID:           1,
+		MajorID:          1,
 	}
 
-	// -----------------------------------------
-	// กลุ่ม Test: รหัสนักศึกษา (Student ID)
-	// -----------------------------------------
-	t.Run("Check Student ID Format", func(t *testing.T) {
-		// Case 1: รหัสถูกต้อง (B - ป.ตรี)
-		s1 := validStudent
-		s1.StudentID = "B6600001"
-		g.Expect(validators.ValidateStruct(&s1)).To(BeNil())
+	// ตรวจสอบ
+	ok, err := govalidator.ValidateStruct(student)
+	
+	// คาดหวัง: ผ่าน (true) และไม่มี error
+	g.Expect(ok).To(BeTrue())
+	g.Expect(err).To(BeNil())
+}
 
-		// Case 2: รหัสถูกต้อง (M - ป.โท)
-		s2 := validStudent
-		s2.StudentID = "M6500001"
-		g.Expect(validators.ValidateStruct(&s2)).To(BeNil())
+// 2. กรณี Negative 1: Format รหัสนักศึกษาผิด
+func TestStudentIDInvalidFormat(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-		// Case 3: ผิด - ขึ้นต้นด้วยตัวอื่น (A)
-		s3 := validStudent
-		s3.StudentID = "A6600001"
-		err := validators.ValidateStruct(&s3)
-		g.Expect(err).ToNot(BeNil())
-		g.Expect(err.Error()).To(ContainSubstring("Invalid Student ID format"))
+	student := entity.StudentProfile{
+		StudentID:   "K6630409", // ผิด: ขึ้นต้นด้วย K ไม่ได้ (ต้อง B,C,M,D)
+		FirstNameTH: "สมชาย",
+		FirstNameEN: "Somchai",
+		LastNameEN:  "Jaidee",
+		NationalID:  "1234567890123",
+		Phone:       "0812345678",
+		Email:       "test@student.com",
+		GPAX:        3.50,
+	}
 
-		// Case 4: ผิด - ความยาวไม่ครบ
-		s4 := validStudent
-		s4.StudentID = "B66"
-		g.Expect(validators.ValidateStruct(&s4)).ToNot(BeNil())
-	})
+	ok, err := govalidator.ValidateStruct(student)
 
-	// -----------------------------------------
-	// กลุ่ม Test: เกรดเฉลี่ย (GPAX)
-	// -----------------------------------------
-	t.Run("Check GPAX Range", func(t *testing.T) {
-		// Case: GPAX เกิน 4.00
-		s := validStudent
-		s.GPAX = 4.01
-		err := validators.ValidateStruct(&s)
-		g.Expect(err).ToNot(BeNil())
-		g.Expect(err.Error()).To(ContainSubstring("GPAX must be between 0.00 and 4.00"))
+	// คาดหวัง: ไม่ผ่าน (false) และเจอ Error message ที่กำหนด
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("Invalid Student ID format"))
+}
 
-		// Case: GPAX ติดลบ
-		s2 := validStudent
-		s2.GPAX = -0.50
-		g.Expect(validators.ValidateStruct(&s2)).ToNot(BeNil())
-	})
+// 3. กรณี Negative 2: GPAX เกินช่วงที่กำหนด
+func TestGPAXOutOfRange(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-	// -----------------------------------------
-	// กลุ่ม Test: ชื่อภาษาอังกฤษ (Name EN)
-	// -----------------------------------------
-	t.Run("Check Name EN Characters", func(t *testing.T) {
-		// Case: ชื่อมีภาษาไทยปน
-		s := validStudent
-		s.FirstNameEN = "Somchaiสมชาย"
-		err := validators.ValidateStruct(&s)
-		g.Expect(err).ToNot(BeNil())
-		g.Expect(err.Error()).To(ContainSubstring("First Name EN must be English letters"))
+	student := entity.StudentProfile{
+		StudentID: "B6630409",
+		GPAX:      4.50, // ผิด: เกรดเกิน 4.00
+	}
 
-		// Case: ชื่อมีตัวเลข
-		s2 := validStudent
-		s2.LastNameEN = "Reandee123"
-		g.Expect(validators.ValidateStruct(&s2)).ToNot(BeNil())
-	})
+	ok, err := govalidator.ValidateStruct(student)
 
-	// -----------------------------------------
-	// กลุ่ม Test: บัตรประชาชน (National ID)
-	// -----------------------------------------
-	t.Run("Check National ID", func(t *testing.T) {
-		// Case: ไม่ครบ 13 หลัก
-		s := validStudent
-		s.NationalID = "123456789"
-		err := validators.ValidateStruct(&s)
-		g.Expect(err).ToNot(BeNil())
+	// คาดหวัง: ไม่ผ่าน (false)
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("GPAX must be between 0.00 and 4.00"))
+}
 
-		// Case: มีตัวอักษรปน
-		s2 := validStudent
-		s2.NationalID = "110001234567A"
-		g.Expect(validators.ValidateStruct(&s2)).ToNot(BeNil())
-	})
+// 4. กรณี Negative 3: ชื่อภาษาอังกฤษมีตัวเลขปน
+func TestFirstNameENMustBeAlpha(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	student := entity.StudentProfile{
+		StudentID:   "B6630409",
+		FirstNameEN: "Somchai123", // ผิด: มีตัวเลข (ต้องเป็นตัวอักษรเท่านั้น)
+	}
+
+	ok, err := govalidator.ValidateStruct(student)
+
+	// คาดหวัง: ไม่ผ่าน (false)
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("First Name EN must be English letters"))
 }

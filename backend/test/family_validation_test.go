@@ -2,53 +2,111 @@ package test
 
 import (
 	"testing"
+
 	"backend/entity"
-	"backend/validators"
+	"github.com/asaskevich/govalidator"
 	. "github.com/onsi/gomega"
 )
+// 1. กรณี Positive (ข้อมูลถูกต้องทั้งหมด)
+func TestFamilyInfoCorrect(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-func TestFamilyInfoValidation(t *testing.T) {
-	g := NewWithT(t)
-
-	// Mock Data
-	validFamily := entity.FamilyInfo{
-		FatherName: "Father", FatherOccupation: "Worker", FatherIncome: 20000,
-		MotherName: "Mother", MotherOccupation: "Housewife", MotherIncome: 0,
-		GuardianName: "Uncle", GuardianOccupation: "Business", GuardianIncome: 50000, GuardianRelation: "Uncle",
-		ProfileID: 1,
+	family := entity.FamilyInfo{
+		FatherName:         "Mr. Somchai",
+		FatherOccupation:   "Engineer",
+		FatherIncome:       50000.00,      // ถูกต้อง: > 0
+		MotherName:         "Mrs. Somying",
+		MotherOccupation:   "Doctor",
+		MotherIncome:       60000.00,      // ถูกต้อง: > 0
+		GuardianName:       "Mr. Somchai",
+		GuardianOccupation: "Engineer",
+		GuardianIncome:     50000.00,      // ถูกต้อง: > 0
+		GuardianRelation:   "Father",
+		ProfileID:          1,
 	}
 
-	// -----------------------------------------
-	// กลุ่ม Test: รายได้ (Income)
-	// -----------------------------------------
-	t.Run("Check Income Logic", func(t *testing.T) {
-		// Case: รายได้พ่อติดลบ
-		f1 := validFamily
-		f1.FatherIncome = -100
-		err := validators.ValidateStruct(&f1)
-		g.Expect(err).ToNot(BeNil())
-		g.Expect(err.Error()).To(ContainSubstring("Father Income cannot be negative"))
+	// ตรวจสอบ
+	ok, err := govalidator.ValidateStruct(family)
 
-		// Case: รายได้แม่ติดลบ
-		f2 := validFamily
-		f2.MotherIncome = -1
-		g.Expect(validators.ValidateStruct(&f2)).ToNot(BeNil())
+	// คาดหวัง: ผ่าน (true) และไม่มี error
+	g.Expect(ok).To(BeTrue())
+	g.Expect(err).To(BeNil())
+}
 
-		// Case: รายได้เป็น 0 (ต้องผ่าน)
-		f3 := validFamily
-		f3.FatherIncome = 0
-		g.Expect(validators.ValidateStruct(&f3)).To(BeNil())
-	})
+// 2. กรณี Negative 1: รายได้บิดาติดลบ
+func TestFatherIncomeNegative(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-	// -----------------------------------------
-	// กลุ่ม Test: ข้อมูลที่จำเป็น (Required)
-	// -----------------------------------------
-	t.Run("Check Required Fields", func(t *testing.T) {
-		// Case: ชื่อพ่อว่าง
-		f := validFamily
-		f.FatherName = ""
-		err := validators.ValidateStruct(&f)
-		g.Expect(err).ToNot(BeNil())
-		g.Expect(err.Error()).To(ContainSubstring("Father Name is required"))
-	})
+	family := entity.FamilyInfo{
+		FatherName:       "Mr. Somchai",
+		FatherOccupation: "Engineer",
+		FatherIncome:     -5000.00, // ผิด: ติดลบไม่ได้ (valid:"range(0|10000000)")
+		MotherName:       "Mrs. Somying",
+		MotherOccupation: "Doctor",
+		MotherIncome:     60000.00,
+		GuardianName:     "Mr. Somchai",
+		GuardianOccupation: "Engineer",
+		GuardianIncome:   50000.00,
+		GuardianRelation: "Father",
+		ProfileID:        1,
+	}
+
+	ok, err := govalidator.ValidateStruct(family)
+
+	// คาดหวัง: ไม่ผ่าน (false) และเจอ Error message ที่กำหนด
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("Father Income cannot be negative"))
+}
+
+// 3. กรณี Negative 2: รายได้มารดาติดลบ
+func TestMotherIncomeNegative(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	family := entity.FamilyInfo{
+		FatherName:       "Mr. Somchai",
+		FatherOccupation: "Engineer",
+		FatherIncome:     50000.00,
+		MotherName:       "Mrs. Somying",
+		MotherOccupation: "Doctor",
+		MotherIncome:     -100.00, // ผิด: ติดลบไม่ได้
+		GuardianName:     "Mr. Somchai",
+		GuardianOccupation: "Engineer",
+		GuardianIncome:   50000.00,
+		GuardianRelation: "Father",
+		ProfileID:        1,
+	}
+
+	ok, err := govalidator.ValidateStruct(family)
+
+	// คาดหวัง: ไม่ผ่าน (false)
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("Mother Income cannot be negative"))
+}
+
+// 4. กรณี Negative 3: ข้อมูลจำเป็นเป็นค่าว่าง (Required)
+func TestGuardianNameRequired(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	family := entity.FamilyInfo{
+		FatherName:       "Mr. Somchai",
+		FatherOccupation: "Engineer",
+		FatherIncome:     50000.00,
+		MotherName:       "Mrs. Somying",
+		MotherOccupation: "Doctor",
+		MotherIncome:     60000.00,
+		GuardianName:     "", // ผิด: ห้ามเป็นค่าว่าง (valid:"required")
+		GuardianOccupation: "Engineer",
+		GuardianIncome:   50000.00,
+		GuardianRelation: "Father",
+		ProfileID:        1,
+	}
+
+	ok, err := govalidator.ValidateStruct(family)
+
+	// คาดหวัง: ไม่ผ่าน (false)
+	g.Expect(ok).To(BeFalse())
+	g.Expect(err).ToNot(BeNil())
+	g.Expect(err.Error()).To(ContainSubstring("Guardian Name is required"))
 }
