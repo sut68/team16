@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-base-200 flex items-center justify-center">
-    <div class="card w-full max-w-sm bg-base-100 shadow-xl">
+  <div class="min-h-screen bg-base-200 flex items-center justify-center" data-testid="login-container">
+    <div class="card w-full max-w-sm bg-base-100 shadow-xl" data-testid="login-card">
       <div class="card-body">
-        <h2 class="card-title text-2xl justify-center">Login</h2>
-        <form @submit.prevent="handleLogin">
+        <h2 class="card-title text-2xl justify-center" data-testid="login-title">Login</h2>
+        <form @submit.prevent="handleLogin" data-testid="login-form">
           <div class="form-control">
             <label class="label">
               <span class="label-text">Username</span>
@@ -13,6 +13,7 @@
               v-model="user.username"
               required
               class="input input-bordered"
+              data-testid="login-username-input"
             />
           </div>
 
@@ -25,17 +26,18 @@
               v-model="user.password"
               required
               class="input input-bordered"
+              data-testid="login-password-input"
             />
           </div>
 
           <div class="form-control mt-6">
-            <button type="submit" class="btn btn-primary" :disabled="loading">
-              <span v-if="loading" class="loading loading-spinner"></span>
+            <button type="submit" class="btn btn-primary" :disabled="loading" data-testid="login-submit-button">
+              <span v-if="loading" class="loading loading-spinner" data-testid="login-loading-spinner"></span>
               <span v-else>Login</span>
             </button>
           </div>
 
-          <div v-if="message" role="alert" class="alert alert-error mt-4">
+          <div v-if="message" role="alert" class="alert alert-error mt-4" data-testid="login-error-message">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="stroke-current shrink-0 h-6 w-6"
@@ -54,7 +56,7 @@
 
           <p class="text-center mt-4">
             Don't have an account?
-            <router-link to="/register" class="link link-primary"
+            <router-link to="/register" class="link link-primary" data-testid="login-register-link"
               >Register here</router-link
             >
           </p>
