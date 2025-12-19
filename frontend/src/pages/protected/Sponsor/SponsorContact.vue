@@ -4,7 +4,7 @@ import type { PropType } from 'vue';
 import type { ContactPayload, ContactResponse } from '../../../interfaces/sponsor';
 import { SponsorService } from '../../../services/sponsor/sponsor';
 import Swal from 'sweetalert2';
-import { useFocusTrap } from './useFocusTrap'; 
+import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap'; 
 import { validateContacts, buildContactsBatch } from '@/validators/sponsorValidator';
 
 // Props + Emits
