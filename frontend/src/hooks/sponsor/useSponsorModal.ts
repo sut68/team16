@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { SponsorService } from '@/services/sponsor/sponsor'
-import type { SponsorPayload, SponsorResponse } from '@/interfaces/sponsor'
+import type { SponsorResponse } from '@/interfaces/sponsor'
 import Swal from 'sweetalert2'
 
 export function useSponsorModals() {
