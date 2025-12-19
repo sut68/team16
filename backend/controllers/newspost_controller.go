@@ -77,7 +77,7 @@ func GetNewsPostByID(c *gin.Context) {
 }
 
 
-// POST /newsposts
+//POST /newsposts
 func CreateNewsPost(c *gin.Context) {
 	fmt.Println("\n[POST] CreateNewsPost Called...")
 
@@ -142,7 +142,6 @@ func CreateNewsPost(c *gin.Context) {
 	// ส่ง item กลับไปให้ Frontend เพื่อให้มี ID และ CreatedAt
 	c.JSON(http.StatusCreated, item)
 }
-
 
 // =================================================================
 // 2. แก้ไข: UpdateNewsPost (จัดการกับไฟล์ใหม่/เก่า และ ID ที่เป็น 0)
@@ -256,6 +255,7 @@ func UpdateNewsPost(c *gin.Context) {
 
 
 // DELETE /newsposts/:id
+
 func DeleteNewsPost(c *gin.Context) {
 	id := c.Param("id")
 	fmt.Printf("\n[DELETE] DeleteNewsPost Called for ID: %s\n", id)

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { updateScreeningStatus } from '@/services/api/screening'; 
+// นำเข้า Validator
+import { validateScreeningStatusForm } from '@/validators/screening_validators';
 
 const props = defineProps<{
     isOpen: boolean;
-    documentData: any;
+    screeningData: any;
 }>();
 
 const emit = defineEmits(['close', 'action-completed']);
@@ -13,18 +15,23 @@ const emit = defineEmits(['close', 'action-completed']);
 const comment = ref('');
 const actionType = ref<'approve' | 'reject' | null>(null);
 const isSubmitting = ref(false);
+// เพิ่ม state สำหรับเก็บ error
+const validationErrors = ref<{ rejection_reason?: string }>({});
 
 // --- Helper Functions ---
 const getRootData = () => {
-    if (props.documentData && props.documentData.data) {
-        return props.documentData.data;
+    if (props.screeningData && props.screeningData.data) {
+        return props.screeningData.data;
     }
-    return props.documentData || {};
+    return props.screeningData || {};
 };
 
 const parseGoDate = (dateString: string | undefined): Date | null => {
-    if (!dateString || dateString === '0001-01-01T00:00:00Z') return null;
-    let dateStr = String(dateString);
+    // แก้ไข Error บรรทัด 31: ใช้ safeDate เป็น string เสมอ
+    const safeDate: string = dateString ?? ""; 
+    if (!safeDate || safeDate === '0001-01-01T00:00:00Z') return null;
+    
+    let dateStr = safeDate;
     if (dateStr.includes(' m=')) {
         dateStr = dateStr.split(' m=')[0] as string;
     }
@@ -72,27 +79,43 @@ const headerInfo = computed(() => {
     const root = getRootData();
     const app = root.application || root.Application || {};
     const student = app.student_profile || app.StudentProfile || {};
-    
+
+    const scholarship =
+        root.application_scholarship?.scholarship ||
+        root.scholarship ||
+        root.Scholarship ||
+        {};
+
+    const sem = scholarship.semaster || scholarship.Semaster || {};
+
+    const yearVal = sem.academic_year || sem.AcademicYear || '';
+    const termVal = sem.term || sem.Term || '';
+    const roundVal = sem.round || '1';
+
+    const roundText = (yearVal && termVal)
+        ? `ปี: ${yearVal} เทอม: ${termVal} รอบ: ${roundVal}`
+        : `รอบ: ${roundVal}`;
+
     const statusId = root.StatusScreeningID || root.status_screening_id;
     let statusStr = root.status || 'pending';
-    if(statusId === 2) statusStr = 'approved';
-    if(statusId === 3) statusStr = 'rejected';
+    if (statusId === 2) statusStr = 'approved';
+    if (statusId === 3) statusStr = 'rejected';
 
     return {
         id: root.ID || '-',
-        title: root.scholarship?.scholarship_name || root.Scholarship?.ScholarshipName || 'ไม่ระบุชื่อทุน',
+        title: scholarship.scholarship_name || scholarship.ScholarshipName || 'ไม่ระบุชื่อทุน',
         applicant: `${student.first_name_th || ''} ${student.last_name_th || ''}`.trim() || 'ไม่ระบุชื่อ',
         status: statusStr,
-        round: root.round || '1/2568'
+        roundText
     };
 });
+
 
 // --- Computed: Timeline Logic ---
 const timelineEvents = computed(() => {
     const root = getRootData();
-    const events: any[] = []; // Explicit type as any[] or define interface
+    const events: any[] = []; 
     
-    // 1. Created Event
     const createdDate = parseGoDate(root.CreatedAt);
     const createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
 
@@ -106,7 +129,6 @@ const timelineEvents = computed(() => {
         timestamp: createdTs
     });
 
-    // 2. Determine Current State
     const status = headerInfo.value.status?.toLowerCase();
     const nowTs = Date.now();
     const updateDate = parseGoDate(root.UpdatedAt);
@@ -145,21 +167,15 @@ const timelineEvents = computed(() => {
         });
     }
 
-    // Sort
     events.sort((a, b) => b.timestamp - a.timestamp);
     
-    // Fix: Handle possible undefined array elements
     if (events.length > 0) {
         const first = events[0];
-        // ตรวจสอบ first ก่อนใช้งาน
         if (first && first.status !== 'past-approved' && first.status !== 'past-rejected') {
              if (first.status.startsWith('past')) first.status = 'current';
         }
-        
-        // Loop เริ่มที่ 1
         for(let i=1; i<events.length; i++) {
              const currentEvent = events[i];
-             // ตรวจสอบ currentEvent ก่อนใช้งาน
              if (currentEvent && currentEvent.status === 'current') {
                 currentEvent.status = 'past';
              }
@@ -253,6 +269,7 @@ watch(() => props.isOpen, (val) => {
         comment.value = '';
         actionType.value = null;
         isSubmitting.value = false;
+        validationErrors.value = {}; // ล้าง error เมื่อเปิดใหม่
     }
 });
 
@@ -266,17 +283,25 @@ const submitAction = async (type: 'approve' | 'reject') => {
     if (!root.ID) return;
 
     let statusId = type === 'approve' ? 2 : 3;
+    const payload = {
+        status_screening_id: statusId,
+        rejection_reason: type === 'reject' ? comment.value.trim() : null
+    };
+
+    // --- เริ่มกระบวนการ Validation ---
+    validationErrors.value = {};
+    const result = validateScreeningStatusForm(payload);
+    
+    if (!result.valid) {
+        validationErrors.value = result.errors;
+        return; // หยุดการทำงานถ้าไม่ผ่าน
+    }
 
     isSubmitting.value = true;
     try {
-        await updateScreeningStatus(root.ID, {
-            status_screening_id: statusId,
-            rejection_reason: type === 'reject' ? comment.value.trim() : null
-        });
-
+        await updateScreeningStatus(root.ID, payload);
         emit('action-completed');
         closeModal();
-
     } catch (error) {
         console.error(error);
         alert('เกิดข้อผิดพลาดในการบันทึก');
@@ -308,7 +333,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                         <span>Task ID: #{{ headerInfo.id }}</span>
                         <span>•</span>
                         <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs">
-                            รอบ: {{ headerInfo.round }}
+                            {{ headerInfo.roundText }}
                         </span>
                         <span>•</span>
                         <span class="font-medium text-slate-700">{{ headerInfo.applicant }}</span>
@@ -370,7 +395,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         :disabled="isSubmitting || !isAllPassed"
                                         class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none shadow-sm disabled:bg-slate-200 disabled:text-slate-400">
                                         <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
-                                        <span v-if="isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
+                                        <span v-if="!isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
                                         <span v-else>ผ่านการคัดกรอง</span>
                                     </button>
                                     
@@ -385,12 +410,20 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         ระบุเหตุผลที่ปฏิเสธ:
                                     </p>
                                     <textarea v-model="comment" 
-                                        class="textarea textarea-bordered w-full h-24 text-sm border-error focus:ring-error"
+                                        maxlength="255"
+                                        class="textarea textarea-bordered w-full h-24 text-sm focus:ring-error"
+                                        :class="validationErrors.rejection_reason ? 'border-red-500' : 'border-gray-300'"
                                         placeholder="เช่น เกรดเฉลี่ยไม่ถึงเกณฑ์, รายได้เกินกำหนด..."></textarea>
+                                    
+                                    <p v-if="validationErrors.rejection_reason" class="text-red-500 text-[10px] font-bold mt-1">
+                                        {{ validationErrors.rejection_reason }}
+                                    </p>
+
                                     <div class="flex justify-end gap-2 mt-3">
                                         <button @click="actionType = null" class="btn btn-ghost btn-xs text-gray-500">ยกเลิก</button>
                                         <button @click="submitAction('reject')" 
-                                            class="btn btn-sm btn-error text-white border-none">
+                                            :disabled="isSubmitting"
+                                            class="btn btn-sm btn-error text-white border-none shadow-sm">
                                             ยืนยันผล
                                         </button>
                                     </div>

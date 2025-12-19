@@ -7,21 +7,18 @@ type Screening struct {
 
 	// ---------- User ----------
 
-	AdminProfileID uint         `json:"admin_profile_id" gorm:"not null"`
+	AdminProfileID uint         `json:"admin_profile_id" gorm:"not null" valid:"required"`
 	AdminProfile   AdminProfile `json:"admin_profile" gorm:"foreignKey:AdminProfileID"`
 
-	// ---------- Application ----------
-	ApplicationID uint        `json:"application_id" gorm:"not null"`
-	Application   Application `json:"application" gorm:"foreignKey:ApplicationID"`
-
 	// ---------- Status Screening ----------
-	StatusScreeningID uint            `json:"status_screening_id" gorm:"not null"`
+	StatusScreeningID uint            `json:"status_screening_id" gorm:"not null" valid:"required"`
 	StatusScreening   StatusScreening `json:"status_screening" gorm:"foreignKey:StatusScreeningID"`
 
 	// ---------- Reject Reason ----------
-	RejectionReason *string `json:"rejection_reason"`
-
-	ApplicationScholarshipID uint                   `json:"application_scholarship_id" gorm:"not null"`
+	RejectionReason *string `json:"rejection_reason" valid:"optional,stringlength(1|255)~Reason too long"`
+	
+	// ---------- Application Scholarship ----------
+	ApplicationScholarshipID uint                   `json:"application_scholarship_id" gorm:"not null" valid:"required"`
 	ApplicationScholarship   ApplicationScholarship `json:"application_scholarship" gorm:"foreignKey:ApplicationScholarshipID"`
 	
 }

@@ -8,12 +8,17 @@ function convertToFormData(payload: Partial<UpdateNewsPost>): FormData {
     if (payload.title !== undefined) formData.append("title", payload.title);
     if (payload.post_detail !== undefined) formData.append("post_detail", payload.post_detail);
     if (payload.admin_id !== undefined) formData.append("admin_id", payload.admin_id.toString());
-    if (payload.scholarship_id !== undefined) formData.append("scholarship_id", payload.scholarship_id.toString());
+    if (payload.scholarship_id !== undefined && payload.scholarship_id !== null) formData.append("scholarship_id", payload.scholarship_id.toString());
     if (payload.status_news_id !== undefined) formData.append("status_news_id", payload.status_news_id.toString());
 
     if (payload.file_path) {
+    if (payload.file_path instanceof File) {
+        formData.append("file_path", payload.file_path);
+    } else if (typeof payload.file_path === "string") {
         formData.append("file_path", payload.file_path);
     }
+}
+
 
     return formData;
 }

@@ -26,7 +26,6 @@ export interface ScreeningResponse extends Screening {
     semaster?: SemasterResponse[];
 }
 
-
 export interface UpdateScreeningStatusPayload {
     status_screening_id: number;
     rejection_reason?: string | null; 

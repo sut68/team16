@@ -61,14 +61,15 @@ const getStatusLabel = (id: number) => {
 };
 const getStatusBadgeClass = (id: number) => {
   switch (id) {
-    case 1: return 'badge-success text-white';        
-    case 2: return 'badge-warning text-white';        
-    case 3: return 'badge-ghost text-slate-500';      
-    case 5: return 'badge-info text-white';           
-    case 4: return 'badge-error text-white';          
+    case 1: return 'badge-success text-white';      // เผยแพร่สาธารณะ
+    case 2: return 'badge-warning text-white';      // ฉบับร่าง
+    case 3: return 'badge-ghost text-slate-500';    // จัดเก็บ
+    case 4: return 'badge-info text-white';         // เฉพาะสมาชิก
+    case 5: return 'badge-error text-white';        // ลบ (ถ้ามี)
     default: return 'badge-ghost';
   }
 };
+
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleDateString('th-TH', {
@@ -216,8 +217,8 @@ onMounted(() => { fetchNews(); });
           <div class="card-body p-5 flex flex-col justify-between h-full">
             <div>
               <div class="flex justify-between items-start mb-3">
-                <span class="badge badge-sm border-none px-2 py-3 font-medium" :class="getStatusBadgeClass(item.status_news_id)">
-                  {{ getStatusLabel(item.status_news_id) }}
+                <span class="badge badge-sm border-none px-2 py-3 font-medium" :class="getStatusBadgeClass(item.status_news_id ?? 0)">
+                  {{ getStatusLabel(item.status_news_id ?? 0) }}
                 </span>
                 <div class="dropdown dropdown-end" @click.stop>
                   <div tabindex="0" role="button" class="btn btn-square btn-ghost btn-sm text-slate-400 hover:bg-slate-100 hover:text-[#1e3a8a]">

@@ -35,7 +35,8 @@ func GetScreeningByID(c *gin.Context) {
         Preload("AdminProfile").
         Preload("ApplicationScholarship.Application.StudentProfile").
         Preload("ApplicationScholarship.Application.StudentProfile.FamilyInfo").
-        Preload("ApplicationScholarship.Scholarship"). // ไม่โหลด Sponsor
+        Preload("ApplicationScholarship.Scholarship").
+        Preload("ApplicationScholarship.Scholarship.Semaster").
         First(&screening, "id = ?", id).Error; err != nil {
         c.JSON(404, gin.H{"error": "Data not found"})
         return
@@ -72,6 +73,7 @@ func GetScreeningByID(c *gin.Context) {
                     "description":        screening.ApplicationScholarship.Scholarship.Description,
                     "open_date":          screening.ApplicationScholarship.Scholarship.OpenDate,
                     "close_date":         screening.ApplicationScholarship.Scholarship.CloseDate,
+                    "semaster":        screening.ApplicationScholarship.Scholarship.Semaster,
                     "featurescholarships": features, // attach แยก
                 },
             },
@@ -83,7 +85,6 @@ func GetScreeningByID(c *gin.Context) {
 
     c.JSON(200, response)
 }
-
 
 func UpdateScreeningStatus(c *gin.Context) {
 	var screening entity.Screening
