@@ -7,7 +7,7 @@ import { SponsorService } from '@/services/sponsor/sponsor';
 import { IndustryService } from '@/services/sponsor/industry'; // <-- ตรวจสอบ path ให้ตรง
 import { validateSponsorForm } from '@/validators/sponsorValidator';
 import Swal from 'sweetalert2';
-import { useFocusTrap } from './useFocusTrap';
+import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
 // Props & emits
 const props = defineProps({
