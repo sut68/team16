@@ -13,21 +13,21 @@ func TestStudentProfileCorrect(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	student := entity.StudentProfile{
-		StudentID:        "B6630409",      // ถูกต้อง: ขึ้นต้น B ตามด้วยเลข 7 ตัว
+		StudentID:        "B6630409",
 		FirstNameTH:      "สมชาย",
 		LastNameTH:       "ใจดี",
-		FirstNameEN:      "Somchai",       // ถูกต้อง: ภาษาอังกฤษล้วน
+		FirstNameEN:      "Somchai",
 		LastNameEN:       "Jaidee",
-		NationalID:       "1234567890123", // ถูกต้อง: 13 หลัก
+		NationalID:       "1329901255851",
 		BirthDate:        time.Now(),
 		CurrentYear:      2,
-		GPAX:             3.50,            // ถูกต้อง: 0.00 - 4.00
+		GPAX:             4.00, // แนะนำ: ใส่ .00 ให้ชัดเจนว่าเป็น float
 		AdvisorName:      "Dr.Smith",
 		Phone:            "0812345678",
 		Email:            "test@student.com",
 		PermanentAddress: "Address 1",
 		CurrentAddress:   "Address 2",
-		Province:         "Nakhon Ratchasima",
+		Province:         "นครราชสีมา",
 		SiblingsCount:    1,
 		UserID:           1,
 		MajorID:          1,
@@ -35,8 +35,12 @@ func TestStudentProfileCorrect(t *testing.T) {
 
 	// ตรวจสอบ
 	ok, err := govalidator.ValidateStruct(student)
+
+	// !! เพิ่มส่วนนี้เพื่อ Debug !!
+	if !ok {
+		t.Errorf("Validation failed: %v", err)
+	}
 	
-	// คาดหวัง: ผ่าน (true) และไม่มี error
 	g.Expect(ok).To(BeTrue())
 	g.Expect(err).To(BeNil())
 }
