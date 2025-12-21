@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { getScholarships, applyForScholarship } from '@/services/api/scholarship';
 import { getStudentApplications } from '@/services/api/application';
-import { getMyProfile, updateMyProfile } from '@/services/api/user';
+import { getMyProfile } from '@/services/api/user';
 import type { ScholarshipResponse, MyProfileResponse, StudentProfileResponse } from '@/interfaces';
 import type { ApplicationScholarshipResponse } from '@/interfaces/application_scholarship';
 import type { FamilyInfoResponse } from '@/interfaces/family_info';
@@ -20,7 +20,7 @@ const router = useRouter();
 const isApplicationModalOpen = ref(false);
 const selectedScholarship = ref<ScholarshipResponse | null>(null);
 const isSubmitting = ref(false);
-const isSavingProfile = ref(false);
+
 
 // Editable fields
 const editableData = ref({
@@ -110,49 +110,9 @@ const openApplicationModal = (scholarship: ScholarshipResponse) => {
 
 // Close modal
 const closeModal = () => {
-  if (isSubmitting.value || isSavingProfile.value) return;
+  if (isSubmitting.value) return;
   isApplicationModalOpen.value = false;
   selectedScholarship.value = null;
-};
-
-// Save profile changes
-const saveProfileChanges = async () => {
-  if (!studentData.value) return false;
-  
-  isSavingProfile.value = true;
-  try {
-    const updatePayload = {
-      email: editableData.value.email,
-      phone: editableData.value.phone,
-      first_name_en: studentData.value.first_name_en,
-      last_name_en: studentData.value.last_name_en,
-      birth_date: studentData.value.birth_date,
-      permanent_address: studentData.value.permanent_address,
-      current_address: studentData.value.current_address,
-      province: studentData.value.province,
-      siblings_count: studentData.value.siblings_count,
-      family_info: {
-        father_name: familyData.value?.father_name || '',
-        father_occupation: editableData.value.father_occupation,
-        father_income: editableData.value.father_income,
-        mother_name: familyData.value?.mother_name || '',
-        mother_occupation: editableData.value.mother_occupation,
-        mother_income: editableData.value.mother_income,
-        guardian_name: familyData.value?.guardian_name || '',
-        guardian_relation: familyData.value?.guardian_relation || '',
-        guardian_occupation: editableData.value.guardian_occupation,
-        guardian_income: editableData.value.guardian_income,
-      }
-    };
-    
-    await updateMyProfile(updatePayload);
-    return true;
-  } catch (err) {
-    console.error('Error saving profile:', err);
-    return false;
-  } finally {
-    isSavingProfile.value = false;
-  }
 };
 
 // Submit application
@@ -161,15 +121,22 @@ const submitApplication = async () => {
   
   isSubmitting.value = true;
   try {
-    // Save profile changes first
-    const saved = await saveProfileChanges();
-    if (!saved) {
-      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลโปรไฟล์ได้', 'error');
-      return;
-    }
+    // Build the complete payload
+    const payload = {
+      student_profile_id: studentProfileId.value,
+      application_reason: editableData.value.application_reason,
+      email: editableData.value.email,
+      phone: editableData.value.phone,
+      father_occupation: editableData.value.father_occupation,
+      father_income: editableData.value.father_income,
+      mother_occupation: editableData.value.mother_occupation,
+      mother_income: editableData.value.mother_income,
+      guardian_occupation: editableData.value.guardian_occupation,
+      guardian_income: editableData.value.guardian_income,
+    };
 
-    // Submit application
-    const apiResult = await applyForScholarship(selectedScholarship.value.ID, studentProfileId.value);
+    // Submit application with all data
+    const apiResult = await applyForScholarship(selectedScholarship.value.ID, payload);
     console.log('Application result:', apiResult);
     
     closeModal();
