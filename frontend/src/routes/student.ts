@@ -9,7 +9,7 @@ const studentRoutes: Array<RouteRecordRaw> = [
       {
         path: '',
         name: 'StudentDashboard',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        component: () => import('@/pages/protected/News/student/newslist.vue'),
       },
       {
         path: 'apply-scholarship',

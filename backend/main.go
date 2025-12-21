@@ -54,6 +54,7 @@ func main() {
 		&entity.Sponsor{},
 		&entity.SponsorContact{},
 		&entity.StatusNews{},
+		&entity.StudentFavNews{},
 		&entity.StatusScreening{},
 		&entity.Statusscholarship{},
 		&entity.StudentFavNews{},
@@ -96,6 +97,7 @@ func main() {
 		&entity.Sponsor{},
 		&entity.SponsorContact{},
 		&entity.StatusNews{},
+		&entity.StudentFavNews{},
 		&entity.StatusScreening{},
 		&entity.Statusscholarship{},
 		&entity.StudentFavNews{},
@@ -235,6 +237,11 @@ func main() {
 		api.POST("/users", controllers.CreateUser)
 		api.DELETE("/users/:id", controllers.DeleteUser)
 		api.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
+
+		// Student Favorite News
+		api.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
+		api.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

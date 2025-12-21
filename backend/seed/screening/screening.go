@@ -9,7 +9,6 @@ func SeedScreenings(db *gorm.DB) error {
 	screenings := []entity.Screening{
 		{
 			AdminProfileID:   1,
-			ApplicationID:    1,
 			StatusScreeningID: 1,
 			ApplicationScholarshipID:    1,
 			RejectionReason:  nil,

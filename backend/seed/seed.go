@@ -9,11 +9,11 @@ import (
 	"backend/seed/interview"
 	"backend/seed/location"
 	"backend/seed/scholarship"
-	//"backend/seed/screening"
+	"backend/seed/screening"
 	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
-	// "backend/seed/news"
+	"backend/seed/news"
 )
 
 func SeedAll(db *gorm.DB) error {
@@ -91,33 +91,29 @@ func SeedAll(db *gorm.DB) error {
 	if err := approval.SeedApplications(db); err != nil {
 		return err
 	}
-	// if err := approval.SeedApplicationScholarships(db); err != nil {
-	// 	return err
-	// } ห้ามเปิด
+	if err := approval.SeedApplicationScholarships(db); err != nil {
+		return err
+	} 
 
 	// if err := approval.SeedApplicationDocuments(db); err != nil {
 	// 	return err
 	// } ห้ามเปิด
 
-	if err := approval.SeedApprovalRequirements(db); err != nil {
-		return err
-	}
-
-	// if err := screening.SeedStatusScreenings(db); err != nil {
+	// if err := approval.SeedApprovalRequirements(db); err != nil {
 	// 	return err
 	// }
+
+	if err := screening.SeedStatusScreenings(db); err != nil {
+		return err
+	}
 
 	// if err := screening.SeedScreenings(db); err != nil {
 	// 	return err
 	// }
 
-	// if err := news.SeedStatusNews(db); err != nil {
-	// 	return err
-	// }
-
-	// if err := news.SeedNewsPosts(db); err != nil {
-	// 	return err
-	// }
+	if err := news.SeedStatusNews(db); err != nil {
+		return err
+	}
 
 	return nil
 }

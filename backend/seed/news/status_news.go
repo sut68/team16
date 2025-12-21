@@ -1,21 +1,31 @@
 package news
+
 import (
-	"gorm.io/gorm"
-	"backend/entity"
+    "backend/entity"
+    "gorm.io/gorm"
 )
 
 func SeedStatusNews(db *gorm.DB) error {
-	if err := db.First(&entity.StatusNews{}).Error; err == gorm.ErrRecordNotFound {
-		statusNews := []entity.StatusNews{
-			{StatusNews: "Published"},
-			{StatusNews: "Draft"},
-			{StatusNews: "Archived"},
-			{StatusNews: "Deleted"},
-			{StatusNews: "Members Only"},
-		}
-		if err := db.Create(&statusNews).Error; err != nil {
-			return err
-		}
-	}
-	return nil
+    statusNewsList := []entity.StatusNews{
+        {StatusNews: "Published"},
+        {StatusNews: "Draft"},
+        {StatusNews: "Archived"},
+		{StatusNews: "Members Only"},
+        {StatusNews: "Deleted"},
+        
+    }
+
+    for _, status := range statusNewsList {
+        var sn entity.StatusNews
+        // ถ้า id ไม่มี จะสร้างใหม่
+        if err := db.FirstOrCreate(&sn, entity.StatusNews{StatusNews: status.StatusNews}).Error; err != nil {
+            return err
+        }
+        // อัปเดตชื่อให้ตรง
+        if err := db.Model(&entity.StatusNews{}).Where("id = ?", sn.ID).Update("status_news", status.StatusNews).Error; err != nil {
+            return err
+        }
+    }
+
+    return nil
 }

@@ -1,4 +1,6 @@
 import type { ScholarshipResponse } from "./scholarship";
+//import type { UserResponse } from "./user";
+
 import type { AdminProfileResponse } from "./user";
 
 
@@ -12,6 +14,8 @@ export interface InterviewRound {
     scholarship_id: number;
     scholarship: ScholarshipResponse;
     admin_profile_id: number;
+    //admin_profile: UserResponse;
+
     admin_profile: AdminProfileResponse;
     interview_mode_id?: number;
     interview_mode?: InterviewMode;

@@ -149,27 +149,17 @@ import type { AxiosResponse, AxiosError } from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
-const getCookie = (name: string): string | null => {
-  const cookies = document.cookie.split("; ");
-  const cookie = cookies.find((row) => row.startsWith(`${name}=`));
-  if (cookie) {
-    const cookieValue = cookie.split("=")[1];
-    if (cookieValue) {
-      let AccessToken = decodeURIComponent(cookieValue);
-      AccessToken = AccessToken.replace(/\\/g, "").replace(/"/g, "");
-      return AccessToken ? AccessToken : null;
-    }
-  }
-  return null;
-};
-
 export const getToken = (): string | null => {
-  return (
-    sessionStorage.getItem("token") ||
-    localStorage.getItem("token") ||
-    getCookie("0195f494-feaa-734a-92a6-05739101ede9") ||
-    null
-  );
+  // เลือกเอาเฉพาะที่ระบบของคุณใช้จริง
+  // เช่น ถ้า Login ใช้ sessionStorage ก็ดึงแค่จากที่นั่น
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+  
+  if (!token) {
+    console.warn("Token not found in storage");
+    return null;
+  }
+  
+  return token;
 };
 
 const getTokenType = (): string =>
@@ -216,7 +206,7 @@ export const Post = async (
       if (error?.response?.status === 401) {
         try { sessionStorage.clear(); } catch {}
         try { localStorage.clear(); } catch {}
-        window.location.reload();
+        //window.location.reload();
       }
       return error.response;
     });

@@ -42,18 +42,28 @@ const processState = computed(() => {
 
     const data = props.applicationData;
     const mainStatus = data.status?.toLowerCase();
-
     const screening = data.screening;
 
     if (screening) {
-        const screeningStatusName = screening.status_screening?.name?.toLowerCase();
+        const statusId = screening.status_screening_id;
 
-        if (screening.rejection_reason || screeningStatusName === 'rejected' || screeningStatusName === 'not pass') {
+        if (statusId === 3) {
             return {
                 currentStep: 2,
                 status: 'error',
                 message: screening.rejection_reason || 'คุณสมบัติไม่ผ่านเกณฑ์การคัดกรอง'
             };
+        }
+
+        if (statusId === 1) {
+            return { 
+                currentStep: 2, 
+                status: 'process', 
+                message: 'อยู่ระหว่างการตรวจสอบคุณสมบัติ' 
+            };
+        }
+        else {
+            return { currentStep: 2, status: 'process', message: 'เจ้าหน้าที่รับเรื่องและกำลังดำเนินการ' };
         }
     }
 
@@ -314,6 +324,7 @@ const handleFileChange = async (e: Event) => {
                                 </svg>
                                 <span v-else>{{ stage.id }}</span>
                             </div>
+                            
 
                             <div class="flex-1 pt-1">
                                 <div class="flex flex-wrap justify-between items-start gap-2">
