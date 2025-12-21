@@ -143,6 +143,15 @@ const handleSubmit = async () => {
     if (!form.value.scholarship_name) {
       return alert('กรุณากรอกชื่อทุน');
     }
+    if (!form.value.description){
+      return alert('กรุณากรอกรายละเอียด');
+    }
+    if (form.value.description.length < 5){
+      return alert('กรุณากรอกรายละเอียดอย่างน้อย 5 ตัวอักษร')
+    }
+    if (!form.value.open_date){
+      return alert('กรุณาเลือกวันเริ่มต้น')
+    }
     if (!form.value.semaster_id) {
       return alert('กรุณาเลือกภาคการศึกษา');
     }
