@@ -104,8 +104,8 @@ func CreateApplication(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":                   "Application successful!",
-		"application":               application,
+		"message":                 "Application successful!",
+		"application":             application,
 		"application_scholarship": appScholarship,
 	})
 }
@@ -168,6 +168,8 @@ func GetStudentApplications(ctx *gin.Context) {
 		Preload("Scholarship.Typescholarship").
 		Preload("Application").
 		Preload("ApplicationDocuments.ApprovalTasks.ApprovalDecisions").
+		Preload("Screening").
+		Preload("Screening.StatusScreening").
 		Find(&appScholarships).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve scholarship applications: " + err.Error()})
 		return
@@ -208,4 +210,87 @@ func GetStudentApplications(ctx *gin.Context) {
 
 func IsDuplicateKeyError(err error) bool {
 	return strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
+// DELETE /application-scholarships/:id/cancel
+// ยกเลิกการสมัครทุน - สามารถยกเลิกได้เฉพาะสถานะ new, pending, หรือยังไม่ได้รับการตรวจสอบ
+func CancelApplicationScholarship(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid application scholarship ID"})
+		return
+	}
+
+	// Start transaction
+	tx := config.DB.Begin()
+
+	// 1. Find the application scholarship
+	var appScholarship entity.ApplicationScholarship
+	if err := tx.Preload("Screening").First(&appScholarship, id).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Application scholarship not found"})
+		return
+	}
+
+	// 2. Check if cancellation is allowed based on status
+	allowedStatuses := []string{"new", "pending", ""}
+	isAllowed := false
+	for _, status := range allowedStatuses {
+		if appScholarship.Status == status {
+			isAllowed = true
+			break
+		}
+	}
+
+	// Also check screening status - if screening is approved or rejected, cannot cancel
+	if appScholarship.Screening != nil {
+		screeningStatusId := appScholarship.Screening.StatusScreeningID
+		// 1 = pending, 2 = approved, 3 = rejected
+		if screeningStatusId == 2 || screeningStatusId == 3 {
+			isAllowed = false
+		}
+	}
+
+	if !isAllowed {
+		tx.Rollback()
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "ไม่สามารถยกเลิกได้ เนื่องจากใบสมัครอยู่ในขั้นตอนการพิจารณาหรือดำเนินการแล้ว",
+		})
+		return
+	}
+
+	// 3. Delete related Screening record first (if exists)
+	if appScholarship.Screening != nil {
+		if err := tx.Delete(&entity.Screening{}, "application_scholarship_id = ?", id).Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete screening record: " + err.Error()})
+			return
+		}
+	}
+
+	// 4. Delete related Application Documents (if any)
+	if err := tx.Delete(&entity.ApplicationDocument{}, "application_scholarship_id = ?", id).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete documents: " + err.Error()})
+		return
+	}
+
+	// 5. Delete the Application Scholarship record
+	if err := tx.Delete(&appScholarship).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel application: " + err.Error()})
+		return
+	}
+
+	// 6. Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "ยกเลิกการสมัครทุนเรียบร้อยแล้ว",
+	})
 }

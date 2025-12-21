@@ -1,4 +1,4 @@
-import { Get } from './https';
+import { Get, Delete } from './https';
 import type { ApplicationScholarshipResponse } from '@/interfaces';
 
 /**
@@ -40,4 +40,14 @@ export const uploadDocument = async (applicationScholarshipId: number, file: Fil
   }
 
   return response.json();
+};
+
+/**
+ * ยกเลิกการสมัครทุน
+ * @param applicationScholarshipId ID ของการสมัครทุน
+ * @returns Promise ที่ resolve เป็น response จาก API
+ */
+export const cancelApplicationScholarship = async (applicationScholarshipId: number): Promise<{ message: string }> => {
+  const response = await Delete(`/application-scholarships/${applicationScholarshipId}/cancel`);
+  return response as { message: string };
 };

@@ -160,7 +160,7 @@ func ApplyForScholarship(ctx *gin.Context) {
 	appScholarship := entity.ApplicationScholarship{
 		ApplicationID: application.ID,
 		ScholarshipID: uint(scholarshipID),
-		Status:        "qualified", // 'qualified' status signifies that the application is started and awaits document submission.
+		Status:        "new", // 'new' status signifies that the application is awaiting screening.
 	}
 	if err := tx.Create(&appScholarship).Error; err != nil {
 		tx.Rollback()
@@ -168,7 +168,20 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 5. Commit Transaction ---
+	// --- 5. Create Screening record for admin to review ---
+	screening := entity.Screening{
+		AdminProfileID:           1, // Default to first admin (will be reassigned when admin reviews)
+		ApplicationID:            application.ID,
+		StatusScreeningID:        1, // 1 = "รอตรวจสอบ" (Pending Review)
+		ApplicationScholarshipID: appScholarship.ID,
+	}
+	if err := tx.Create(&screening).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create screening record: " + err.Error()})
+		return
+	}
+
+	// --- 6. Commit Transaction ---
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
@@ -176,8 +189,9 @@ func ApplyForScholarship(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":                  "Application created successfully. Please proceed to upload documents.",
+		"message":                  "Application created successfully. Please wait for qualification screening.",
 		"applicationId":            application.ID,
 		"applicationScholarshipId": appScholarship.ID,
+		"screeningId":              screening.ID,
 	})
 }
