@@ -142,6 +142,7 @@ func main() {
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
 		// api.GET("/scholarships", controllers.GetAllScholarship)
 		api.POST("/scholarship/:id/apply", controllers.ApplyForScholarship)
+		api.DELETE("/application-scholarships/:id/cancel", controllers.CancelApplicationScholarship)
 
 		//scholarship
 		api.GET("/scholarship", controllers.GetAllScholarship)

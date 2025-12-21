@@ -42,12 +42,16 @@ const processState = computed(() => {
 
     const data = props.applicationData;
     const mainStatus = data.status?.toLowerCase();
+
     const screening = data.screening;
 
+    // Check screening status first
     if (screening) {
-        const statusId = screening.status_screening_id;
+        const screeningStatusId = screening.status_screening_id;
+        const screeningStatusName = screening.status_screening?.name?.toLowerCase();
 
-        if (statusId === 3) {
+        // If screening rejected (ID: 3 or has rejection reason)
+        if (screeningStatusId === 3 || screening.rejection_reason || screeningStatusName === 'rejected' || screeningStatusName === 'not pass' || screeningStatusName?.includes('ไม่ผ่าน')) {
             return {
                 currentStep: 2,
                 status: 'error',
@@ -55,16 +59,19 @@ const processState = computed(() => {
             };
         }
 
-        if (statusId === 1) {
-            return { 
-                currentStep: 2, 
-                status: 'process', 
-                message: 'อยู่ระหว่างการตรวจสอบคุณสมบัติ' 
+        // If screening is still pending (ID: 1 = รอตรวจสอบ) - stay at step 2
+        if (screeningStatusId === 1) {
+            return {
+                currentStep: 2,
+                status: 'process',
+                message: 'รอเจ้าหน้าที่ตรวจสอบคุณสมบัติ'
             };
         }
-        else {
-            return { currentStep: 2, status: 'process', message: 'เจ้าหน้าที่รับเรื่องและกำลังดำเนินการ' };
-        }
+        
+        // If screening passed (ID: 2) - continue to check other conditions
+    } else if (mainStatus === 'new') {
+        // No screening record yet but status is new - should wait for screening
+        return { currentStep: 2, status: 'process', message: 'รอเจ้าหน้าที่ตรวจสอบคุณสมบัติ' };
     }
 
     const docs = data.application_documents;
@@ -324,7 +331,6 @@ const handleFileChange = async (e: Event) => {
                                 </svg>
                                 <span v-else>{{ stage.id }}</span>
                             </div>
-                            
 
                             <div class="flex-1 pt-1">
                                 <div class="flex flex-wrap justify-between items-start gap-2">
