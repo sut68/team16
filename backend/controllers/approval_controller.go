@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -202,7 +203,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
-	filePath := fmt.Sprintf("uploads/%s", uniqueFileName)
+	filePath := fmt.Sprintf("uploads/application/%s", uniqueFileName)
 
 	// --- 2. Create ApplicationDocument record ---
 	document := entity.ApplicationDocument{
@@ -212,7 +213,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		UploadedBy:               uploadedBy,
 		ApplicationScholarshipID: uint(appScholarshipID),
 	}
-	
+
 	if err := validators.ValidateStruct(&document); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",
@@ -223,12 +224,16 @@ func CreateApplicationDocument(ctx *gin.Context) {
 
 	tx := config.DB.Begin()
 
+	// Ensure upload directory exists
+	if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
+		os.MkdirAll("uploads/application", 0755)
+	}
+
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
 		return
 	}
-
 
 	if err := tx.Create(&document).Error; err != nil {
 		tx.Rollback()
@@ -238,7 +243,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 
 	// --- 3. Create associated ApprovalTask ---
 	var existingTask entity.ApprovalTask
-	
+
 	errTask := tx.Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
 		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
 		First(&existingTask).Error
@@ -252,9 +257,9 @@ func CreateApplicationDocument(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing task: " + err.Error()})
 			return
 		}
-		
+
 	} else {
-		
+
 		newTask := entity.ApprovalTask{
 			Status:     "pending",
 			AdminID:    1, // Default Admin ID
@@ -426,7 +431,7 @@ func UpdateApprovalDecision(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if err := validators.ValidateStruct(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",

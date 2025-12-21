@@ -4,7 +4,8 @@ import "gorm.io/gorm"
 
 type ApplicationScholarship struct {
 	gorm.Model
-	Status string `json:"status"`
+	Status            string  `json:"status"`
+	ApplicationReason *string `gorm:"type:text" json:"application_reason"` // เหตุผลในการสมัครทุน/เล่าเรื่องราว
 
 	ApplicationID uint        `json:"application_id"`
 	Application   Application `gorm:"foreignKey:ApplicationID" json:"application"`

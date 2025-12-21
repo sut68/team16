@@ -12,15 +12,25 @@ export const getScholarships = async (): Promise<ScholarshipResponse[]> => {
 };
 
 /**
- * Submits an application for a specific scholarship.
+ * Submits an application for a specific scholarship with full data.
  * @param scholarshipId The ID of the scholarship to apply for.
- * @param studentProfileId The ID of the student applying.
+ * @param payload The application data including student profile info and family info.
  * @returns A promise that resolves to the API response.
  */
-export const applyForScholarship = async (scholarshipId: number, studentProfileId: number) => {
-  const payload = {
-    student_profile_id: studentProfileId,
-  };
+export interface ApplyScholarshipPayload {
+  student_profile_id: number;
+  application_reason?: string;
+  email?: string;
+  phone?: string;
+  father_occupation?: string;
+  father_income?: number;
+  mother_occupation?: string;
+  mother_income?: number;
+  guardian_occupation?: string;
+  guardian_income?: number;
+}
+
+export const applyForScholarship = async (scholarshipId: number, payload: ApplyScholarshipPayload) => {
   const response = await Post(`/scholarship/${scholarshipId}/apply`, payload);
   return response;
 };

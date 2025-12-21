@@ -125,8 +125,22 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
+	// Extended input struct to receive more data
 	var input struct {
-		StudentProfileID uint `json:"student_profile_id" binding:"required"`
+		StudentProfileID  uint   `json:"student_profile_id" binding:"required"`
+		ApplicationReason string `json:"application_reason"` // เหตุผลในการสมัครทุน
+
+		// ข้อมูลที่อนุญาตให้แก้ไข
+		Email string `json:"email"`
+		Phone string `json:"phone"`
+
+		// ข้อมูลครอบครัว
+		FatherOccupation   string  `json:"father_occupation"`
+		FatherIncome       float64 `json:"father_income"`
+		MotherOccupation   string  `json:"mother_occupation"`
+		MotherIncome       float64 `json:"mother_income"`
+		GuardianOccupation string  `json:"guardian_occupation"`
+		GuardianIncome     float64 `json:"guardian_income"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		tx.Rollback()
@@ -134,7 +148,50 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 2. Find the currently active semester ---
+	// --- 2. Update student profile if email/phone provided ---
+	if input.Email != "" || input.Phone != "" {
+		var student entity.StudentProfile
+		if err := tx.First(&student, input.StudentProfileID).Error; err == nil {
+			if input.Email != "" {
+				student.Email = input.Email
+			}
+			if input.Phone != "" {
+				student.Phone = input.Phone
+			}
+			tx.Save(&student)
+		}
+	}
+
+	// --- 3. Update family info if provided ---
+	if input.FatherOccupation != "" || input.MotherOccupation != "" ||
+		input.FatherIncome > 0 || input.MotherIncome > 0 {
+		var family entity.FamilyInfo
+		err := tx.Where("profile_id = ?", input.StudentProfileID).First(&family).Error
+		if err == nil {
+			// Update existing family info
+			if input.FatherOccupation != "" {
+				family.FatherOccupation = input.FatherOccupation
+			}
+			if input.FatherIncome > 0 {
+				family.FatherIncome = input.FatherIncome
+			}
+			if input.MotherOccupation != "" {
+				family.MotherOccupation = input.MotherOccupation
+			}
+			if input.MotherIncome > 0 {
+				family.MotherIncome = input.MotherIncome
+			}
+			if input.GuardianOccupation != "" {
+				family.GuardianOccupation = input.GuardianOccupation
+			}
+			if input.GuardianIncome > 0 {
+				family.GuardianIncome = input.GuardianIncome
+			}
+			tx.Save(&family)
+		}
+	}
+
+	// --- 4. Find the currently active semester ---
 	var activeSemester entity.Semaster
 	if err := tx.Where("is_active = ?", true).First(&activeSemester).Error; err != nil {
 		tx.Rollback()
@@ -142,7 +199,7 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 3. Find or Create parent Application record for the student in the active semester ---
+	// --- 5. Find or Create parent Application record for the student in the active semester ---
 	application := entity.Application{
 		StudentProfileID: input.StudentProfileID,
 		SemasterID:       activeSemester.ID,
@@ -156,11 +213,17 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 4. Create the ApplicationScholarship join record ---
+	// --- 6. Create the ApplicationScholarship join record with reason ---
+	var reasonPtr *string
+	if input.ApplicationReason != "" {
+		reasonPtr = &input.ApplicationReason
+	}
+
 	appScholarship := entity.ApplicationScholarship{
-		ApplicationID: application.ID,
-		ScholarshipID: uint(scholarshipID),
-		Status:        "new", // 'new' status signifies that the application is awaiting screening.
+		ApplicationID:     application.ID,
+		ScholarshipID:     uint(scholarshipID),
+		Status:            "new", // 'new' status signifies that the application is awaiting screening.
+		ApplicationReason: reasonPtr,
 	}
 	if err := tx.Create(&appScholarship).Error; err != nil {
 		tx.Rollback()
@@ -168,7 +231,7 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 5. Create Screening record for admin to review ---
+	// --- 7. Create Screening record for admin to review ---
 	screening := entity.Screening{
 		AdminProfileID:           1, // Default to first admin (will be reassigned when admin reviews)
 		ApplicationID:            application.ID,
@@ -181,7 +244,7 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
-	// --- 6. Commit Transaction ---
+	// --- 8. Commit Transaction ---
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
