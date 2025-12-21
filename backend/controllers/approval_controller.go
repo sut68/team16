@@ -384,7 +384,7 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now().String(),
+		DecisionAt: time.Now(),
 		Decision:   input.Decision,
 		Comment:    input.Comment,
 		TaskID:     input.TaskID,

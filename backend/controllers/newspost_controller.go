@@ -79,68 +79,56 @@ func GetNewsPostByID(c *gin.Context) {
 
 //POST /newsposts
 func CreateNewsPost(c *gin.Context) {
-	fmt.Println("\n[POST] CreateNewsPost Called...")
+    fmt.Println("\n[POST] CreateNewsPost Called...")
 
-	title := c.PostForm("title")
-	postDetail := c.PostForm("post_detail")
-	
-	// ใช้ ParseUint อย่างระมัดระวัง (AdminID ต้องมี, ScholarshipID/StatusNewsID อาจไม่มี)
-	adminID, _ := strconv.ParseUint(c.PostForm("admin_id"), 10, 64)
-	scholarshipID, _ := strconv.ParseUint(c.PostForm("scholarship_id"), 10, 64)
-	statusNewsID, _ := strconv.ParseUint(c.PostForm("status_news_id"), 10, 64)
-
-	var filePath string = ""
-
-	// 2. พยายามดึงไฟล์
-	file, err := c.FormFile("file_path")
-
-	if err == nil {
-		fmt.Printf("[POST] File received: %s (Size: %d bytes)\n", file.Filename, file.Size)
-
-		extension := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
-		filePath = "uploads/news/" + fileName
-
-		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
-			os.MkdirAll("uploads/news", 0755)
-		}
-
-		if err := c.SaveUploadedFile(file, filePath); err != nil {
-			fmt.Printf("[POST] Error saving file to disk: %v\n", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image file"})
-			return
-		}
-		fmt.Printf("[POST] File saved at: %s\n", filePath)
-
-	} else {
-		fmt.Println("[POST] No file uploaded (or error getting file). Proceeding without image.")
-	}
-
-	// 4. บันทึก DB
-	item := entity.NewsPost{
-		Title:           title,
-		PostDetail:      postDetail,
-		FilePath:        filePath,
-		AdminID:         uint(adminID),
-		ScholarshipID:   uint(scholarshipID),
-		StatusNewsID:    uint(statusNewsID),
-	}
-    
-    // ตรวจสอบว่ามี AdminID หรือไม่ (ถ้าเป็น 0 อาจไม่ผ่าน Validation/FK)
-	if item.AdminID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "AdminID is required"})
+    // 1. ดึง User ID จาก Token (ที่ Middleware เซ็ตไว้ให้ เช่น c.Set("id", claims["id"]))
+    // หมายเหตุ: ชื่อ "id" ต้องตรงกับที่ Middleware ของคุณตั้งไว้
+    userID, err := getUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	if err := config.DB.Create(&item).Error; err != nil {
-		fmt.Printf("[POST] Database Create Error: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+    // 2. ค้นหา AdminProfile ID ที่ผูกกับ User ID นี้ใน Database
+    var adminProfile entity.AdminProfile
+    config.DB.Where("user_id = ?", userID).First(&adminProfile)
 
-	fmt.Printf("[POST] Success! Created News ID: %d\n", item.ID)
-	// ส่ง item กลับไปให้ Frontend เพื่อให้มี ID และ CreatedAt
-	c.JSON(http.StatusCreated, item)
+    // 3. รับค่าอื่นๆ จาก Form
+    title := c.PostForm("title")
+    postDetail := c.PostForm("post_detail")
+    scholarshipID, _ := strconv.ParseUint(c.PostForm("scholarship_id"), 10, 64)
+    statusNewsID, _ := strconv.ParseUint(c.PostForm("status_news_id"), 10, 64)
+
+    // 4. จัดการเรื่องไฟล์ (เหมือนเดิม)
+    var filePath string
+    file, err := c.FormFile("file_path")
+    if err == nil {
+        extension := filepath.Ext(file.Filename)
+        fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
+        filePath = "uploads/news/" + fileName
+        
+        if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
+            os.MkdirAll("uploads/news", 0755)
+        }
+        c.SaveUploadedFile(file, filePath)
+    }
+
+    // 5. บันทึกข้อมูล โดยใช้ ID ที่เราหาเจอจากขั้นตอนที่ 2
+    item := entity.NewsPost{
+        Title:         title,
+        PostDetail:    postDetail,
+        FilePath:      filePath,
+        AdminID:       adminProfile.ID, // ✅ ใช้ ID จากตาราง Profile จริงๆ
+        ScholarshipID: uint(scholarshipID),
+        StatusNewsID:  uint(statusNewsID),
+    }
+
+    if err := config.DB.Create(&item).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusCreated, item)
 }
 
 // =================================================================

@@ -1,12 +1,14 @@
 package test
 
 import (
-	"backend/entity"
-	"backend/validators"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+
+	"backend/entity"
+	"backend/validators"
+
 )
 
 // unit test for ApprovalDecision
@@ -16,7 +18,7 @@ func TestApprovalDecisionValidation_AllValid(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now().String(),
+		DecisionAt: time.Now(),
 		Decision:   "approve",
 		Comment:    "The document is clear and correct.",
 		TaskID:     1,
@@ -33,7 +35,7 @@ func TestApprovalDecisionValidation_DecisionAtEmpty(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: "", // Invalid
+		DecisionAt: time.Now(), // Invalid
 		Decision:   "approve",
 		Comment:    "This should fail.",
 		TaskID:     1,
@@ -50,7 +52,7 @@ func TestApprovalDecisionValidation_DecisionEmpty(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now().String(),
+		DecisionAt: time.Now(),
 		Decision:   "", // Invalid
 		Comment:    "This should fail.",
 		TaskID:     1,
@@ -67,7 +69,7 @@ func TestApprovalDecisionValidation_TaskIDZero(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now().String(),
+		DecisionAt: time.Now(),
 		Decision:   "reject",
 		Comment:    "This should fail.",
 		TaskID:     0, // Invalid
@@ -84,7 +86,7 @@ func TestApprovalDecisionValidation_CommentEmpty(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now().String(),
+		DecisionAt: time.Now(),
 		Decision:   "approve",
 		Comment:    "", // Allowed
 		TaskID:     1,

@@ -54,10 +54,26 @@ export const getNewsPostById = async (id: number): Promise<NewsPostDetailRespons
     throw new Error('Invalid or empty API response structure for NewsPost ID: ' + id);
 }
 
+// export const createNewsPost = async (payload: CreateNewsPostPayload | FormData): Promise<NewsPost> => {
+//     const dataToSend = payload instanceof FormData ? payload : convertToFormData(payload);
+//     const response: any = await Post('/newsposts', dataToSend);
+//     return response.data;
+// }
 export const createNewsPost = async (payload: CreateNewsPostPayload | FormData): Promise<NewsPost> => {
     const dataToSend = payload instanceof FormData ? payload : convertToFormData(payload);
+    
+    // เรียกใช้ Post (ซึ่ง requireAuth เป็น true โดย default)
     const response: any = await Post('/newsposts', dataToSend);
-    return response.data;
+
+    // ตรวจสอบว่า response ที่ได้มาเป็น Error หรือไม่ (เช่น 400, 401, 500)
+    if (response && response.status && response.status >= 400) {
+        // ถ้าเป็น Error ให้โยน Error ออกไปให้ handleSave ใน Vue จัดการ (catch)
+        throw new Error(response.data?.error || 'บันทึกไม่สำเร็จ');
+    }
+
+    // เนื่องจาก Post.then((res) => res.data) ไปแล้ว 
+    // ค่า response ตรงนี้คือข้อมูล NewsPost ที่สร้างสำเร็จแล้วครับ
+    return response; 
 }
 
 export const updateNewsPost = async (id: number, data: UpdateNewsPost | FormData): Promise<any> => {

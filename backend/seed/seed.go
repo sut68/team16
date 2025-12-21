@@ -1,17 +1,32 @@
 package seed
 
 import (
-	"backend/seed/scholarship"
+	"log"
+
 	"gorm.io/gorm"
+
 	"backend/seed/approval"
+	"backend/seed/interview"
+	"backend/seed/location"
+	"backend/seed/scholarship"
+	"backend/seed/screening"
 	"backend/seed/semaster"
 	"backend/seed/sponsor"
 	"backend/seed/user"
-	"backend/seed/screening"
 	"backend/seed/news"
 )
 
 func SeedAll(db *gorm.DB) error {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	location.SeedLocations(db)
+	log.Println("Location seed completed")
+
+	interview.SeedInterviewers(db)
+	log.Println("Interviewer seed completed")
+
+	interview.SeedInterviewModes(db)
+	log.Println("Interview mode seed completed")
 
 	if err := sponsor.SeedIndustries(db); err != nil {
 		return err
@@ -41,9 +56,9 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	 if err := user.SeedFamilyInfos(db); err != nil {
-		 return err
-	 }
+	if err := user.SeedFamilyInfos(db); err != nil {
+		return err
+	}
 
 	if err := semaster.CreateSemasters(db); err != nil {
 		return err
@@ -76,39 +91,29 @@ func SeedAll(db *gorm.DB) error {
 	if err := approval.SeedApplications(db); err != nil {
 		return err
 	}
-	
 	if err := approval.SeedApplicationScholarships(db); err != nil {
 		return err
-	}
+	} 
 
 	// if err := approval.SeedApplicationDocuments(db); err != nil {
 	// 	return err
+	// } ห้ามเปิด
+
+	// if err := approval.SeedApprovalRequirements(db); err != nil {
+	// 	return err
 	// }
-
-	if err := approval.SeedApprovalRequirements(db); err != nil {
-		return err
-	}
-
 
 	if err := screening.SeedStatusScreenings(db); err != nil {
 		return err
 	}
 
-	if err := screening.SeedScreenings(db); err != nil {
-		return err
-	}
+	// if err := screening.SeedScreenings(db); err != nil {
+	// 	return err
+	// }
 
 	if err := news.SeedStatusNews(db); err != nil {
 		return err
 	}
-
-	// if err := news.SeedNewsPosts(db); err != nil {
-	// 	return err
-	// }
-
-	// if err := news.SeedStudentFavs(db); err != nil {
-	// 	return err
-	// }
 
 	return nil
 }

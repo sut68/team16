@@ -65,11 +65,13 @@ func main() {
 		&entity.Slot{},
 		&entity.InterviewerSlot{},
 		&entity.IntervieweBooking{},
+		&entity.Location{},
+		&entity.InterviewMode{},
 	); err != nil {
 		log.Fatalf("DropTable failed: %v", err)
 	}
 
-	// Auto-migrate the schema
+	//Auto-migrate the schema
 	if err := config.DB.AutoMigrate(
 		&entity.Role{},
 		&entity.User{},
@@ -106,6 +108,8 @@ func main() {
 		&entity.Slot{},
 		&entity.InterviewerSlot{},
 		&entity.IntervieweBooking{},
+		&entity.Location{},
+		&entity.InterviewMode{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -137,7 +141,7 @@ func main() {
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
 		// api.GET("/scholarships", controllers.GetAllScholarship)
-		api.POST("/scholarships/:id/apply", controllers.ApplyForScholarship)
+		api.POST("/scholarship/:id/apply", controllers.ApplyForScholarship)
 
 		//scholarship
 		api.GET("/scholarship", controllers.GetAllScholarship)
@@ -218,23 +222,26 @@ func main() {
 		api.POST("/interviewers", controllers.CreateInterviewer)
 		api.POST("/interview-bookings", controllers.CreateInterviewBooking)
 		api.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings)
-
+		api.DELETE("/interview-bookings/:id", controllers.DeleteInterviewBooking)
+		api.GET("/locations", controllers.GetAllLocations)
+		api.GET("/interview-modes", controllers.GetAllInterviewModes)
 
 		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
-    	api.GET("/profile/me", controllers.GetMyProfile)
-    	api.PUT("/profile/me", controllers.UpdateMyProfile)
-		
+		api.GET("/profile/me", controllers.GetMyProfile)
+		api.PUT("/profile/me", controllers.UpdateMyProfile)
+
 		// User Management (Admin)
-    	api.GET("/roles", controllers.ListRoles)
-    	api.GET("/majors", controllers.ListMajors)
-    	api.GET("/users", controllers.ListUsers)
-    	api.POST("/users", controllers.CreateUser)
-    	api.DELETE("/users/:id", controllers.DeleteUser)
+		api.GET("/roles", controllers.ListRoles)
+		api.GET("/majors", controllers.ListMajors)
+		api.GET("/users", controllers.ListUsers)
+		api.POST("/users", controllers.CreateUser)
+		api.DELETE("/users/:id", controllers.DeleteUser)
 		api.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
 
 		// Student Favorite News
 		api.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
 		api.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

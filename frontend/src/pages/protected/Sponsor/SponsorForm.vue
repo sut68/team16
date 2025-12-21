@@ -5,7 +5,7 @@ import type { IndustryResponse } from '@/interfaces/sponsor';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
 import { IndustryService } from '@/services/sponsor/industry';
 import { validateSponsorForm } from '@/validators/sponsorValidator';
-import { useFocusTrap } from './useFocusTrap';
+import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
 // ---------------- Props / Emits ----------------
 const props = defineProps({

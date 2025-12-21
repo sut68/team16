@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-// ✅ 1. เพิ่ม Send เข้ามาใน Import
 import { X, ImageIcon, Calendar, Clock, GraduationCap, CheckCircle2, AlertCircle, Send } from 'lucide-vue-next';
 import { getNewsPostById } from '@/services/api/news_post'; 
 import type { NewsPostDetailResponse } from '@/interfaces/news_post';

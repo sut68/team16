@@ -43,11 +43,7 @@ const semesterText = computed(() => {
 
 const parseGoDate = (dateString: string | undefined): Date | null => {
     if (!dateString) return null;
-    let dateStr = String(dateString);
-    if (dateStr.includes(' m=')) dateStr = dateStr.split(' m=')[0] || dateStr;
-    if (dateStr.includes('+0000 UTC')) dateStr = dateStr.replace(' +0000 UTC', 'Z').replace(' ', 'T');
-    dateStr = dateStr.replace(/(\.\d{3})\d+/, '$1');
-    const date = new Date(dateStr);
+    const date = new Date(dateString);
     return isNaN(date.getTime()) ? null : date;
 };
 

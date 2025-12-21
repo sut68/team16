@@ -369,7 +369,7 @@ const handleActionCompleted = () => {
     <screening-detail-modal
       v-if="isModalOpen && selectedDocument"
       :isOpen="isModalOpen"
-      :screeningData="selectedDocument"
+      :screening-data="selectedDocument"
       @close="isModalOpen = false"
       @action-completed="handleActionCompleted"
     />

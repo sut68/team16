@@ -21,7 +21,7 @@ const form = ref({
   title: '',
   post_detail: '',
   file_path: '',
-  admin_id: 1,
+  admin_id: 0,
   scholarship_id: null as number | null,
   status_news_id: 1
 });
@@ -103,6 +103,12 @@ const handleSave = async () => {
 onMounted(async () => {
   performValidation();
   // แก้ไข warning: เรียกใช้ getScholarships และแมพข้อมูลตาม logic เดิมของคุณ
+  const userData = sessionStorage.getItem('user');
+  if (userData) {
+    const user = JSON.parse(userData);
+    // ✅ ต้องใช้ ID ของโปรไฟล์ (เลข 2) ไม่ใช่ไอดีล็อกอิน (เลข 3)
+    form.value.admin_id = user.admin_profile_id; 
+  }
   try {
     const res: any = await getScholarships();
     const data = Array.isArray(res) ? res : (res.data || []);

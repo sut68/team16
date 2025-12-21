@@ -1,10 +1,9 @@
 import type { CreateNewsPostPayload } from '@/interfaces/news_post';
 
-// กำหนดโครงสร้าง Error ให้สอดคล้องกับฟิลด์ใน Payload
 interface ValidationErrors {
   title?: string;
-  post_detail?: string;
   file_path?: string;
+  post_detail?: string;
   scholarship_id?: string;
   status_news_id?: string;
 }
@@ -12,39 +11,32 @@ interface ValidationErrors {
 export const validateNewsPostForm = (payload: CreateNewsPostPayload) => {
   const errors: ValidationErrors = {};
 
-  // 1. ตรวจสอบหัวข้อข่าว (Title) - ตรงกับ Backend: stringlength(5|200)
+  // ===== หัวข้อข่าว =====
   if (!payload.title || payload.title.trim() === '') {
-    errors.title = "กรุณากรอกหัวข้อข่าว";
-  } else if (payload.title.length < 5) {
-    errors.title = "หัวข้อข่าวต้องมีอย่างน้อย 5 ตัวอักษร";
-  } else if (payload.title.length > 200) {
-    errors.title = "หัวข้อข่าวต้องไม่เกิน 200 ตัวอักษร";
+    errors.title = 'กรุณากรอกหัวข้อข่าว';
   }
 
-  // 2. ตรวจสอบเนื้อหาข่าว (Post Detail) - ตรงกับ Backend: stringlength(10|500)
+  // ===== เนื้อหาข่าว =====
   if (!payload.post_detail || payload.post_detail.trim() === '') {
-    errors.post_detail = "กรุณากรอกเนื้อหาข่าว";
-  } else if (payload.post_detail.length < 10) {
-    errors.post_detail = "เนื้อหาข่าวต้องมีอย่างน้อย 10 ตัวอักษร";
-  } else if (payload.post_detail.length > 500) {
-    errors.post_detail = "เนื้อหาข่าวต้องไม่เกิน 500 ตัวอักษร";
+    errors.post_detail = 'กรุณากรอกเนื้อหาข่าว';
   }
 
-  // 3. ตรวจสอบรูปภาพ (File Path)
-  // ใน CreateNewsPostPayload ของคุณ file_path เป็น File | null
+  // ===== รูปภาพหน้าปก =====
   if (!payload.file_path) {
-    errors.file_path = "กรุณาเลือกรูปภาพหน้าปกข่าว";
+    errors.file_path = 'กรุณาอัปโหลดรูปภาพหน้าปกข่าว';
   }
 
-  // 4. ตรวจสอบทุนการศึกษา (Scholarship ID)
+  // ===== ทุนการศึกษา =====
   if (payload.scholarship_id === null || payload.scholarship_id === undefined) {
-    errors.scholarship_id = "กรุณาเลือกทุนการศึกษาที่เกี่ยวข้อง";
+    errors.scholarship_id = 'กรุณาเลือกทุนการศึกษา';
   }
 
-  // 5. ตรวจสอบสถานะข่าว (Status News ID) - ตรงกับ Backend: in(1|2|3|4|5)
+  // ===== สถานะข่าว =====
   const validStatuses = [1, 2, 3, 4, 5];
-  if (!payload.status_news_id || !validStatuses.includes(payload.status_news_id)) {
-    errors.status_news_id = "กรุณาระบุสถานะข่าวให้ถูกต้อง";
+  if (payload.status_news_id === undefined) {
+    errors.status_news_id = 'กรุณาเลือกสถานะข่าว';
+  } else if (!validStatuses.includes(payload.status_news_id)) {
+    errors.status_news_id = 'สถานะข่าวไม่ถูกต้อง';
   }
 
   return {

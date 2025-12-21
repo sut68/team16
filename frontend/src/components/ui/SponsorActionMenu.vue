@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, nextTick, onMounted, onBeforeUnmount } from "vue";
   import { CheckCircle, Ellipsis, PenLine, Slash, Trash, Users } from "lucide-vue-next";
+  import Swal from "sweetalert2";
 
   const props = defineProps<{
     id: number
@@ -95,9 +96,23 @@
     open.value = false;
   }
 
-  function handleDelete() {
-    emit("delete", props.id);
+  async function handleDelete() {
     open.value = false;
+    
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบ?',
+      text: 'คุณต้องการลบบริษัทนี้ใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'ลบ',
+      cancelButtonText: 'ยกเลิก'
+    });
+    
+    if (result.isConfirmed) {
+      emit("delete", props.id);
+    }
   }
 </script>
 
@@ -109,6 +124,7 @@
     :aria-expanded="open"
     :aria-controls="'menu-'+props.id"
     ref="btnRef"
+    :data-testid="`action-menu-btn-${props.id}`"
   >
     <Ellipsis class="w-4 h-4" />
   </button>
@@ -127,6 +143,7 @@
         class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
         @click="handleEditCompany"
         role="menuitem"
+        :data-testid="`action-edit-sponsor-${props.id}`"
       >
         <PenLine class="w-4 h-4" /> Edit Sponsor
       </button>
@@ -135,6 +152,7 @@
         class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
         @click="handleEditContacts"
         role="menuitem"
+        :data-testid="`action-edit-contacts-${props.id}`"
       >
         <Users class="w-4 h-4" /> Edit Contact
       </button>
@@ -143,6 +161,7 @@
         class="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
         @click="handleToggleStatus"
         role="menuitem"
+        :data-testid="`action-toggle-status-${props.id}`"
       >
         <template v-if="props.status === 'active'">
           <Slash class="w-4 h-4"/> Set Inactive
@@ -158,6 +177,7 @@
         class="flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-500 w-full text-left"
         @click="handleDelete"
         role="menuitem"
+        :data-testid="`action-delete-${props.id}`"
       >
         <Trash class="w-4 h-4" /> Delete
       </button>

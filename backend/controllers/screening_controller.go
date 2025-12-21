@@ -15,6 +15,7 @@ func GetAllScreenings(c *gin.Context) {
 		Preload("ApplicationScholarship.Application.StudentProfile").
 		Preload("ApplicationScholarship.Scholarship").
         Preload("ApplicationScholarship.Scholarship.Semaster").
+        Order("created_at desc").
 		Find(&screenings).Error
 
 	if err != nil {

@@ -20,7 +20,6 @@ export interface NewsPost {
 
     CreatedAt: string;
     UpdatedAt: string;
-    DeletedAt?: string | null;
 }
 
 // 2. Interface สำหรับ Response Body ที่ Go Backend ส่งจาก GetNewsPostByID
@@ -51,7 +50,7 @@ export interface CreateNewsPostPayload {
 
     file_path?: null | File; 
     admin_id: number;
-    admin_profile?: AdminProfileResponse;
+    //admin_profile?: AdminProfileResponse;
     scholarship_id: number | null;
     status_news_id: number;
 }

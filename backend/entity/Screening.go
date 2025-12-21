@@ -15,7 +15,7 @@ type Screening struct {
 	StatusScreening   StatusScreening `json:"status_screening" gorm:"foreignKey:StatusScreeningID"`
 
 	// ---------- Reject Reason ----------
-	RejectionReason *string `json:"rejection_reason" valid:"optional,stringlength(1|255)~Reason too long"`
+	RejectionReason *string `json:"rejection_reason" valid:"optional,stringlength(1|100)~You must provide a rejection reason with length between 1 and 100 characters"`
 	
 	// ---------- Application Scholarship ----------
 	ApplicationScholarshipID uint                   `json:"application_scholarship_id" gorm:"not null" valid:"required"`
