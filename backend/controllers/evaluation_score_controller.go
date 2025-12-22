@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
 	"net/http"
 	"strconv"
 
@@ -38,6 +39,15 @@ func AddEvaluationScore(ctx *gin.Context) {
 		ScoreValue:            inputValues.ScoreValue,
 		Comment:               inputValues.Comment,
 		ScoringAdminID:        inputValues.ScoringAdminID,
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&score); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	// เริ่มต้นการดำเนินการฐานข้อมูล
