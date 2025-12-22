@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
 	"net/http"
 	"strconv"
 
@@ -94,6 +95,15 @@ func CreateEvaluation(ctx *gin.Context) {
 		Status:                   entity.EvaluationStatusPending,
 		TotalScore:               0,
 		Remark:                   inputValues.Remark,
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&evaluation); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	// เริ่มต้นการดำเนินการฐานข้อมูล
