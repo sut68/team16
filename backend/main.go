@@ -67,6 +67,10 @@ func main() {
 		&entity.IntervieweBooking{},
 		&entity.Location{},
 		&entity.InterviewMode{},
+		&entity.EvaluationScore{},
+		&entity.Evaluation{},
+		&entity.InterviewRoundCriterion{},
+		&entity.EvaluationCriterion{},
 	); err != nil {
 		log.Fatalf("DropTable failed: %v", err)
 	}
@@ -110,6 +114,10 @@ func main() {
 		&entity.IntervieweBooking{},
 		&entity.Location{},
 		&entity.InterviewMode{},
+		&entity.EvaluationCriterion{},
+		&entity.InterviewRoundCriterion{},
+		&entity.Evaluation{},
+		&entity.EvaluationScore{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -242,6 +250,33 @@ func main() {
 		// Student Favorite News
 		api.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
 		api.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+
+		// Evaluation System (ระบบพิจารณาผู้รับทุน)
+		// Evaluation Criteria
+		api.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
+		api.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
+		api.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
+		api.PUT("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
+		api.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
+
+		// Interview Round Criteria (เกณฑ์ในแต่ละรอบสัมภาษณ์)
+		api.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
+		api.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
+		api.PUT("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
+		api.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
+
+		// Evaluations (การประเมินผู้สมัคร)
+		api.GET("/evaluations", controllers.GetAllEvaluations)
+		api.GET("/evaluations/:id", controllers.GetEvaluationByID)
+		api.POST("/evaluations", controllers.CreateEvaluation)
+		api.PUT("/evaluations/:id", controllers.UpdateEvaluation)
+		api.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
+		api.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
+
+		// Evaluation Scores (คะแนนรายเกณฑ์)
+		api.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
+		api.PUT("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
+		api.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
 
 	}
 
