@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
 	"net/http"
 	"strconv"
 
@@ -65,6 +66,15 @@ func AddCriterionToInterviewRound(ctx *gin.Context) {
 		EvaluationCriterionID: inputValues.EvaluationCriterionID,
 		Weight:                weight,
 		IsEnabled:             inputValues.IsEnabled,
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&roundCriterion); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	// เริ่มต้นการดำเนินการฐานข้อมูล
