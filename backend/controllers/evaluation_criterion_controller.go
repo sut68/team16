@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/validators"
 	"net/http"
 	"strconv"
 
@@ -81,6 +82,15 @@ func CreateEvaluationCriterion(ctx *gin.Context) {
 		MaxScore:    maxScore,
 		Weight:      weight,
 		IsActive:    inputValues.IsActive,
+	}
+
+	// Validate
+	if err := validators.ValidateStruct(&criterion); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "validation failed",
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	// เริ่มต้นการดำเนินการฐานข้อมูล
