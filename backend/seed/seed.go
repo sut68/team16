@@ -88,12 +88,12 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	if err := approval.SeedApplications(db); err != nil {
-		return err
-	}
-	if err := approval.SeedApplicationScholarships(db); err != nil {
-		return err
-	} 
+	// if err := approval.SeedApplications(db); err != nil {
+	// 	return err
+	// }
+	// if err := approval.SeedApplicationScholarships(db); err != nil {
+	// 	return err
+	// } 
 
 	// if err := approval.SeedApplicationDocuments(db); err != nil {
 	// 	return err
