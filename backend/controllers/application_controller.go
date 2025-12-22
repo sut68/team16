@@ -175,7 +175,18 @@ func GetStudentApplications(ctx *gin.Context) {
 		return
 	}
 
+	// Process status for each application
+	// Only compute status dynamically if it's not already set in database
 	for i := range appScholarships {
+		existingStatus := appScholarships[i].Status
+
+		// If status is already determined (qualified, rejected, approved, etc.), keep it
+		if existingStatus == "qualified" || existingStatus == "rejected" ||
+			existingStatus == "approved" || existingStatus == "completed" {
+			continue // Use the status from database
+		}
+
+		// For other statuses (new, pending, empty), compute based on documents
 		isQualified := true
 		if len(appScholarships[i].ApplicationDocuments) == 0 {
 			isQualified = false
@@ -184,13 +195,12 @@ func GetStudentApplications(ctx *gin.Context) {
 			isDocApproved := false
 			hasReject := false
 			for _, task := range doc.ApprovalTasks {
-				for _, decision := range task.ApprovalDecisions {
-					if decision.Decision == "approve" {
-						isDocApproved = true
-					}
-					if decision.Decision == "reject" {
-						hasReject = true
-					}
+				// Check task status instead of iterating all decisions
+				if task.Status == "approved" {
+					isDocApproved = true
+				}
+				if task.Status == "rejected" {
+					hasReject = true
 				}
 			}
 			if !isDocApproved || hasReject {
@@ -198,9 +208,9 @@ func GetStudentApplications(ctx *gin.Context) {
 				break
 			}
 		}
-		if isQualified {
+		if isQualified && len(appScholarships[i].ApplicationDocuments) > 0 {
 			appScholarships[i].Status = "qualified"
-		} else {
+		} else if existingStatus == "" {
 			appScholarships[i].Status = "pending"
 		}
 	}

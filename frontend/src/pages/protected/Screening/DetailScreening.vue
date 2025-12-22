@@ -212,14 +212,36 @@ const screeningCriteria = computed(() => {
             const fatherInc = Number(family.father_income || 0);
             const motherInc = Number(family.mother_income || 0);
             const guardianInc = Number(family.guardian_income || 0);
-            const totalFamilyIncome = fatherInc + motherInc + guardianInc;
+            const guardianIsParent = family.guardian_is_parent || '';
+            
+            // Only count guardian income if guardian is "other" (not father or mother)
+            // This prevents counting the same income twice
+            let totalFamilyIncome = fatherInc + motherInc;
+            if (guardianIsParent === 'other' || guardianIsParent === '') {
+              // Only add guardian income if it's a different person
+              // Check if guardian name is different from father/mother name
+              const guardianName = family.guardian_name || '';
+              const fatherName = family.father_name || '';
+              const motherName = family.mother_name || '';
+              if (guardianName && guardianName !== fatherName && guardianName !== motherName) {
+                totalFamilyIncome += guardianInc;
+              }
+            }
 
             if (fullTextToCheck.includes('ต่อคน') || fullTextToCheck.includes('เฉลี่ย') || fullTextToCheck.includes('สมาชิก')) {
                 let parentCount = 0;
                 if (fatherInc > 0 || family.father_name) parentCount++;
                 if (motherInc > 0 || family.mother_name) parentCount++;
-                if (parentCount === 0 && (guardianInc > 0 || family.guardian_name)) parentCount = 1;
-                if (parentCount === 0) parentCount = 2; 
+                // Only count guardian as additional person if they are "other"
+                if (guardianIsParent === 'other' && (guardianInc > 0 || family.guardian_name)) {
+                  const guardianName = family.guardian_name || '';
+                  const fatherName = family.father_name || '';
+                  const motherName = family.mother_name || '';
+                  if (guardianName && guardianName !== fatherName && guardianName !== motherName) {
+                    parentCount++;
+                  }
+                }
+                if (parentCount === 0) parentCount = 1; 
 
                 const totalMembers = 1 + Number(student.siblings_count || 0) + parentCount;
                 studentValueNum = totalFamilyIncome / (totalMembers > 0 ? totalMembers : 1);

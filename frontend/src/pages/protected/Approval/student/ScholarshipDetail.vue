@@ -161,11 +161,30 @@ const submitApplication = async () => {
   }
 };
 
-// Calculate total family income
+// Calculate total family income - avoid double counting if guardian is father/mother
 const totalFamilyIncome = computed(() => {
-  return (editableData.value.father_income || 0) + 
-         (editableData.value.mother_income || 0) + 
-         (editableData.value.guardian_income || 0);
+  const fatherInc = editableData.value.father_income || 0;
+  const motherInc = editableData.value.mother_income || 0;
+  const guardianInc = editableData.value.guardian_income || 0;
+  const guardianIsParent = familyData.value?.guardian_is_parent || '';
+  
+  // Base income = father + mother
+  let total = fatherInc + motherInc;
+  
+  // Only add guardian income if guardian is "other" (not father or mother)
+  if (guardianIsParent === 'other' || guardianIsParent === '') {
+    // Check if guardian is actually a different person by name
+    const guardianName = familyData.value?.guardian_name || '';
+    const fatherName = familyData.value?.father_name || '';
+    const motherName = familyData.value?.mother_name || '';
+    
+    if (guardianName && guardianName !== fatherName && guardianName !== motherName) {
+      total += guardianInc;
+    }
+  }
+  // If guardian_is_parent is "father" or "mother", don't add guardian income (already counted)
+  
+  return total;
 });
 
 onMounted(fetchScholarships);
@@ -352,7 +371,27 @@ onMounted(fetchScholarships);
           <!-- Guardian -->
           <div class="p-3 bg-slate-50 rounded-lg">
             <p class="font-medium text-sm text-slate-600 mb-2">ผู้ปกครอง: {{ familyData?.guardian_name || '-' }} ({{ familyData?.guardian_relation || '-' }})</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            
+            <!-- If guardian is father or mother, show info message -->
+            <div v-if="familyData?.guardian_is_parent === 'father'" class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+              <p class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                ใช้ข้อมูลจาก<strong class="mx-1">บิดา</strong>- รายได้ไม่นับซ้ำ
+              </p>
+            </div>
+            <div v-else-if="familyData?.guardian_is_parent === 'mother'" class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+              <p class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                ใช้ข้อมูลจาก<strong class="mx-1">มารดา</strong>- รายได้ไม่นับซ้ำ
+              </p>
+            </div>
+            
+            <!-- If guardian is other or not set, show editable fields -->
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div class="form-control">
                 <label class="label py-0"><span class="label-text text-xs">อาชีพ</span></label>
                 <input v-model="editableData.guardian_occupation" type="text" class="input input-bordered input-sm bg-white" />

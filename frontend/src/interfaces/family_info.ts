@@ -17,5 +17,7 @@ export interface FamilyInfoResponse {
   guardian_occupation: string;
   guardian_income: number;
   guardian_relation: string;
+  // "father" = ผู้ปกครองคือบิดา, "mother" = ผู้ปกครองคือมารดา, "" = บุคคลอื่น
+  guardian_is_parent: string;
   
 }
