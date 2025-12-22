@@ -13,6 +13,9 @@ type AdminProfile struct {
 	UserID uint `json:"user_id" valid:"required~User ID is required"`
 	User   User `gorm:"foreignKey:UserID;references:ID" json:"user" valid:"-"`
 
-	ApprovalTasks   []ApprovalTask   `gorm:"foreignKey:AdminID" json:"approval_tasks" valid:"-"`
-	InterviewRounds []InterviewRound `gorm:"foreignKey:AdminProfileID" json:"interview_rounds" valid:"-"`
+	ApprovalTasks     []ApprovalTask    `gorm:"foreignKey:AdminID" json:"approval_tasks" valid:"-"`
+	InterviewRounds   []InterviewRound  `gorm:"foreignKey:AdminProfileID" json:"interview_rounds" valid:"-"`
+	
+	Evaluations       []Evaluation      `gorm:"foreignKey:AdminID" json:"evaluations" valid:"-"`
+	ScoredEvaluations []EvaluationScore `gorm:"foreignKey:ScoringAdminID" json:"scored_evaluations" valid:"-"`
 }
