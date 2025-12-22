@@ -258,6 +258,16 @@ func CreateApplicationDocument(ctx *gin.Context) {
 			return
 		}
 
+		// Reset ApplicationScholarship status to pending when new document is uploaded
+		// This ensures the status chain is properly reset for re-review
+		if err := tx.Model(&entity.ApplicationScholarship{}).
+			Where("id = ?", appScholarshipID).
+			Update("status", "pending").Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status: " + err.Error()})
+			return
+		}
+
 	} else {
 
 		newTask := entity.ApprovalTask{
@@ -403,10 +413,75 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Create(&decision).Error; err != nil {
+	tx := config.DB.Begin()
+
+	if err := tx.Create(&decision).Error; err != nil {
+		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Update ApprovalTask status based on decision
+	taskStatus := "pending"
+	if input.Decision == "approve" {
+		taskStatus = "approved"
+	} else if input.Decision == "reject" {
+		taskStatus = "rejected"
+	} else if input.Decision == "request-change" {
+		taskStatus = "request-change"
+	}
+
+	if err := tx.Model(&entity.ApprovalTask{}).Where("id = ?", input.TaskID).Update("status", taskStatus).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task status"})
+		return
+	}
+
+	// If decision is "approve", check if all documents for this application are approved
+	// If so, update ApplicationScholarship.status to "qualified"
+	if input.Decision == "approve" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+
+			// Count documents that are NOT approved for this application
+			var pendingCount int64
+			tx.Model(&entity.ApprovalTask{}).
+				Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+				Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+				Where("approval_tasks.status != ?", "approved").
+				Count(&pendingCount)
+
+			// If all documents are approved (pendingCount == 0), set status to "qualified"
+			if pendingCount == 0 {
+				if err := tx.Model(&entity.ApplicationScholarship{}).
+					Where("id = ?", appScholarshipID).
+					Update("status", "qualified").Error; err != nil {
+					tx.Rollback()
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
+					return
+				}
+			}
+		}
+	}
+
+	// If decision is "reject", update ApplicationScholarship.status to "rejected"
+	if input.Decision == "reject" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+			tx.Model(&entity.ApplicationScholarship{}).
+				Where("id = ?", appScholarshipID).
+				Update("status", "rejected")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed"})
+		return
+	}
+
 	ctx.JSON(http.StatusCreated, decision)
 }
 
