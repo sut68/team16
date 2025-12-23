@@ -2,8 +2,10 @@ package entity
 
 import (
 	"time"
+
 	"gorm.io/gorm"
 )
+
 type InterviewRound struct {
 	gorm.Model
 	Name string `gorm:"unique;not null" json:"name"`
@@ -23,5 +25,7 @@ type InterviewRound struct {
 
 	MeetingLink string `json:"meeting_link"`
 
-	Slots []Slot `gorm:"foreignKey:InterviewRoundID" json:"slots"`
+	Slots                  []Slot                    `gorm:"foreignKey:InterviewRoundID" json:"slots"`
+	InterviewRoundCriteria []InterviewRoundCriterion `gorm:"foreignKey:InterviewRoundID" json:"interview_round_criteria"`
+	Evaluations            []Evaluation              `gorm:"foreignKey:InterviewRoundID" json:"evaluations"`
 }

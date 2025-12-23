@@ -4,7 +4,8 @@ import "gorm.io/gorm"
 
 type ApplicationScholarship struct {
 	gorm.Model
-	Status string `json:"status"`
+	Status            string  `json:"status"`
+	ApplicationReason *string `gorm:"type:text" json:"application_reason"` // เหตุผลในการสมัครทุน/เล่าเรื่องราว
 
 	ApplicationID uint        `json:"application_id"`
 	Application   Application `gorm:"foreignKey:ApplicationID" json:"application"`
@@ -13,5 +14,11 @@ type ApplicationScholarship struct {
 	Scholarship   Scholarship `gorm:"foreignKey:ScholarshipID" json:"scholarship"`
 
 	ApplicationDocuments []ApplicationDocument `gorm:"foreignKey:ApplicationScholarshipID" json:"application_documents"`
-	IntervieweBookings  []IntervieweBooking   `gorm:"foreignKey:ApplicationScholarshipID" json:"interviewe_bookings"`
+	IntervieweBookings   []IntervieweBooking   `gorm:"foreignKey:ApplicationScholarshipID" json:"interviewe_bookings"`
+	Screening            *Screening            `gorm:"foreignKey:ApplicationScholarshipID" json:"screening"`
+	
+	// ผลการประเมิน
+	Evaluations          []Evaluation          `gorm:"foreignKey:ApplicationScholarshipID" json:"evaluations"`
+	FinalTotalScore      float64               `json:"final_total_score"`
+	FinalDecision        string                `gorm:"type:varchar(20);default:'pending'" json:"final_decision"`
 }

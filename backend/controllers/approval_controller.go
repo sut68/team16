@@ -3,14 +3,15 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"backend/config"
 	"backend/entity"
 	"backend/validators"
-
-	"github.com/gin-gonic/gin"
 )
 
 func GetApprovalTasks(ctx *gin.Context) {
@@ -70,7 +71,7 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Status  *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
+		Status *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -197,7 +198,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
-	filePath := fmt.Sprintf("uploads/%s", uniqueFileName)
+	filePath := fmt.Sprintf("uploads/application/%s", uniqueFileName)
 
 	// --- 2. Create ApplicationDocument record ---
 	document := entity.ApplicationDocument{
@@ -207,7 +208,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		UploadedBy:               uploadedBy,
 		ApplicationScholarshipID: uint(appScholarshipID),
 	}
-	
+
 	if err := validators.ValidateStruct(&document); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",
@@ -218,12 +219,16 @@ func CreateApplicationDocument(ctx *gin.Context) {
 
 	tx := config.DB.Begin()
 
+	// Ensure upload directory exists
+	if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
+		os.MkdirAll("uploads/application", 0755)
+	}
+
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
 		return
 	}
-
 
 	if err := tx.Create(&document).Error; err != nil {
 		tx.Rollback()
@@ -233,7 +238,7 @@ func CreateApplicationDocument(ctx *gin.Context) {
 
 	// --- 3. Create associated ApprovalTask ---
 	var existingTask entity.ApprovalTask
-	
+
 	errTask := tx.Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
 		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
 		First(&existingTask).Error
@@ -247,9 +252,19 @@ func CreateApplicationDocument(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing task: " + err.Error()})
 			return
 		}
-		
+
+		// Reset ApplicationScholarship status to pending when new document is uploaded
+		// This ensures the status chain is properly reset for re-review
+		if err := tx.Model(&entity.ApplicationScholarship{}).
+			Where("id = ?", appScholarshipID).
+			Update("status", "pending").Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status: " + err.Error()})
+			return
+		}
+
 	} else {
-		
+
 		newTask := entity.ApprovalTask{
 			Status:     "pending",
 			DocumentID: document.ID,
@@ -394,14 +409,73 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Create(&decision).Error; err != nil {
+	tx := config.DB.Begin()
+
+	if err := tx.Create(&decision).Error; err != nil {
+		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Preload associated data for the response
-	if err := config.DB.Preload("ApprovalTask").Preload("Admin").First(&decision, decision.ID).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reload decision data"})
+	// Update ApprovalTask status based on decision
+	taskStatus := "pending"
+	switch input.Decision {
+	case "approve":
+		taskStatus = "approved"
+	case "reject":
+		taskStatus = "rejected"
+	case "request-change":
+		taskStatus = "request-change"
+	}
+
+	if err := tx.Model(&entity.ApprovalTask{}).Where("id = ?", input.TaskID).Update("status", taskStatus).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task status"})
+		return
+	}
+
+	// If decision is "approve", check if all documents for this application are approved
+	// If so, update ApplicationScholarship.status to "qualified"
+	if input.Decision == "approve" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+
+			// Count documents that are NOT approved for this application
+			var pendingCount int64
+			tx.Model(&entity.ApprovalTask{}).
+				Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+				Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+				Where("approval_tasks.status != ?", "approved").
+				Count(&pendingCount)
+
+			// If all documents are approved (pendingCount == 0), set status to "qualified"
+			if pendingCount == 0 {
+				if err := tx.Model(&entity.ApplicationScholarship{}).
+					Where("id = ?", appScholarshipID).
+					Update("status", "qualified").Error; err != nil {
+					tx.Rollback()
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
+					return
+				}
+			}
+		}
+	}
+
+	// If decision is "reject", update ApplicationScholarship.status to "rejected"
+	if input.Decision == "reject" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+			tx.Model(&entity.ApplicationScholarship{}).
+				Where("id = ?", appScholarshipID).
+				Update("status", "rejected")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed"})
 		return
 	}
 
@@ -429,7 +503,7 @@ func UpdateApprovalDecision(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	if err := validators.ValidateStruct(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",

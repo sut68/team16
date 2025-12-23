@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { createNewsPost } from '@/services/api/news_post';
-import { getScholarships } from '@/services/api/scholarship'; // เรียกใช้คืนมา
+import { getScholarships } from '@/services/api/scholarship';
+import { Get } from '@/services/api/https';
 import { validateNewsPostForm } from '@/validators/newspost_validators';
 import type { CreateNewsPostPayload } from '@/interfaces/news_post';
 
@@ -102,13 +103,17 @@ const handleSave = async () => {
 
 onMounted(async () => {
   performValidation();
-  // แก้ไข warning: เรียกใช้ getScholarships และแมพข้อมูลตาม logic เดิมของคุณ
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    const user = JSON.parse(userData);
-    // ✅ ต้องใช้ ID ของโปรไฟล์ (เลข 2) ไม่ใช่ไอดีล็อกอิน (เลข 3)
-    form.value.admin_id = user.admin_profile_id; 
+  
+  // ดึง admin profile จาก API เพื่อให้ได้ ID ที่ถูกต้อง
+  try {
+    const profileRes: any = await Get('/profile/me');
+    if (profileRes && profileRes.role === 'admin' && profileRes.data) {
+      form.value.admin_id = profileRes.data.ID;
+    }
+  } catch (e) {
+    console.error('Error fetching admin profile:', e);
   }
+  
   try {
     const res: any = await getScholarships();
     const data = Array.isArray(res) ? res : (res.data || []);

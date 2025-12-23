@@ -1,9 +1,6 @@
 package controllers
 
 import (
-	"backend/config"
-	"backend/entity"
-	"backend/services"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"backend/config"
+	"backend/entity"
+	"backend/services"
 )
 
 // Helper (Copy มาหรือ Import ก็ได้)
@@ -41,7 +42,8 @@ func GetMyProfile(c *gin.Context) {
 		return
 	}
 
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var student entity.StudentProfile
 		// Preload FamilyInfo ด้วย เพื่อส่งไปให้ครบ
 		if err := config.DB.Preload("Major").Preload("FamilyInfo").Where("user_id = ?", userID).First(&student).Error; err != nil {
@@ -51,12 +53,12 @@ func GetMyProfile(c *gin.Context) {
 		// ส่งข้อมูลกลับแบบ Flatten เล็กน้อยเพื่อให้ Frontend ใช้ง่าย
 		// หรือส่ง struct student ตรงๆ ก็ได้ เพราะเรา Preload FamilyInfo เข้าไปใน student แล้ว
 		c.JSON(http.StatusOK, gin.H{
-			"role": "student", 
-			"data": student, 
+			"role":   "student",
+			"data":   student,
 			"family": student.FamilyInfo, // ส่งแยกด้วยเผื่อ Frontend เรียกใช้ง่ายๆ
 		})
 
-	} else if user.Role.Name == "admin" {
+	case "admin":
 		var admin entity.AdminProfile
 		if err := config.DB.Preload("User").Where("user_id = ?", userID).First(&admin).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
@@ -78,7 +80,8 @@ func UpdateMyProfile(c *gin.Context) {
 	config.DB.Preload("Role").First(&user, userID)
 
 	// 1. STUDENT UPDATE
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var student entity.StudentProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&student).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
@@ -116,7 +119,7 @@ func UpdateMyProfile(c *gin.Context) {
 		student.CurrentAddress = input.CurrentAddress
 		student.Province = input.Province
 		student.SiblingsCount = input.SiblingsCount
-		
+
 		if err := tx.Save(&student).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Update profile failed"})
@@ -126,7 +129,7 @@ func UpdateMyProfile(c *gin.Context) {
 		// Update/Create Family Info
 		var family entity.FamilyInfo
 		err := tx.Where("profile_id = ?", student.ID).First(&family).Error
-		
+
 		// Map Data from Input
 		family.FatherName = input.FamilyInfo.FatherName
 		family.FatherOccupation = input.FamilyInfo.FatherOccupation
@@ -138,6 +141,7 @@ func UpdateMyProfile(c *gin.Context) {
 		family.GuardianRelation = input.FamilyInfo.GuardianRelation
 		family.GuardianOccupation = input.FamilyInfo.GuardianOccupation
 		family.GuardianIncome = input.FamilyInfo.GuardianIncome
+		family.GuardianIsParent = input.FamilyInfo.GuardianIsParent // "father", "mother", or "other"
 
 		if err == gorm.ErrRecordNotFound {
 			// Create New
@@ -159,8 +163,8 @@ func UpdateMyProfile(c *gin.Context) {
 		tx.Commit()
 		c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 
-	// 2. ADMIN UPDATE (Personal)
-	} else if user.Role.Name == "admin" {
+		// 2. ADMIN UPDATE (Personal)
+	case "admin":
 		var admin entity.AdminProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})

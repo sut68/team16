@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
+import { Get } from '@/services/api/https';
 
 // 2. ประกาศตัวแปรเพื่อรับค่า (แก้ปัญหา Type Error)
 const SuryaGraphic = SuryaGraphicImport;
@@ -10,15 +11,22 @@ interface TabItem {
   label: string;
 }
 
-interface Scholarship {
-  id: number;
+interface NewsPost {
+  ID: number;
   title: string;
-  description: string;
-  amount: string;
-  category: 'bachelor' | 'master' | 'doctoral' | 'inter';
+  post_detail: string;
+  scholarship: {
+    sponsor: {
+      company_name: string; // Corrected from sponsor_name
+    };
+    typescholarship: {
+      type_name: string;
+    };
+  };
 }
 
 const activeTab = ref<string>('bachelor');
+const newsPosts = ref<NewsPost[]>([]);
 
 const tabs: TabItem[] = [
   { id: 'bachelor', label: 'ปริญญาตรี' },
@@ -27,46 +35,38 @@ const tabs: TabItem[] = [
   { id: 'inter', label: 'International' },
 ];
 
-const scholarships: Scholarship[] = [
-  {
-    id: 1,
-    title: 'ทุนกล้าจน (SUT Low Income)',
-    description: 'ทุนสนับสนุนค่าหน่วยกิต 100% สำหรับนักศึกษาที่มีความประพฤติดีแต่ขาดแคลนทุนทรัพย์',
-    amount: 'ทุน 100%',
-    category: 'bachelor',
-  },
-  {
-    id: 2,
-    title: 'ทุนศักยภาพทางวิชาการ',
-    description: 'สำหรับผู้มีผลการเรียนดีเยี่ยม (GPAX 3.50+) รับทุนตลอดหลักสูตร',
-    amount: 'ทุนเต็มจำนวน',
-    category: 'bachelor',
-  },
-  {
-    id: 3,
-    title: 'ทุนวิจัยระดับบัณฑิตศึกษา',
-    description: 'สนับสนุนงานวิจัยและค่าเล่าเรียนสำหรับปริญญาโท',
-    amount: 'ค่าเล่าเรียน + เบี้ยเลี้ยง',
-    category: 'master',
-  },
-  {
-    id: 4,
-    title: 'Royal Golden Jubilee (RGJ)',
-    description: 'โครงการปริญญาเอกกาญจนาภิเษก เพื่อสร้างนักวิจัยระดับสูง',
-    amount: 'ทุนวิจัยเต็มจำนวน',
-    category: 'doctoral',
-  },
-  {
-    id: 5,
-    title: 'ASEAN Scholarship',
-    description: 'Full scholarship for students from ASEAN member countries.',
-    amount: 'Full Tuition',
-    category: 'inter',
-  },
-];
+const fetchNews = async () => {
+  try {
+    // Use Get with requireAuth = false to avoid token warning and headers
+    const response = await Get('/newsposts', false);
+    if (response) {
+      newsPosts.value = response;
+    }
+  } catch (error) {
+    console.error('Error fetching news:', error);
+  }
+};
+
+onMounted(() => {
+  fetchNews();
+});
 
 const filteredScholarships = computed(() => {
-  return scholarships.filter((s) => s.category === activeTab.value);
+  // Debug: Log data to see what we got
+  console.log('News Data:', newsPosts.value);
+  
+  // Return all news for now because backend types (Full/Partial) don't match tabs (Bachelor/Master)
+  return newsPosts.value; 
+
+  /* 
+  const currentTabLabel = tabs.find(t => t.id === activeTab.value)?.label;
+  if (!currentTabLabel) return [];
+  
+  return newsPosts.value.filter((n) => {
+    // Optional chaining in case of missing data
+    return n.scholarship?.typescholarship?.type_name === currentTabLabel;
+  });
+  */
 });
 
 const setActiveTab = (id: string) => {
@@ -144,7 +144,8 @@ const setActiveTab = (id: string) => {
         <div class="md:w-1/2 flex justify-center relative">
           <div
             class="w-72 h-80 md:w-96 md:h-96 bg-gradient-to-tr from-[#EEEEEE] to-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/20 flex items-center justify-center relative shadow-2xl">
-            <span class="text-white/40 font-bold text-2xl">Presenter Image</span>
+            <!-- <span class="text-white/40 font-bold text-2xl">Presenter Image</span> -->
+            <img src="http://localhost:8080/uploads/news/Bodyslam1859.jpg" alt="Presenter" class="w-full h-full object-cover rounded-2xl" />
 
             <div
               class="absolute -top-4 -right-4 bg-[#253C90] text-white px-4 py-3 rounded-lg shadow-lg font-bold animate-bounce border border-white/30">
@@ -182,22 +183,22 @@ const setActiveTab = (id: string) => {
       </div>
 
       <div v-if="filteredScholarships.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="homepage-scholarships-grid">
-        <div v-for="scholarship in filteredScholarships" :key="scholarship.id"
+        <div v-for="news in filteredScholarships" :key="news.ID"
           class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-xl transition group cursor-pointer relative overflow-hidden"
-          :data-testid="`homepage-scholarship-card-${scholarship.id}`">
+          :data-testid="`homepage-scholarship-card-${news.ID}`">
           <div class="absolute top-0 left-0 w-2 h-full bg-[#F26522] group-hover:w-3 transition-all"></div>
 
-          <h3 class="text-xl font-bold text-[#253C90] mb-2 group-hover:text-[#F26522] transition">{{ scholarship.title
+          <h3 class="text-xl font-bold text-[#253C90] mb-2 group-hover:text-[#F26522] transition">{{ news.title
             }}</h3>
-          <p class="text-gray-600 mb-4 font-light">{{ scholarship.description }}</p>
+          <p class="text-gray-600 mb-4 font-light line-clamp-2">{{ news.post_detail }}</p>
 
           <div class="flex items-center justify-between mt-4">
             <span class="text-[#8B001D] font-bold bg-[#F26522]/10 px-3 py-1 rounded-full text-sm">
-              {{ scholarship.amount }}
+              {{ news.scholarship?.sponsor?.company_name || 'ทุนการศึกษา' }}
             </span>
-            <button class="text-[#253C90] font-semibold text-sm hover:text-[#F26522] hover:underline">
+            <router-link to="/login" class="text-[#253C90] font-semibold text-sm hover:text-[#F26522] hover:underline">
               ดูรายละเอียด >
-            </button>
+            </router-link>
           </div>
         </div>
       </div>

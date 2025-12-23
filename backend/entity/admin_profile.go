@@ -15,4 +15,7 @@ type AdminProfile struct {
 
 	InterviewRounds []InterviewRound `gorm:"foreignKey:AdminProfileID" json:"interview_rounds" valid:"-"`
 	ApprovalDecisions []ApprovalDecision `gorm:"foreignKey:AdminID" json:"approval_decisions" valid:"-"`
+	
+	Evaluations       []Evaluation      `gorm:"foreignKey:AdminID" json:"evaluations" valid:"-"`
+	ScoredEvaluations []EvaluationScore `gorm:"foreignKey:ScoringAdminID" json:"scored_evaluations" valid:"-"`
 }

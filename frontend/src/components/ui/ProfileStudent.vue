@@ -69,10 +69,41 @@ function initFamily() {
     form.value.family_info = {
       father_name: '', father_occupation: '', father_income: 0,
       mother_name: '', mother_occupation: '', mother_income: 0,
-      guardian_name: '', guardian_relation: '', guardian_occupation: '', guardian_income: 0
+      guardian_name: '', guardian_relation: '', guardian_occupation: '', guardian_income: 0,
+      guardian_is_parent: '' // "father", "mother", or "other"
     };
   }
+  // Ensure guardian_is_parent exists for existing records
+  if (form.value.family_info && form.value.family_info.guardian_is_parent === undefined) {
+    form.value.family_info.guardian_is_parent = '';
+  }
 }
+
+// Handle guardian type change - copy data from father/mother if selected
+function onGuardianTypeChange() {
+  const guardianType = form.value.family_info.guardian_is_parent;
+  
+  if (guardianType === 'father') {
+    // Copy father data to guardian fields
+    form.value.family_info.guardian_name = form.value.family_info.father_name;
+    form.value.family_info.guardian_relation = 'บิดา';
+    form.value.family_info.guardian_occupation = form.value.family_info.father_occupation;
+    form.value.family_info.guardian_income = form.value.family_info.father_income;
+  } else if (guardianType === 'mother') {
+    // Copy mother data to guardian fields
+    form.value.family_info.guardian_name = form.value.family_info.mother_name;
+    form.value.family_info.guardian_relation = 'มารดา';
+    form.value.family_info.guardian_occupation = form.value.family_info.mother_occupation;
+    form.value.family_info.guardian_income = form.value.family_info.mother_income;
+  } else if (guardianType === 'other') {
+    // Clear guardian fields for new input
+    form.value.family_info.guardian_name = '';
+    form.value.family_info.guardian_relation = '';
+    form.value.family_info.guardian_occupation = '';
+    form.value.family_info.guardian_income = 0;
+  }
+}
+
 
 // 🟢 STRICT VALIDATION FUNCTION (Checks EVERY field)
 const validateForm = (): string | null => {
@@ -121,11 +152,16 @@ const validateForm = (): string | null => {
   if (!fam.mother_occupation?.trim()) return 'กรุณาระบุอาชีพ มารดา';
   if (fam.mother_income === undefined || fam.mother_income === null || fam.mother_income < 0) return 'กรุณาระบุรายได้มารดา (ใส่ 0 หากไม่มี)';
 
-  // Guardian
-  if (!fam.guardian_name?.trim()) return 'กรุณาระบุชื่อ-สกุล ผู้ปกครอง';
-  if (!fam.guardian_relation?.trim()) return 'กรุณาระบุความเกี่ยวข้องกับผู้ปกครอง';
-  if (!fam.guardian_occupation?.trim()) return 'กรุณาระบุอาชีพ ผู้ปกครอง';
-  if (fam.guardian_income === undefined || fam.guardian_income === null || fam.guardian_income < 0) return 'กรุณาระบุรายได้ผู้ปกครอง (ใส่ 0 หากไม่มี)';
+  // Guardian - first check if guardian type is selected
+  if (!fam.guardian_is_parent) return 'กรุณาเลือกว่าผู้ปกครองคือใคร (บิดา/มารดา/บุคคลอื่น)';
+  
+  // Only validate other guardian fields if user selected "other"
+  if (fam.guardian_is_parent === 'other') {
+    if (!fam.guardian_name?.trim()) return 'กรุณาระบุชื่อ-สกุล ผู้ปกครอง';
+    if (!fam.guardian_relation?.trim()) return 'กรุณาระบุความเกี่ยวข้องกับผู้ปกครอง';
+    if (!fam.guardian_occupation?.trim()) return 'กรุณาระบุอาชีพ ผู้ปกครอง';
+    if (fam.guardian_income === undefined || fam.guardian_income === null || fam.guardian_income < 0) return 'กรุณาระบุรายได้ผู้ปกครอง (ใส่ 0 หากไม่มี)';
+  }
 
   return null; // Passed validation
 };
@@ -405,16 +441,46 @@ const save = async () => {
 
       <div class="p-5 border rounded-2xl bg-white hover:border-blue-200 transition-colors shadow-sm">
         <h4 class="font-bold text-[#1e3a8a] border-b pb-2 mb-3 text-sm">ผู้ปกครอง</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Guardian Type Selector -->
+        <div class="form-control mb-4">
+          <label class="label text-xs font-semibold text-gray-700">ผู้ปกครองของคุณคือใคร? <span v-if="isEditing" class="text-red-500">*</span></label>
+          <select 
+            v-model="form.family_info.guardian_is_parent" 
+            :disabled="!isEditing"
+            class="select select-sm select-bordered w-full md:w-1/2"
+            @change="onGuardianTypeChange"
+          >
+            <option value="">-- กรุณาเลือก --</option>
+            <option value="father">บิดา (ใช้ข้อมูลจากบิดาข้างต้น)</option>
+            <option value="mother">มารดา (ใช้ข้อมูลจากมารดาข้างต้น)</option>
+            <option value="other">บุคคลอื่น (ระบุข้อมูลเพิ่มเติม)</option>
+          </select>
+        </div>
+
+        <!-- Info box when father/mother is selected -->
+        <div v-if="form.family_info.guardian_is_parent === 'father' || form.family_info.guardian_is_parent === 'mother'" 
+             class="alert bg-green-50 border border-green-200 text-green-700 text-xs mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>
+            ระบบจะใช้ข้อมูลจาก<strong>{{ form.family_info.guardian_is_parent === 'father' ? 'บิดา' : 'มารดา' }}</strong>เป็นผู้ปกครอง 
+            และจะไม่นับรายได้ซ้ำเมื่อคำนวณรายได้รวมครอบครัว
+          </span>
+        </div>
+
+        <!-- Guardian fields - only show when 'other' is selected -->
+        <div v-if="form.family_info.guardian_is_parent === 'other'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="form-control">
-            <label class="label text-xs">ชื่อ-นามสกุล <span v-if="isEditing" class="text-red-500">*</span></label>
+            <label class="label text-xs">ชื่อ-นามสกุลผู้ปกครอง <span v-if="isEditing" class="text-red-500">*</span></label>
             <input v-model="form.family_info.guardian_name" :disabled="!isEditing"
-              class="input input-sm input-bordered w-full" />
+              class="input input-sm input-bordered w-full" placeholder="เช่น นายสมศักดิ์ ใจดี" />
           </div>
           <div class="form-control">
             <label class="label text-xs">ความเกี่ยวข้อง <span v-if="isEditing" class="text-red-500">*</span></label>
             <input v-model="form.family_info.guardian_relation" :disabled="!isEditing"
-              class="input input-sm input-bordered w-full" />
+              class="input input-sm input-bordered w-full" placeholder="เช่น ปู่, ย่า, ลุง, ป้า" />
           </div>
           <div class="form-control">
             <label class="label text-xs">อาชีพ <span v-if="isEditing" class="text-red-500">*</span></label>
@@ -426,6 +492,18 @@ const save = async () => {
             <input v-model.number="form.family_info.guardian_income" type="number" min="0" :disabled="!isEditing"
               class="input input-sm input-bordered w-full" />
           </div>
+        </div>
+
+        <!-- Summary when father/mother is selected -->
+        <div v-if="form.family_info.guardian_is_parent === 'father'" class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+          <p><strong>ผู้ปกครอง:</strong> {{ form.family_info.father_name || '-' }}</p>
+          <p><strong>อาชีพ:</strong> {{ form.family_info.father_occupation || '-' }}</p>
+          <p><strong>รายได้:</strong> {{ (form.family_info.father_income || 0).toLocaleString() }} บาท/เดือน</p>
+        </div>
+        <div v-if="form.family_info.guardian_is_parent === 'mother'" class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+          <p><strong>ผู้ปกครอง:</strong> {{ form.family_info.mother_name || '-' }}</p>
+          <p><strong>อาชีพ:</strong> {{ form.family_info.mother_occupation || '-' }}</p>
+          <p><strong>รายได้:</strong> {{ (form.family_info.mother_income || 0).toLocaleString() }} บาท/เดือน</p>
         </div>
       </div>
     </div>

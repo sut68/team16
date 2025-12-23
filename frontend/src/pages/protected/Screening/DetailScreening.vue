@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { updateScreeningStatus } from '@/services/api/screening'; 
-// นำเข้า Validator
-import { validateScreeningStatusForm } from '@/validators/screening_validators';
+import { Get } from '@/services/api/https'; 
 
 const props = defineProps<{
     isOpen: boolean;
-    screeningData: any;
+    documentData: any;
 }>();
 
 const emit = defineEmits(['close', 'action-completed']);
@@ -15,23 +14,33 @@ const emit = defineEmits(['close', 'action-completed']);
 const comment = ref('');
 const actionType = ref<'approve' | 'reject' | null>(null);
 const isSubmitting = ref(false);
-// เพิ่ม state สำหรับเก็บ error
-const validationErrors = ref<{ rejection_reason?: string }>({});
+const currentUser = ref('');
+
+onMounted(async () => {
+    try {
+        const res = await Get('/profile/me');
+        if (res && res.data) {
+             const data = res.data;
+             if (data.admin_firstname) {
+                 currentUser.value = data.admin_firstname;
+             }
+        }
+    } catch (error) {
+        console.error('Error fetching current user:', error);
+    }
+});
 
 // --- Helper Functions ---
 const getRootData = () => {
-    if (props.screeningData && props.screeningData.data) {
-        return props.screeningData.data;
+    if (props.documentData && props.documentData.data) {
+        return props.documentData.data;
     }
-    return props.screeningData || {};
+    return props.documentData || {};
 };
 
 const parseGoDate = (dateString: string | undefined): Date | null => {
-    // แก้ไข Error บรรทัด 31: ใช้ safeDate เป็น string เสมอ
-    const safeDate: string = dateString ?? ""; 
-    if (!safeDate || safeDate === '0001-01-01T00:00:00Z') return null;
-    
-    let dateStr = safeDate;
+    if (!dateString || dateString === '0001-01-01T00:00:00Z') return null;
+    let dateStr = String(dateString);
     if (dateStr.includes(' m=')) {
         dateStr = dateStr.split(' m=')[0] as string;
     }
@@ -69,7 +78,8 @@ const mapOperatorToText = (op: string) => {
         case '<=': return 'ไม่เกิน';
         case '>': return 'มากกว่า';
         case '<': return 'น้อยกว่า';
-        case '=': case '==': return 'ต้องเท่ากับ';
+        case '=':
+        case '==': return '';
         default: return op;
     }
 };
@@ -77,45 +87,38 @@ const mapOperatorToText = (op: string) => {
 // --- Computed: Header Info ---
 const headerInfo = computed(() => {
     const root = getRootData();
-    const app = root.application || root.Application || {};
-    const student = app.student_profile || app.StudentProfile || {};
-
-    const scholarship =
-        root.application_scholarship?.scholarship ||
-        root.scholarship ||
-        root.Scholarship ||
-        {};
-
-    const sem = scholarship.semaster || scholarship.Semaster || {};
-
-    const yearVal = sem.academic_year || sem.AcademicYear || '';
-    const termVal = sem.term || sem.Term || '';
-    const roundVal = sem.round || '1';
-
-    const roundText = (yearVal && termVal)
-        ? `ปี: ${yearVal} เทอม: ${termVal} รอบ: ${roundVal}`
-        : `รอบ: ${roundVal}`;
-
+    // ดึงข้อมูลจาก application_scholarship ตาม API response
+    const appSch = root.application_scholarship || root.ApplicationScholarship || {};
+    const scholarship = appSch.scholarship || appSch.Scholarship || {};
+    const application = appSch.application || appSch.Application || {};
+    const student = application.student_profile || application.StudentProfile || {};
+    
     const statusId = root.StatusScreeningID || root.status_screening_id;
     let statusStr = root.status || 'pending';
-    if (statusId === 2) statusStr = 'approved';
-    if (statusId === 3) statusStr = 'rejected';
+    if(statusId === 2) statusStr = 'approved';
+    if(statusId === 3) statusStr = 'rejected';
+
+    // ดึงข้อมูล round จาก semaster
+    const semaster = scholarship.semaster || scholarship.Semaster || {};
+    const roundText = semaster.term && semaster.academic_year 
+        ? `${semaster.term}/${semaster.academic_year}` 
+        : (semaster.round || '1/2568');
 
     return {
         id: root.ID || '-',
         title: scholarship.scholarship_name || scholarship.ScholarshipName || 'ไม่ระบุชื่อทุน',
-        applicant: `${student.first_name_th || ''} ${student.last_name_th || ''}`.trim() || 'ไม่ระบุชื่อ',
+        applicant: `${student.first_name_th || student.FirstNameTH || ''} ${student.last_name_th || student.LastNameTH || ''}`.trim() || 'ไม่ระบุชื่อ',
         status: statusStr,
-        roundText
+        round: roundText
     };
 });
-
 
 // --- Computed: Timeline Logic ---
 const timelineEvents = computed(() => {
     const root = getRootData();
-    const events: any[] = []; 
+    const events: any[] = []; // Explicit type as any[] or define interface
     
+    // 1. Created Event
     const createdDate = parseGoDate(root.CreatedAt);
     const createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
 
@@ -129,6 +132,7 @@ const timelineEvents = computed(() => {
         timestamp: createdTs
     });
 
+    // 2. Determine Current State
     const status = headerInfo.value.status?.toLowerCase();
     const nowTs = Date.now();
     const updateDate = parseGoDate(root.UpdatedAt);
@@ -141,7 +145,7 @@ const timelineEvents = computed(() => {
             title: 'เจ้าหน้าที่กำลังตรวจสอบ',
             date: formatDate(root.UpdatedAt || root.CreatedAt),
             description: 'อยู่ในระหว่างการพิจารณาคุณสมบัติ',
-            actor: adminName,
+            actor: currentUser.value || adminName,
             status: 'current',
             timestamp: updateTs > createdTs ? updateTs : createdTs + 1000
         });
@@ -167,15 +171,21 @@ const timelineEvents = computed(() => {
         });
     }
 
+    // Sort
     events.sort((a, b) => b.timestamp - a.timestamp);
     
+    // Fix: Handle possible undefined array elements
     if (events.length > 0) {
         const first = events[0];
+        // ตรวจสอบ first ก่อนใช้งาน
         if (first && first.status !== 'past-approved' && first.status !== 'past-rejected') {
              if (first.status.startsWith('past')) first.status = 'current';
         }
+        
+        // Loop เริ่มที่ 1
         for(let i=1; i<events.length; i++) {
              const currentEvent = events[i];
+             // ตรวจสอบ currentEvent ก่อนใช้งาน
              if (currentEvent && currentEvent.status === 'current') {
                 currentEvent.status = 'past';
              }
@@ -188,13 +198,17 @@ const timelineEvents = computed(() => {
 // --- Computed: Criteria Logic ---
 const screeningCriteria = computed(() => {
     const root = getRootData();
-    const scholarship = root.scholarship || root.Scholarship || {};
-    const rawFeatures = scholarship.featurescholarships || scholarship.FeatureScholarships || []; 
+    // ดึงข้อมูลจาก application_scholarship.scholarship ตาม API response
+    const appSch = root.application_scholarship || root.ApplicationScholarship || {};
+    const scholarship = appSch.scholarship || appSch.Scholarship || root.scholarship || root.Scholarship || {};
+    const rawFeatures = scholarship.featurescholarships || scholarship.FeatureScholarships || scholarship.feature_scholarships || []; 
 
     if (!Array.isArray(rawFeatures) || rawFeatures.length === 0) return [];
 
-    const student = root.application?.student_profile || root.Application?.StudentProfile || {};
-    const family = student.family_info || {};
+    // ดึงข้อมูล student จาก application_scholarship.application.student_profile
+    const application = appSch.application || appSch.Application || root.application || {};
+    const student = application.student_profile || application.StudentProfile || {};
+    const family = student.family_info || student.FamilyInfo || {};
 
     return rawFeatures.map((item: any, index: number) => {
         const typeFeature = item.Typefeature || item.TypeFeature || {}; 
@@ -215,14 +229,36 @@ const screeningCriteria = computed(() => {
             const fatherInc = Number(family.father_income || 0);
             const motherInc = Number(family.mother_income || 0);
             const guardianInc = Number(family.guardian_income || 0);
-            const totalFamilyIncome = fatherInc + motherInc + guardianInc;
+            const guardianIsParent = family.guardian_is_parent || '';
+            
+            // Only count guardian income if guardian is "other" (not father or mother)
+            // This prevents counting the same income twice
+            let totalFamilyIncome = fatherInc + motherInc;
+            if (guardianIsParent === 'other' || guardianIsParent === '') {
+              // Only add guardian income if it's a different person
+              // Check if guardian name is different from father/mother name
+              const guardianName = family.guardian_name || '';
+              const fatherName = family.father_name || '';
+              const motherName = family.mother_name || '';
+              if (guardianName && guardianName !== fatherName && guardianName !== motherName) {
+                totalFamilyIncome += guardianInc;
+              }
+            }
 
             if (fullTextToCheck.includes('ต่อคน') || fullTextToCheck.includes('เฉลี่ย') || fullTextToCheck.includes('สมาชิก')) {
                 let parentCount = 0;
                 if (fatherInc > 0 || family.father_name) parentCount++;
                 if (motherInc > 0 || family.mother_name) parentCount++;
-                if (parentCount === 0 && (guardianInc > 0 || family.guardian_name)) parentCount = 1;
-                if (parentCount === 0) parentCount = 2; 
+                // Only count guardian as additional person if they are "other"
+                if (guardianIsParent === 'other' && (guardianInc > 0 || family.guardian_name)) {
+                  const guardianName = family.guardian_name || '';
+                  const fatherName = family.father_name || '';
+                  const motherName = family.mother_name || '';
+                  if (guardianName && guardianName !== fatherName && guardianName !== motherName) {
+                    parentCount++;
+                  }
+                }
+                if (parentCount === 0) parentCount = 1; 
 
                 const totalMembers = 1 + Number(student.siblings_count || 0) + parentCount;
                 studentValueNum = totalFamilyIncome / (totalMembers > 0 ? totalMembers : 1);
@@ -233,6 +269,10 @@ const screeningCriteria = computed(() => {
                 studentValueStr = formatNumber(studentValueNum) + ' บ.';
                 unit = 'บาท';
             }
+        } else if (fullTextToCheck.includes('ระยะเวลา') || fullTextToCheck.includes('duration') || fullTextToCheck.includes('ชั้นปี')) {
+            studentValueNum = parseInt(student.current_year || student.CurrentYear || '0');
+            studentValueStr = `ชั้นปีที่ ${studentValueNum}`;
+            unit = 'ปี';
         } else if (fullTextToCheck.includes('พี่น้อง')) {
             studentValueNum = parseInt(student.siblings_count || '0');
             studentValueStr = `${studentValueNum} คน`;
@@ -269,7 +309,6 @@ watch(() => props.isOpen, (val) => {
         comment.value = '';
         actionType.value = null;
         isSubmitting.value = false;
-        validationErrors.value = {}; // ล้าง error เมื่อเปิดใหม่
     }
 });
 
@@ -283,25 +322,17 @@ const submitAction = async (type: 'approve' | 'reject') => {
     if (!root.ID) return;
 
     let statusId = type === 'approve' ? 2 : 3;
-    const payload = {
-        status_screening_id: statusId,
-        rejection_reason: type === 'reject' ? comment.value.trim() : null
-    };
-
-    // --- เริ่มกระบวนการ Validation ---
-    validationErrors.value = {};
-    const result = validateScreeningStatusForm(payload);
-    
-    if (!result.valid) {
-        validationErrors.value = result.errors;
-        return; // หยุดการทำงานถ้าไม่ผ่าน
-    }
 
     isSubmitting.value = true;
     try {
-        await updateScreeningStatus(root.ID, payload);
+        await updateScreeningStatus(root.ID, {
+            status_screening_id: statusId,
+            rejection_reason: type === 'reject' ? comment.value.trim() : null
+        });
+
         emit('action-completed');
         closeModal();
+
     } catch (error) {
         console.error(error);
         alert('เกิดข้อผิดพลาดในการบันทึก');
@@ -333,7 +364,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                         <span>Task ID: #{{ headerInfo.id }}</span>
                         <span>•</span>
                         <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs">
-                            {{ headerInfo.roundText }}
+                            รอบ: {{ headerInfo.round }}
                         </span>
                         <span>•</span>
                         <span class="font-medium text-slate-700">{{ headerInfo.applicant }}</span>
@@ -395,7 +426,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         :disabled="isSubmitting || !isAllPassed"
                                         class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none shadow-sm disabled:bg-slate-200 disabled:text-slate-400">
                                         <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
-                                        <span v-if="!isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
+                                        <span v-else-if="!isAllPassed">คุณสมบัติไม่ครบถ้วน</span>
                                         <span v-else>ผ่านการคัดกรอง</span>
                                     </button>
                                     
@@ -410,20 +441,12 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         ระบุเหตุผลที่ปฏิเสธ:
                                     </p>
                                     <textarea v-model="comment" 
-                                        maxlength="255"
-                                        class="textarea textarea-bordered w-full h-24 text-sm focus:ring-error"
-                                        :class="validationErrors.rejection_reason ? 'border-red-500' : 'border-gray-300'"
+                                        class="textarea textarea-bordered w-full h-24 text-sm border-error focus:ring-error"
                                         placeholder="เช่น เกรดเฉลี่ยไม่ถึงเกณฑ์, รายได้เกินกำหนด..."></textarea>
-                                    
-                                    <p v-if="validationErrors.rejection_reason" class="text-red-500 text-[10px] font-bold mt-1">
-                                        {{ validationErrors.rejection_reason }}
-                                    </p>
-
                                     <div class="flex justify-end gap-2 mt-3">
                                         <button @click="actionType = null" class="btn btn-ghost btn-xs text-gray-500">ยกเลิก</button>
                                         <button @click="submitAction('reject')" 
-                                            :disabled="isSubmitting"
-                                            class="btn btn-sm btn-error text-white border-none shadow-sm">
+                                            class="btn btn-sm btn-error text-white border-none">
                                             ยืนยันผล
                                         </button>
                                     </div>

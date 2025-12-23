@@ -26,10 +26,8 @@ export const validateNewsPostForm = (payload: CreateNewsPostPayload) => {
     errors.file_path = 'กรุณาอัปโหลดรูปภาพหน้าปกข่าว';
   }
 
-  // ===== ทุนการศึกษา =====
-  if (payload.scholarship_id === null || payload.scholarship_id === undefined) {
-    errors.scholarship_id = 'กรุณาเลือกทุนการศึกษา';
-  }
+  // ===== ทุนการศึกษา ===== (Optional - ไม่บังคับ)
+  // ข่าวสารอาจไม่จำเป็นต้องผูกกับทุนการศึกษา
 
   // ===== สถานะข่าว =====
   const validStatuses = [1, 2, 3, 4, 5];

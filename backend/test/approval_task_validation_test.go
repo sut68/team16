@@ -10,14 +10,20 @@ import (
 
 // unit test for ApprovalTask
 
+var validDoc = entity.ApplicationDocument{
+	FileName:                 "document.pdf",
+	UploadedBy:               "Student",
+	ApplicationScholarshipID: 1,
+}
+
 // case: All fields are valid
 func TestApprovalTaskValidation_AllValid(t *testing.T) {
 	g := NewWithT(t)
 
 	task := entity.ApprovalTask{
-		Status:     "pending",
-		AdminID:    1,
-		DocumentID: 1,
+		Status:              "pending",
+		DocumentID:          1,
+		ApplicationDocument: validDoc,
 	}
 
 	err := validators.ValidateStruct(&task)
@@ -31,25 +37,9 @@ func TestApprovalTaskValidation_StatusEmpty(t *testing.T) {
 	g := NewWithT(t)
 
 	task := entity.ApprovalTask{
-		Status:     "", // Invalid
-		AdminID:    1,
-		DocumentID: 1,
-	}
-
-	err := validators.ValidateStruct(&task)
-
-	// Expect an error
-	g.Expect(err).ToNot(BeNil())
-}
-
-// case: AdminID is zero
-func TestApprovalTaskValidation_AdminIDZero(t *testing.T) {
-	g := NewWithT(t)
-
-	task := entity.ApprovalTask{
-		Status:     "pending",
-		AdminID:    0, // Invalid
-		DocumentID: 1,
+		Status:              "", // Invalid
+		DocumentID:          1,
+		ApplicationDocument: validDoc,
 	}
 
 	err := validators.ValidateStruct(&task)
@@ -63,9 +53,47 @@ func TestApprovalTaskValidation_DocumentIDZero(t *testing.T) {
 	g := NewWithT(t)
 
 	task := entity.ApprovalTask{
-		Status:     "pending",
-		AdminID:    1,
-		DocumentID: 0, // Invalid
+		Status:              "pending",
+		DocumentID:          0, // Invalid
+		ApplicationDocument: validDoc,
+	}
+
+	err := validators.ValidateStruct(&task)
+
+	// Expect an error
+	g.Expect(err).ToNot(BeNil())
+}
+
+// case: Document FileName is empty
+func TestApprovalTaskValidation_DocFileNameEmpty(t *testing.T) {
+	g := NewWithT(t)
+
+	invalidDoc := validDoc
+	invalidDoc.FileName = "" // Invalid
+
+	task := entity.ApprovalTask{
+		Status:              "pending",
+		DocumentID:          1,
+		ApplicationDocument: invalidDoc,
+	}
+
+	err := validators.ValidateStruct(&task)
+
+	// Expect an error
+	g.Expect(err).ToNot(BeNil())
+}
+
+// case: Document ApplicationScholarshipID is zero
+func TestApprovalTaskValidation_DocAppScholarshipIDZero(t *testing.T) {
+	g := NewWithT(t)
+
+	invalidDoc := validDoc
+	invalidDoc.ApplicationScholarshipID = 0 // Invalid
+
+	task := entity.ApprovalTask{
+		Status:              "pending",
+		DocumentID:          1,
+		ApplicationDocument: invalidDoc,
 	}
 
 	err := validators.ValidateStruct(&task)

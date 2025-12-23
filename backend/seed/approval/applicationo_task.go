@@ -24,12 +24,10 @@ func SeedApprovalTasks(db *gorm.DB) error {
 		tasks := []entity.ApprovalTask{
 			{
 				Status:     "Pending",
-				AdminID:    adminProfile.ID,
 				DocumentID: doc1.ID,
 			},
 			{
 				Status:     "Pending",
-				AdminID:    adminProfile.ID,
 				DocumentID: doc2.ID,
 			},
 		}
