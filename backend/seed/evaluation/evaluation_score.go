@@ -59,7 +59,10 @@ func SeedEvaluationScores(db *gorm.DB) error {
 			return fmt.Errorf("failed to fetch round criteria: %v", err)
 		}
 
-		// สร้างคะแนนสำหรับแต่ละเกณฑ์
+		// สร้างคะแนนสำหรับแต่ละเกณฑ์ และเก็บข้อมูลสำหรับคำนวณ TotalScore
+		var totalWeightedScore float64 = 0
+		var totalWeight float64 = 0
+
 		for _, rc := range roundCriteria {
 			criterion := rc.EvaluationCriterion
 
@@ -98,6 +101,25 @@ func SeedEvaluationScores(db *gorm.DB) error {
 
 			if err := db.Create(&evalScore).Error; err != nil {
 				return fmt.Errorf("failed to seed evaluation score: %v", err)
+			}
+
+			// สะสมคะแนนถ่วงน้ำหนักสำหรับคำนวณ TotalScore
+			maxScore := criterion.MaxScore
+			if maxScore == 0 {
+				maxScore = 100
+			}
+			normalizedScore := (scoreValue / maxScore) * 100
+			weightedScore := normalizedScore * rc.Weight
+			totalWeightedScore += weightedScore
+			totalWeight += rc.Weight
+		}
+
+		// คำนวณและอัพเดท TotalScore ใน Evaluation
+		if totalWeight > 0 {
+			calculatedTotalScore := totalWeightedScore / totalWeight
+			if err := db.Model(&entity.Evaluation{}).Where("id = ?", evaluation.ID).
+				Update("total_score", calculatedTotalScore).Error; err != nil {
+				return fmt.Errorf("failed to update evaluation total score: %v", err)
 			}
 		}
 	}
