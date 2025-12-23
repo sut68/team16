@@ -66,21 +66,11 @@ const adminRoutes: Array<RouteRecordRaw> = [
         name: 'profileAdmin',
         component: () => import('@/pages/protected/User/MyProfile.vue'),
       },
-      { 
-        path: 'evaluations', 
-        name: 'EvaluationList',
-        component: () => import('../pages/protected/Evaluation/EvaluationList.vue')
+      {
+        path: 'evaluations',
+        name: 'Evaluations',
+        component: () => import('../pages/protected/Evaluation/EvaluationPage.vue')
       },
-      // {
-      //   path: 'evaluation-criteria', 
-      //   name: 'EvaluationCriteriaList',
-      //   component: () => import('../pages/protected/Evaluation/EvaluationCriteriaList.vue')
-      // },
-      // { 
-      //   path: 'evaluations/:id/score', 
-      //   name: 'EvaluationForm',
-      //   component: () => import('../pages/protected/Evaluation/EvaluationForm.vue')
-      // },
     ],
     meta: { requiresAuth: true, role: 'admin' },
   },
