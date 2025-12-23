@@ -269,13 +269,13 @@ func main() {
 		api.GET("/evaluations", controllers.GetAllEvaluations)
 		api.GET("/evaluations/:id", controllers.GetEvaluationByID)
 		api.POST("/evaluations", controllers.CreateEvaluation)
-		api.PUT("/evaluations/:id", controllers.UpdateEvaluation)
+		api.PATCH("/evaluations/:id", controllers.UpdateEvaluation)
 		api.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
 		api.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
 
 		// Evaluation Scores (คะแนนรายเกณฑ์)
 		api.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
-		api.PUT("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
+		api.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
 		api.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
 
 	}
