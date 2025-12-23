@@ -192,7 +192,8 @@ function handleClose() {
 </script>
 
 <template>
-  <teleport to="body">
+  <div>
+    <teleport to="body">
     <div
       v-if="props.isOpen"
       class="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
@@ -276,7 +277,8 @@ function handleClose() {
         </div>
       </div>
     </div>
-  </teleport>
+    </teleport>
+  </div>
 </template>
 
 <style scoped>
