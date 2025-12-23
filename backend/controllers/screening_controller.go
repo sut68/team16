@@ -107,6 +107,19 @@ func UpdateScreeningStatus(c *gin.Context) {
 		return
 	}
 
+	// Fetch current admin info from token
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var admin entity.AdminProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
+		c.JSON(400, gin.H{"error": "Admin profile not found"})
+		return
+	}
+
 	const (
 		PASS = 2
 		FAIL = 3
@@ -126,6 +139,7 @@ func UpdateScreeningStatus(c *gin.Context) {
 	if err := tx.Model(&screening).Updates(map[string]interface{}{
 		"status_screening_id": input.StatusScreeningID,
 		"rejection_reason":    input.RejectionReason,
+		"admin_profile_id":    admin.ID,
 	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(400, gin.H{"error": err.Error()})

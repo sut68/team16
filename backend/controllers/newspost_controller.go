@@ -22,6 +22,8 @@ func GetAllNewsPosts(c *gin.Context) {
 		Preload("Admin").
 		Preload("Admin.User").
 		Preload("Scholarship").
+		Preload("Scholarship.Typescholarship").
+		Preload("Scholarship.Sponsor").
 		Preload("StatusNews").
 		Find(&items).Error; err != nil {
 		fmt.Printf("[GET] Error fetching news: %v\n", err)
@@ -76,59 +78,58 @@ func GetNewsPostByID(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-
-//POST /newsposts
+// POST /newsposts
 func CreateNewsPost(c *gin.Context) {
-    fmt.Println("\n[POST] CreateNewsPost Called...")
+	fmt.Println("\n[POST] CreateNewsPost Called...")
 
-    // 1. ดึง User ID จาก Token (ที่ Middleware เซ็ตไว้ให้ เช่น c.Set("id", claims["id"]))
-    // หมายเหตุ: ชื่อ "id" ต้องตรงกับที่ Middleware ของคุณตั้งไว้
-    userID, err := getUserID(c)
+	// 1. ดึง User ID จาก Token (ที่ Middleware เซ็ตไว้ให้ เช่น c.Set("id", claims["id"]))
+	// หมายเหตุ: ชื่อ "id" ต้องตรงกับที่ Middleware ของคุณตั้งไว้
+	userID, err := getUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-    // 2. ค้นหา AdminProfile ID ที่ผูกกับ User ID นี้ใน Database
-    var adminProfile entity.AdminProfile
-    config.DB.Where("user_id = ?", userID).First(&adminProfile)
+	// 2. ค้นหา AdminProfile ID ที่ผูกกับ User ID นี้ใน Database
+	var adminProfile entity.AdminProfile
+	config.DB.Where("user_id = ?", userID).First(&adminProfile)
 
-    // 3. รับค่าอื่นๆ จาก Form
-    title := c.PostForm("title")
-    postDetail := c.PostForm("post_detail")
-    scholarshipID, _ := strconv.ParseUint(c.PostForm("scholarship_id"), 10, 64)
-    statusNewsID, _ := strconv.ParseUint(c.PostForm("status_news_id"), 10, 64)
+	// 3. รับค่าอื่นๆ จาก Form
+	title := c.PostForm("title")
+	postDetail := c.PostForm("post_detail")
+	scholarshipID, _ := strconv.ParseUint(c.PostForm("scholarship_id"), 10, 64)
+	statusNewsID, _ := strconv.ParseUint(c.PostForm("status_news_id"), 10, 64)
 
-    // 4. จัดการเรื่องไฟล์ (เหมือนเดิม)
-    var filePath string
-    file, err := c.FormFile("file_path")
-    if err == nil {
-        extension := filepath.Ext(file.Filename)
-        fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
-        filePath = "uploads/news/" + fileName
-        
-        if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
-            os.MkdirAll("uploads/news", 0755)
-        }
-        c.SaveUploadedFile(file, filePath)
-    }
+	// 4. จัดการเรื่องไฟล์ (เหมือนเดิม)
+	var filePath string
+	file, err := c.FormFile("file_path")
+	if err == nil {
+		extension := filepath.Ext(file.Filename)
+		fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
+		filePath = "uploads/news/" + fileName
 
-    // 5. บันทึกข้อมูล โดยใช้ ID ที่เราหาเจอจากขั้นตอนที่ 2
-    item := entity.NewsPost{
-        Title:         title,
-        PostDetail:    postDetail,
-        FilePath:      filePath,
-        AdminID:       adminProfile.ID, // ✅ ใช้ ID จากตาราง Profile จริงๆ
-        ScholarshipID: uint(scholarshipID),
-        StatusNewsID:  uint(statusNewsID),
-    }
+		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
+			os.MkdirAll("uploads/news", 0755)
+		}
+		c.SaveUploadedFile(file, filePath)
+	}
 
-    if err := config.DB.Create(&item).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// 5. บันทึกข้อมูล โดยใช้ ID ที่เราหาเจอจากขั้นตอนที่ 2
+	item := entity.NewsPost{
+		Title:         title,
+		PostDetail:    postDetail,
+		FilePath:      filePath,
+		AdminID:       adminProfile.ID, // ✅ ใช้ ID จากตาราง Profile จริงๆ
+		ScholarshipID: uint(scholarshipID),
+		StatusNewsID:  uint(statusNewsID),
+	}
 
-    c.JSON(http.StatusCreated, item)
+	if err := config.DB.Create(&item).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, item)
 }
 
 // =================================================================
@@ -137,7 +138,7 @@ func CreateNewsPost(c *gin.Context) {
 // PUT /newsposts/:id
 func UpdateNewsPost(c *gin.Context) {
 	fmt.Println("\n[PUT] UpdateNewsPost Called...")
-	
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -150,54 +151,54 @@ func UpdateNewsPost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
 		return
 	}
-    
-    // 3. ดึงข้อมูลเก่าเพื่อใช้ FilePath เดิม
-    var oldData entity.NewsPost
-    if err := config.DB.First(&oldData, id).Error; err != nil {
-        if err == gorm.ErrRecordNotFound {
-            c.JSON(http.StatusNotFound, gin.H{"error": "News post not found"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-        }
-        return
-    }
-    
-    // 4. เตรียมข้อมูลสำหรับ Update (ใช้ Map เพื่อระบุ field ชัดเจน)
+
+	// 3. ดึงข้อมูลเก่าเพื่อใช้ FilePath เดิม
+	var oldData entity.NewsPost
+	if err := config.DB.First(&oldData, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "News post not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	// 4. เตรียมข้อมูลสำหรับ Update (ใช้ Map เพื่อระบุ field ชัดเจน)
 	updateData := map[string]interface{}{}
-    
-    // ดึงค่า String (ถ้ามี)
-    if title := c.PostForm("title"); title != "" {
-        updateData["title"] = title
-    }
-    if postDetail := c.PostForm("post_detail"); postDetail != "" {
-        updateData["post_detail"] = postDetail
-    }
-    
-    // ดึงค่า ID และจัดการ 0
-    if adminIDStr := c.PostForm("admin_id"); adminIDStr != "" {
-        if adminID, err := strconv.ParseUint(adminIDStr, 10, 64); err == nil {
-            updateData["admin_id"] = uint(adminID)
-        }
-    }
-    
-    // 🔥 แก้ไข: หาก scholarship_id เป็น 0 หรือไม่ได้ส่งมา (ว่าง) ไม่ต้องอัปเดต
-    if scholarshipIDStr := c.PostForm("scholarship_id"); scholarshipIDStr != "" {
-        if scholarshipID, err := strconv.ParseUint(scholarshipIDStr, 10, 64); err == nil && scholarshipID != 0 {
-            updateData["scholarship_id"] = uint(scholarshipID)
-        }
-    } else {
-        // หาก Frontend ต้องการอนุญาตให้ตั้งค่าเป็น NULL ได้ ต้องใช้ gorm.DeletedAt/NULLABLE
-        // แต่ถ้าไม่อยากให้มัน override ค่าเดิมถ้าไม่ได้ส่งมา ให้ข้าม field นี้ไปเลย
-    }
-    
-    if statusNewsIDStr := c.PostForm("status_news_id"); statusNewsIDStr != "" {
-        if statusNewsID, err := strconv.ParseUint(statusNewsIDStr, 10, 64); err == nil {
-            updateData["status_news_id"] = uint(statusNewsID)
-        }
-    }
-    
-    // 5. จัดการไฟล์รูปภาพ
-	file, err := c.FormFile("file_path") 
+
+	// ดึงค่า String (ถ้ามี)
+	if title := c.PostForm("title"); title != "" {
+		updateData["title"] = title
+	}
+	if postDetail := c.PostForm("post_detail"); postDetail != "" {
+		updateData["post_detail"] = postDetail
+	}
+
+	// ดึงค่า ID และจัดการ 0
+	if adminIDStr := c.PostForm("admin_id"); adminIDStr != "" {
+		if adminID, err := strconv.ParseUint(adminIDStr, 10, 64); err == nil {
+			updateData["admin_id"] = uint(adminID)
+		}
+	}
+
+	// 🔥 แก้ไข: หาก scholarship_id เป็น 0 หรือไม่ได้ส่งมา (ว่าง) ไม่ต้องอัปเดต
+	if scholarshipIDStr := c.PostForm("scholarship_id"); scholarshipIDStr != "" {
+		if scholarshipID, err := strconv.ParseUint(scholarshipIDStr, 10, 64); err == nil && scholarshipID != 0 {
+			updateData["scholarship_id"] = uint(scholarshipID)
+		}
+	} else {
+		// หาก Frontend ต้องการอนุญาตให้ตั้งค่าเป็น NULL ได้ ต้องใช้ gorm.DeletedAt/NULLABLE
+		// แต่ถ้าไม่อยากให้มัน override ค่าเดิมถ้าไม่ได้ส่งมา ให้ข้าม field นี้ไปเลย
+	}
+
+	if statusNewsIDStr := c.PostForm("status_news_id"); statusNewsIDStr != "" {
+		if statusNewsID, err := strconv.ParseUint(statusNewsIDStr, 10, 64); err == nil {
+			updateData["status_news_id"] = uint(statusNewsID)
+		}
+	}
+
+	// 5. จัดการไฟล์รูปภาพ
+	file, err := c.FormFile("file_path")
 
 	if err == nil {
 		// ✅ กรณีมีไฟล์ใหม่: บันทึกไฟล์ และอัปเดต FilePath
@@ -213,34 +214,33 @@ func UpdateNewsPost(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 			return
 		}
-        updateData["file_path"] = filePath // อัปเดต Path ใหม่
-        
-        // (Optional) ลบไฟล์เก่าทิ้ง หากไม่ต้องการเก็บไฟล์ที่ถูกแทนที่
-        if oldData.FilePath != "" {
-            // os.Remove(oldData.FilePath)
-        }
+		updateData["file_path"] = filePath // อัปเดต Path ใหม่
+
+		// (Optional) ลบไฟล์เก่าทิ้ง หากไม่ต้องการเก็บไฟล์ที่ถูกแทนที่
+		if oldData.FilePath != "" {
+			// os.Remove(oldData.FilePath)
+		}
 
 	} else {
 		// ⚠️ กรณีไม่มีไฟล์ใหม่: ใช้ path เดิมจาก oldData
-        // (ไม่ต้องทำอะไร เพราะ updateData จะไม่มี field file_path หากไม่มีการส่งไฟล์ใหม่)
-        // หรือถ้า Frontend ส่ง "clear" มาเพื่อลบรูป ให้ใส่ updateData["file_path"] = ""
+		// (ไม่ต้องทำอะไร เพราะ updateData จะไม่มี field file_path หากไม่มีการส่งไฟล์ใหม่)
+		// หรือถ้า Frontend ส่ง "clear" มาเพื่อลบรูป ให้ใส่ updateData["file_path"] = ""
 	}
-    
-    // 6. บันทึกลงฐานข้อมูล
+
+	// 6. บันทึกลงฐานข้อมูล
 	result := config.DB.Model(&entity.NewsPost{}).Where("id = ?", uint(id)).Updates(updateData)
 
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
-    
+
 	fmt.Printf("[PUT] Success! Updated News ID: %d, Rows Affected: %d\n", id, result.RowsAffected)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Update successful",
 		"data":    updateData,
 	})
 }
-
 
 // DELETE /newsposts/:id
 

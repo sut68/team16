@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { X, ImageIcon, Calendar, Clock, GraduationCap, CheckCircle2, AlertCircle, Send } from 'lucide-vue-next';
 import { getNewsPostById } from '@/services/api/news_post'; 
 import type { NewsPostDetailResponse } from '@/interfaces/news_post';
@@ -11,6 +12,7 @@ const loading = ref(true);
 const error = ref('');
 const news = ref<any>(null);
 const features = ref<any[]>([]);
+const router = useRouter();
 
 // --- Helper Functions (Logic เดิม 100%) ---
 const formatDate = (dateString: string | undefined) => {
@@ -19,6 +21,8 @@ const formatDate = (dateString: string | undefined) => {
     if (isNaN(date.getTime()) || date.getFullYear() < 2000) return 'ไม่ระบุ';
     return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
+// ... (Helper functions omitted for brevity, keeping existing logic) ...
 
 // ✅ ปรับปรุง: เพิ่ม canApply เพื่อคุมปุ่มกด (Logic เวลาเดิม)
 const getScholarshipStatus = (openDateStr: string | undefined, closeDateStr: string | undefined) => {
@@ -105,9 +109,16 @@ const formatCondition = (feature: any) => {
 
 // ✅ เพิ่มฟังก์ชันกดสมัคร
 const handleApply = () => {
-    // ใส่ Logic การกดสมัครตรงนี้ เช่น router.push ไปหน้าฟอร์ม
-    console.log("Applying for scholarship ID:", news.value?.scholarship?.ID);
-    alert("เข้าสู่หน้าสมัครทุน (ใส่ Router ตรงนี้ได้เลย)");
+    // Navigate to ApplyScholarship page with scholarship ID
+    if (news.value?.scholarship?.ID) {
+        router.push({ 
+            name: 'ApplyScholarship', 
+            query: { id: news.value.scholarship.ID } 
+        });
+    } else {
+        // Fallback if no ID (shouldn't happen if logic is correct)
+        router.push({ name: 'ApplyScholarship' });
+    }
 };
 
 const fetchDetail = async () => {
