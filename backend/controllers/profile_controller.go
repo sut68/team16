@@ -58,7 +58,7 @@ func GetMyProfile(c *gin.Context) {
 
 	} else if user.Role.Name == "admin" {
 		var admin entity.AdminProfile
-		if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
+		if err := config.DB.Preload("User").Where("user_id = ?", userID).First(&admin).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 			return
 		}

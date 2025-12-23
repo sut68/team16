@@ -13,6 +13,6 @@ type AdminProfile struct {
 	UserID uint `json:"user_id" valid:"required~User ID is required"`
 	User   User `gorm:"foreignKey:UserID;references:ID" json:"user" valid:"-"`
 
-	ApprovalTasks   []ApprovalTask   `gorm:"foreignKey:AdminID" json:"approval_tasks" valid:"-"`
 	InterviewRounds []InterviewRound `gorm:"foreignKey:AdminProfileID" json:"interview_rounds" valid:"-"`
+	ApprovalDecisions []ApprovalDecision `gorm:"foreignKey:AdminID" json:"approval_decisions" valid:"-"`
 }
