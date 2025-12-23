@@ -1,9 +1,6 @@
 package controllers
 
 import (
-	"backend/config"
-	"backend/entity"
-	"backend/services"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"backend/config"
+	"backend/entity"
+	"backend/services"
 )
 
 // Helper (Copy มาหรือ Import ก็ได้)
@@ -41,7 +42,8 @@ func GetMyProfile(c *gin.Context) {
 		return
 	}
 
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var student entity.StudentProfile
 		// Preload FamilyInfo ด้วย เพื่อส่งไปให้ครบ
 		if err := config.DB.Preload("Major").Preload("FamilyInfo").Where("user_id = ?", userID).First(&student).Error; err != nil {
@@ -56,9 +58,9 @@ func GetMyProfile(c *gin.Context) {
 			"family": student.FamilyInfo, // ส่งแยกด้วยเผื่อ Frontend เรียกใช้ง่ายๆ
 		})
 
-	} else if user.Role.Name == "admin" {
+	case "admin":
 		var admin entity.AdminProfile
-		if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
+		if err := config.DB.Preload("User").Where("user_id = ?", userID).First(&admin).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 			return
 		}
@@ -78,7 +80,8 @@ func UpdateMyProfile(c *gin.Context) {
 	config.DB.Preload("Role").First(&user, userID)
 
 	// 1. STUDENT UPDATE
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var student entity.StudentProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&student).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
@@ -161,7 +164,7 @@ func UpdateMyProfile(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 
 		// 2. ADMIN UPDATE (Personal)
-	} else if user.Role.Name == "admin" {
+	case "admin":
 		var admin entity.AdminProfile
 		if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})

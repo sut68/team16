@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"backend/config"
 	"backend/entity"
 	"backend/validators"
-
-	"github.com/gin-gonic/gin"
 )
 
 func GetApprovalTasks(ctx *gin.Context) {
@@ -19,12 +19,11 @@ func GetApprovalTasks(ctx *gin.Context) {
 	var tasks []entity.ApprovalTask
 
 	if err := config.DB.
-		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
 		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
-		Preload("ApprovalDecisions").
+		Preload("ApprovalDecisions.Admin").
 		Find(&tasks).Error; err != nil {
 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -47,7 +46,6 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 	}
 	var task entity.ApprovalTask
 	if err := config.DB.
-		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
@@ -73,8 +71,7 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Status  *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
-		AdminID *uint   `json:"admin_id" valid:"optional"`
+		Status *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -95,9 +92,6 @@ func UpdateApprovalTask(ctx *gin.Context) {
 	if input.Status != nil {
 		updates["status"] = *input.Status
 	}
-	if input.AdminID != nil {
-		updates["admin_id"] = *input.AdminID
-	}
 	if len(updates) > 0 {
 		if err := tx.Model(&task).Updates(updates).Error; err != nil {
 			tx.Rollback()
@@ -112,7 +106,7 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Preload("Admin").Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
+	if err := config.DB.Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
 		return
 	}
@@ -150,6 +144,7 @@ func GetDecisionHistoryByStudentID(ctx *gin.Context) {
 		Joins("JOIN applications ON applications.id = application_scholarships.application_id").
 		Where("applications.student_profile_id = ?", studentID).
 		Preload("ApprovalTask").
+		Preload("Admin").
 		Find(&decisions).Error
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -272,7 +267,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 
 		newTask := entity.ApprovalTask{
 			Status:     "pending",
-			AdminID:    1, // Default Admin ID
 			DocumentID: document.ID,
 		}
 
@@ -364,7 +358,7 @@ func DeleteApplicationDocument(ctx *gin.Context) {
 // GET /approval-decisions
 func GetApprovalDecisions(ctx *gin.Context) {
 	var decisions []entity.ApprovalDecision
-	if err := config.DB.Preload("ApprovalTask").Find(&decisions).Error; err != nil {
+	if err := config.DB.Preload("ApprovalTask").Preload("Admin").Find(&decisions).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -380,7 +374,7 @@ func GetApprovalDecisionByID(ctx *gin.Context) {
 		return
 	}
 	var decision entity.ApprovalDecision
-	if err := config.DB.Preload("ApprovalTask").First(&decision, id).Error; err != nil {
+	if err := config.DB.Preload("ApprovalTask").Preload("Admin").First(&decision, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval decision not found"})
 		return
 	}
@@ -393,6 +387,7 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		Decision string `json:"decision"`
 		Comment  string `json:"comment"`
 		TaskID   uint   `json:"task_id"`
+		AdminID  uint   `json:"admin_id"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -403,6 +398,7 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		Decision:   input.Decision,
 		Comment:    input.Comment,
 		TaskID:     input.TaskID,
+		AdminID:    input.AdminID,
 	}
 
 	if err := validators.ValidateStruct(&decision); err != nil {
@@ -423,11 +419,12 @@ func CreateApprovalDecision(ctx *gin.Context) {
 
 	// Update ApprovalTask status based on decision
 	taskStatus := "pending"
-	if input.Decision == "approve" {
+	switch input.Decision {
+	case "approve":
 		taskStatus = "approved"
-	} else if input.Decision == "reject" {
+	case "reject":
 		taskStatus = "rejected"
-	} else if input.Decision == "request-change" {
+	case "request-change":
 		taskStatus = "request-change"
 	}
 

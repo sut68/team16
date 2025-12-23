@@ -183,7 +183,7 @@ const handleActionCompleted = () => {
 </script>
 
 <template>
-  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light">
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light" data-testid="approval-list-page">
     
     <div class="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 mb-6 border-b border-gray-200">
       
@@ -194,6 +194,7 @@ const handleActionCompleted = () => {
           :class="activeTab === 'pending' 
             ? 'text-[#1e3a8a] border-[#1e3a8a]' 
             : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+          data-testid="tab-pending"
         >
            เอกสารที่รอการอนุมัติ
            <span v-if="pendingItems.length > 0" 
@@ -208,6 +209,7 @@ const handleActionCompleted = () => {
           :class="activeTab === 'history' 
             ? 'text-[#1e3a8a] border-[#1e3a8a]' 
             : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+          data-testid="tab-history"
         >
            ประวัติการอนุมัติ
         </a>
@@ -216,13 +218,15 @@ const handleActionCompleted = () => {
       <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto pb-4 xl:pb-2">
         
         <select v-if="activeTab === 'pending'" v-model="sortOrder"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4"
+          data-testid="sort-order-select"
+        >
           <option value="newest">ใหม่ล่าสุด</option>
           <option value="oldest">ส่งมานานสุด</option>
         </select>
 
         <div v-if="activeTab === 'history'" class="relative w-full md:w-auto">
-          <button @click="isFilterOpen = !isFilterOpen" class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm">
+          <button @click="isFilterOpen = !isFilterOpen" class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm" data-testid="filter-button">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
             </svg>
@@ -230,13 +234,15 @@ const handleActionCompleted = () => {
           </button>
 
           <div v-if="isFilterOpen" class="fixed inset-0 z-20" @click="isFilterOpen = false"></div>
-          <div v-if="isFilterOpen" class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl z-30 border p-4 animate-pop-in">
+          <div v-if="isFilterOpen" class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl z-30 border p-4 animate-pop-in" data-testid="filter-popup">
               <p class="font-bold text-base mb-3 text-slate-700">ตัวกรองประวัติ</p>
               <div class="space-y-3">
                 <div>
                     <label class="text-xs font-medium text-gray-500">ปีการศึกษา</label>
                     <select v-model="filterYear"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm"
+                      data-testid="filter-year-select"
+                    >
                       <option value="all">ทุกปีการศึกษา</option>
                       <option v-for="year in availableYears" :key="year.value" :value="year.value">{{ year.label }}</option>
                     </select>
@@ -244,7 +250,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">เทอม</label>
                     <select v-model="filterTerm" :disabled="filterYear === 'all'"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100"
+                      data-testid="filter-term-select"
+                    >
                       <option value="all">ทุกเทอม</option>
                       <option v-for="term in availableTerms" :key="term.value" :value="term.value">{{ term.label }}</option>
                     </select>
@@ -252,7 +260,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">รอบ</label>
                     <select v-model="filterRound" :disabled="filterTerm === 'all'"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100"
+                      data-testid="filter-round-select"
+                    >
                       <option value="all">ทุกรอบ</option>
                       <option v-for="round in availableRounds" :key="round.value" :value="round.value">{{ round.label }}</option>
                     </select>
@@ -260,7 +270,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">สถานะ</label>
                     <select v-model="filterStatus"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] shadow-sm font-medium text-gray-600">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] shadow-sm font-medium text-gray-600"
+                      data-testid="filter-status-select"
+                    >
                       <option value="all">สถานะทั้งหมด</option>
                       <option value="approved">อนุมัติแล้ว</option>
                       <option value="rejected">ปฏิเสธ</option>
@@ -279,24 +291,28 @@ const handleActionCompleted = () => {
             </svg>
           </span>
           <input type="text" v-model="searchQuery" placeholder="ค้นหาชื่อทุน, ผู้สมัคร..."
-            class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm" />
+            class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm"
+            data-testid="search-input"
+          />
         </div>
       </div>
     </div>
 
-    <div v-if="isLoading" class="text-center py-20 text-gray-500">
+    <div v-if="isLoading" class="text-center py-20 text-gray-500" data-testid="loading-indicator">
       <span class="loading loading-spinner loading-lg"></span>
       <p>Loading data...</p>
     </div>
-    <div v-if="error" class="text-center py-20 text-red-500">
+    <div v-if="error" class="text-center py-20 text-red-500" data-testid="error-message">
       <p>{{ error }}</p>
       <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
     
-    <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1">
+    <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1" data-testid="approval-list-container">
       <transition-group name="fade" tag="div" class="space-y-4">
         <div v-for="item in filteredItems" :key="item.ID" @click="handleCardClick(item)"
-          class="card bg-white border border-gray-250 shadow-sm rounded-2xl cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+          class="card bg-white border border-gray-250 shadow-sm rounded-2xl cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+          :data-testid="`approval-card-${item.ID}`"
+        >
           <div class="card-body p-4 md:p-5 flex flex-row items-center justify-between min-h-[6rem]">
             <div class="flex flex-col overflow-hidden pr-2">
               <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -358,7 +374,9 @@ const handleActionCompleted = () => {
           </div>
         </div>
         <div v-if="filteredItems.length === 0" :key="'empty'"
-          class="flex flex-col items-center justify-center py-16 text-gray-400">
+          class="flex flex-col items-center justify-center py-16 text-gray-400"
+          data-testid="empty-list-message"
+        >
           <div class="bg-gray-50 p-4 rounded-full mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-50" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
@@ -371,7 +389,7 @@ const handleActionCompleted = () => {
         </div>
       </transition-group>
     </div>
-    <DocumentDetailModal v-if="isModalOpen" :isOpen="isModalOpen" :documentData="selectedDocument"
+    <DocumentDetailModal v-show="isModalOpen" :isOpen="isModalOpen" :documentData="selectedDocument"
       @close="isModalOpen = false" @action-completed="handleActionCompleted" />
   </div>
 </template>

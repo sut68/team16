@@ -16,6 +16,7 @@ interface DecisionPayload {
   task_id: number
   decision: 'approve' | 'reject' | 'request-change'
   comment: string
+  admin_id: number
 }
 
 export const makeApprovalDecision = async (payload: DecisionPayload) => {
@@ -23,7 +24,8 @@ export const makeApprovalDecision = async (payload: DecisionPayload) => {
   const decisionResponse = await https.post('/approval-decisions', {
     task_id: payload.task_id,
     decision: payload.decision,
-    comment: payload.comment
+    comment: payload.comment,
+    admin_id: payload.admin_id,
   })
 
   if (decisionResponse.status !== 201) {

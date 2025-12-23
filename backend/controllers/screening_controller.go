@@ -1,10 +1,10 @@
 package controllers
 
 import (
+	"github.com/gin-gonic/gin"
+
 	"backend/config"
 	"backend/entity"
-
-	"github.com/gin-gonic/gin"
 )
 
 func GetAllScreenings(c *gin.Context) {
@@ -147,7 +147,8 @@ func UpdateScreeningStatus(c *gin.Context) {
 	}
 
 	// Update ApplicationScholarship status based on screening result
-	if input.StatusScreeningID == PASS {
+	switch input.StatusScreeningID {
+	case PASS:
 		// When screening passes, set status to empty (ready for document upload - step 3)
 		if err := tx.Model(&entity.ApplicationScholarship{}).
 			Where("id = ?", screening.ApplicationScholarshipID).
@@ -156,7 +157,7 @@ func UpdateScreeningStatus(c *gin.Context) {
 			c.JSON(400, gin.H{"error": "Failed to update application status"})
 			return
 		}
-	} else if input.StatusScreeningID == FAIL {
+	case FAIL:
 		// When screening fails, set status to rejected
 		if err := tx.Model(&entity.ApplicationScholarship{}).
 			Where("id = ?", screening.ApplicationScholarshipID).

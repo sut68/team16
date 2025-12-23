@@ -8,6 +8,8 @@ export interface ApprovalDecisionResponse {
   decision: string
   comment: string
   task_id: number
+  admin_id: number
+  admin_profile?: AdminProfileResponse
 }
 
 export interface ApprovalTaskResponse {
@@ -15,8 +17,6 @@ export interface ApprovalTaskResponse {
   CreatedAt: string
   UpdatedAt: string
   status: string
-  admin_id: number
-  admin_profile?: AdminProfileResponse
   document_id: number
   application_document: Omit<ApplicationDocumentResponse, 'approval_tasks'>
   approval_decisions: ApprovalDecisionResponse[]

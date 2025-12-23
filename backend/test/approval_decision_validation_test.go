@@ -1,17 +1,24 @@
 package test
 
 import (
+	"backend/entity"
+	"backend/validators"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
-
-	"backend/entity"
-	"backend/validators"
-
 )
 
 // unit test for ApprovalDecision
+
+var validAdmin = entity.AdminProfile{
+	AdminFirstname: "John",
+	AdminLastname:  "Doe",
+	Position:       "Manager",
+	Email:          "john.doe@example.com",
+	Phone:          "1234567890",
+	UserID:         1,
+}
 
 // case: All fields are valid
 func TestApprovalDecisionValidation_AllValid(t *testing.T) {
@@ -22,6 +29,8 @@ func TestApprovalDecisionValidation_AllValid(t *testing.T) {
 		Decision:   "approve",
 		Comment:    "The document is clear and correct.",
 		TaskID:     1,
+		AdminID:    1,
+		Admin:      validAdmin,
 	}
 
 	err := validators.ValidateStruct(&decision)
@@ -35,10 +44,12 @@ func TestApprovalDecisionValidation_DecisionAtEmpty(t *testing.T) {
 	g := NewWithT(t)
 
 	decision := entity.ApprovalDecision{
-		DecisionAt: time.Now(), // Invalid
+		DecisionAt: time.Time{}, // Invalid
 		Decision:   "approve",
 		Comment:    "This should fail.",
 		TaskID:     1,
+		AdminID:    1,
+		Admin:      validAdmin,
 	}
 
 	err := validators.ValidateStruct(&decision)
@@ -56,6 +67,8 @@ func TestApprovalDecisionValidation_DecisionEmpty(t *testing.T) {
 		Decision:   "", // Invalid
 		Comment:    "This should fail.",
 		TaskID:     1,
+		AdminID:    1,
+		Admin:      validAdmin,
 	}
 
 	err := validators.ValidateStruct(&decision)
@@ -73,6 +86,8 @@ func TestApprovalDecisionValidation_TaskIDZero(t *testing.T) {
 		Decision:   "reject",
 		Comment:    "This should fail.",
 		TaskID:     0, // Invalid
+		AdminID:    1,
+		Admin:      validAdmin,
 	}
 
 	err := validators.ValidateStruct(&decision)
@@ -90,10 +105,31 @@ func TestApprovalDecisionValidation_CommentEmpty(t *testing.T) {
 		Decision:   "approve",
 		Comment:    "", // Allowed
 		TaskID:     1,
+		AdminID:    1,
+		Admin:      validAdmin,
 	}
 
 	err := validators.ValidateStruct(&decision)
 
 	// Expect no error because comment is not a required field for validation
 	g.Expect(err).To(BeNil())
+}
+
+// case: AdminID is zero
+func TestApprovalDecisionValidation_AdminIDZero(t *testing.T) {
+	g := NewWithT(t)
+
+	decision := entity.ApprovalDecision{
+		DecisionAt: time.Now(),
+		Decision:   "approve",
+		Comment:    "This should fail.",
+		TaskID:     1,
+		AdminID:    0, // Invalid
+		Admin:      validAdmin,
+	}
+
+	err := validators.ValidateStruct(&decision)
+
+	// Expect an error
+	g.Expect(err).ToNot(BeNil())
 }
