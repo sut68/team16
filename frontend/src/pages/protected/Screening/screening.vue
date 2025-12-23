@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ScreeningDetailModal from './DetailScreening.vue';
 import { getAllScreenings, getScreeningById } from '@/services/api/screening';
 import type { ScreeningResponse } from '@/interfaces/screening';
@@ -23,6 +23,7 @@ const isLoading = ref(false);
 const errorMsg = ref('');
 const allItems = ref<DocumentItem[]>([]);
 const activeTab = ref<'pending' | 'history'>('pending');
+let pollingInterval: any = null;
 
 // Filter States
 const searchQuery = ref('');
@@ -58,8 +59,8 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const fetchData = async () => {
-  isLoading.value = true;
+const fetchData = async (background = false) => {
+  if (!background) isLoading.value = true;
   errorMsg.value = '';
   try {
     const response = await getAllScreenings();
@@ -154,7 +155,16 @@ watch(activeTab, () => {
   isFilterOpen.value = false; 
 });
 
-onMounted(() => { fetchData(); });
+onMounted(() => { 
+  fetchData(); 
+  pollingInterval = setInterval(() => {
+    fetchData(true);
+  }, 10000); // 10 seconds
+});
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval);
+});
 
 // ... (Computed Filtered Items เหมือนเดิม) ...
 const pendingItems = computed(() =>

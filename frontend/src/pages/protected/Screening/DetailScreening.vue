@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { updateScreeningStatus } from '@/services/api/screening'; 
+import { Get } from '@/services/api/https'; 
 
 const props = defineProps<{
     isOpen: boolean;
@@ -13,6 +14,21 @@ const emit = defineEmits(['close', 'action-completed']);
 const comment = ref('');
 const actionType = ref<'approve' | 'reject' | null>(null);
 const isSubmitting = ref(false);
+const currentUser = ref('');
+
+onMounted(async () => {
+    try {
+        const res = await Get('/profile/me');
+        if (res && res.data) {
+             const data = res.data;
+             if (data.admin_firstname) {
+                 currentUser.value = data.admin_firstname;
+             }
+        }
+    } catch (error) {
+        console.error('Error fetching current user:', error);
+    }
+});
 
 // --- Helper Functions ---
 const getRootData = () => {
@@ -62,7 +78,8 @@ const mapOperatorToText = (op: string) => {
         case '<=': return 'ไม่เกิน';
         case '>': return 'มากกว่า';
         case '<': return 'น้อยกว่า';
-        case '=': case '==': return 'ต้องเท่ากับ';
+        case '=':
+        case '==': return '';
         default: return op;
     }
 };
@@ -128,7 +145,7 @@ const timelineEvents = computed(() => {
             title: 'เจ้าหน้าที่กำลังตรวจสอบ',
             date: formatDate(root.UpdatedAt || root.CreatedAt),
             description: 'อยู่ในระหว่างการพิจารณาคุณสมบัติ',
-            actor: adminName,
+            actor: currentUser.value || adminName,
             status: 'current',
             timestamp: updateTs > createdTs ? updateTs : createdTs + 1000
         });
@@ -252,6 +269,10 @@ const screeningCriteria = computed(() => {
                 studentValueStr = formatNumber(studentValueNum) + ' บ.';
                 unit = 'บาท';
             }
+        } else if (fullTextToCheck.includes('ระยะเวลา') || fullTextToCheck.includes('duration') || fullTextToCheck.includes('ชั้นปี')) {
+            studentValueNum = parseInt(student.current_year || student.CurrentYear || '0');
+            studentValueStr = `ชั้นปีที่ ${studentValueNum}`;
+            unit = 'ปี';
         } else if (fullTextToCheck.includes('พี่น้อง')) {
             studentValueNum = parseInt(student.siblings_count || '0');
             studentValueStr = `${studentValueNum} คน`;

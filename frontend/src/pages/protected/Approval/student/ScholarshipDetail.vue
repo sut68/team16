@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getScholarships, applyForScholarship } from '@/services/api/scholarship';
 import { getStudentApplications } from '@/services/api/application';
 import { getMyProfile } from '@/services/api/user';
@@ -15,6 +15,7 @@ const studentProfile = ref<MyProfileResponse | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const router = useRouter();
+const route = useRoute();
 
 // Modal state
 const isApplicationModalOpen = ref(false);
@@ -75,6 +76,15 @@ const fetchScholarships = async () => {
       studentApplications.value = await getStudentApplications(studentProfileId.value);
     }
     
+    // Check for auto-open query param
+    if (route.query.id) {
+      const targetId = Number(route.query.id);
+      const targetScholarship = scholarships.value.find(s => s.ID === targetId);
+      if (targetScholarship && !isAlreadyApplied(targetId)) {
+        openApplicationModal(targetScholarship);
+      }
+    }
+
     console.log('Data received for scholarships:', scholarships.value);
   } catch (err) {
     error.value = 'ไม่สามารถโหลดข้อมูลทุนการศึกษาได้';
