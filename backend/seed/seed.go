@@ -122,6 +122,14 @@ func SeedAll(db *gorm.DB) error {
 	if err := evaluation.SeedInterviewRoundCriteria(db); err != nil {
 		return err
 	}
+	
+	if err := evaluation.SeedEvaluations(db); err != nil {
+		return err
+	}
+
+	if err := evaluation.SeedEvaluationScores(db); err != nil {
+		return err
+	}
 
 	return nil
 }
