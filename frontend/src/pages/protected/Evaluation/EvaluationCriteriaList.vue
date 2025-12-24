@@ -30,6 +30,22 @@
     is_active: true,
   })
 
+  // Validation Errors
+  const formErrors = ref<{
+    name?: string
+    description?: string
+    max_score?: string
+    weight?: string
+  }>({})
+
+  // ========== Validation Rules (ตาม Backend) ==========
+  const VALIDATION_RULES = {
+    name: { minLength: 2, maxLength: 100 },
+    description: { maxLength: 500 },
+    max_score: { min: 0, max: 1000 },
+    weight: { min: 0, max: 10 },
+  }
+
   // ========== Computed ==========
   const filteredCriteria = computed(() => {
     const term = searchQuery.value.toLowerCase().trim()
@@ -69,6 +85,7 @@
       weight: 1.0,
       is_active: true,
     }
+    formErrors.value = {}
     isFormOpen.value = true
   }
 
@@ -83,15 +100,126 @@
       weight: criterion.weight,
       is_active: criterion.is_active,
     }
+    formErrors.value = {}
     isFormOpen.value = true
   }
 
   function closeForm() {
     isFormOpen.value = false
     currentCriterion.value = null
+    formErrors.value = {}
   }
 
+  // ========== Form Validation ==========
+  function validateForm(): boolean {
+    formErrors.value = {}
+    let isValid = true
+
+    // Name validation: required, min 2, max 100
+    const name = formData.value.name?.trim() || ''
+    if (!name) {
+      formErrors.value.name = 'กรุณากรอกชื่อเกณฑ์'
+      isValid = false
+    } else if (name.length < VALIDATION_RULES.name.minLength) {
+      formErrors.value.name = `ชื่อเกณฑ์ต้องมีอย่างน้อย ${VALIDATION_RULES.name.minLength} ตัวอักษร`
+      isValid = false
+    } else if (name.length > VALIDATION_RULES.name.maxLength) {
+      formErrors.value.name = `ชื่อเกณฑ์ต้องไม่เกิน ${VALIDATION_RULES.name.maxLength} ตัวอักษร`
+      isValid = false
+    }
+
+    // Description validation: max 500
+    const description = formData.value.description || ''
+    if (description.length > VALIDATION_RULES.description.maxLength) {
+      formErrors.value.description = `รายละเอียดต้องไม่เกิน ${VALIDATION_RULES.description.maxLength} ตัวอักษร`
+      isValid = false
+    }
+
+    // MaxScore validation: 0-1000
+    const maxScore = formData.value.max_score ?? 0
+    if (maxScore < VALIDATION_RULES.max_score.min || maxScore > VALIDATION_RULES.max_score.max) {
+      formErrors.value.max_score = `คะแนนเต็มต้องอยู่ระหว่าง ${VALIDATION_RULES.max_score.min} - ${VALIDATION_RULES.max_score.max}`
+      isValid = false
+    }
+
+    // Weight validation: 0-10
+    const weight = formData.value.weight ?? 0
+    if (weight < VALIDATION_RULES.weight.min || weight > VALIDATION_RULES.weight.max) {
+      formErrors.value.weight = `น้ำหนักต้องอยู่ระหว่าง ${VALIDATION_RULES.weight.min} - ${VALIDATION_RULES.weight.max}`
+      isValid = false
+    }
+
+    return isValid
+  }
+
+  // ========== Real-time Validation Functions ==========
+  function validateNameRealtime() {
+    const name = formData.value.name?.trim() || ''
+    if (!name) {
+      formErrors.value.name = 'กรุณากรอกชื่อเกณฑ์'
+    } else if (name.length < VALIDATION_RULES.name.minLength) {
+      formErrors.value.name = `ชื่อเกณฑ์ต้องมีอย่างน้อย ${VALIDATION_RULES.name.minLength} ตัวอักษร`
+    } else if (name.length > VALIDATION_RULES.name.maxLength) {
+      formErrors.value.name = `ชื่อเกณฑ์ต้องไม่เกิน ${VALIDATION_RULES.name.maxLength} ตัวอักษร`
+    } else {
+      delete formErrors.value.name
+    }
+  }
+
+  function validateDescriptionRealtime() {
+    const description = formData.value.description || ''
+    if (description.length > VALIDATION_RULES.description.maxLength) {
+      formErrors.value.description = `รายละเอียดต้องไม่เกิน ${VALIDATION_RULES.description.maxLength} ตัวอักษร`
+    } else {
+      delete formErrors.value.description
+    }
+  }
+
+  function validateMaxScoreRealtime() {
+    const maxScore = formData.value.max_score
+    if (maxScore === null || maxScore === undefined || isNaN(maxScore)) {
+      formErrors.value.max_score = 'กรุณากรอกคะแนนเต็ม'
+    } else if (maxScore < VALIDATION_RULES.max_score.min || maxScore > VALIDATION_RULES.max_score.max) {
+      formErrors.value.max_score = `คะแนนเต็มต้องอยู่ระหว่าง ${VALIDATION_RULES.max_score.min} - ${VALIDATION_RULES.max_score.max}`
+    } else {
+      delete formErrors.value.max_score
+    }
+  }
+
+  function validateWeightRealtime() {
+    const weight = formData.value.weight
+    if (weight === null || weight === undefined || isNaN(weight)) {
+      formErrors.value.weight = 'กรุณากรอกน้ำหนัก'
+    } else if (weight < VALIDATION_RULES.weight.min || weight > VALIDATION_RULES.weight.max) {
+      formErrors.value.weight = `น้ำหนักต้องอยู่ระหว่าง ${VALIDATION_RULES.weight.min} - ${VALIDATION_RULES.weight.max}`
+    } else {
+      delete formErrors.value.weight
+    }
+  }
+
+  const isFormValid = computed(() => {
+    const name = formData.value.name?.trim() || ''
+    const description = formData.value.description || ''
+    const maxScore = formData.value.max_score ?? 0
+    const weight = formData.value.weight ?? 0
+
+    return (
+      name.length >= VALIDATION_RULES.name.minLength &&
+      name.length <= VALIDATION_RULES.name.maxLength &&
+      description.length <= VALIDATION_RULES.description.maxLength &&
+      maxScore >= VALIDATION_RULES.max_score.min &&
+      maxScore <= VALIDATION_RULES.max_score.max &&
+      weight >= VALIDATION_RULES.weight.min &&
+      weight <= VALIDATION_RULES.weight.max
+    )
+  })
+
   async function handleSubmit() {
+    // Validate before submit
+    if (!validateForm()) {
+      return
+    }
+
     formLoading.value = true
     try {
       if (isEditing.value && currentCriterion.value) {
@@ -384,25 +512,44 @@
           <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
             <!-- Name -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อเกณฑ์ *</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-sm font-medium text-gray-700">ชื่อเกณฑ์ *</label>
+                <span class="text-xs" :class="(formData.name?.length || 0) > 100 ? 'text-red-500' : 'text-gray-400'">
+                  {{ formData.name?.length || 0 }}/100
+                </span>
+              </div>
               <input
                 v-model="formData.name"
+                @input="validateNameRealtime"
                 type="text"
                 required
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                minlength="2"
+                maxlength="100"
+                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :class="formErrors.name ? 'border-red-500' : 'border-gray-300'"
                 placeholder="เช่น ผลการเรียน, ทักษะการสื่อสาร"
               />
+              <p v-if="formErrors.name" class="mt-1 text-xs text-red-500">{{ formErrors.name }}</p>
             </div>
 
             <!-- Description -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-sm font-medium text-gray-700">รายละเอียด</label>
+                <span class="text-xs" :class="(formData.description?.length || 0) > 500 ? 'text-red-500' : 'text-gray-400'">
+                  {{ formData.description?.length || 0 }}/500
+                </span>
+              </div>
               <textarea
                 v-model="formData.description"
+                @input="validateDescriptionRealtime"
                 rows="2"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                maxlength="500"
+                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :class="formErrors.description ? 'border-red-500' : 'border-gray-300'"
                 placeholder="อธิบายเกณฑ์การประเมิน..."
               ></textarea>
+              <p v-if="formErrors.description" class="mt-1 text-xs text-red-500">{{ formErrors.description }}</p>
             </div>
 
             <!-- Score Type -->
@@ -421,24 +568,32 @@
             <!-- Max Score & Weight -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">คะแนนเต็ม</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">คะแนนเต็ม (0-1000)</label>
                 <input
                   v-model.number="formData.max_score"
+                  @input="validateMaxScoreRealtime"
                   type="number"
                   min="0"
+                  max="100"
                   step="0.01"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  :class="formErrors.max_score ? 'border-red-500' : 'border-gray-300'"
                 />
+                <p v-if="formErrors.max_score" class="mt-1 text-xs text-red-500">{{ formErrors.max_score }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">น้ำหนัก (Weight)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">น้ำหนัก (0-10)</label>
                 <input
                   v-model.number="formData.weight"
+                  @input="validateWeightRealtime"
                   type="number"
                   min="0"
+                  max="10"
                   step="0.1"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  :class="formErrors.weight ? 'border-red-500' : 'border-gray-300'"
                 />
+                <p v-if="formErrors.weight" class="mt-1 text-xs text-red-500">{{ formErrors.weight }}</p>
               </div>
             </div>
 
@@ -464,7 +619,7 @@
               </button>
               <button 
                 type="submit"
-                :disabled="formLoading"
+                :disabled="formLoading || !isFormValid"
                 class="px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 <span v-if="formLoading">กำลังบันทึก...</span>

@@ -48,6 +48,8 @@ const {
   setScore,
   setComment,
   saveAllScores,
+  getScoreErrors,
+  VALIDATION_RULES,
   reset: resetScores
 } = useScoreManagement(evaluation, roundCriteria)
 
@@ -249,29 +251,47 @@ watch([saving, completing], ([s, c]) => {
 
                       <div class="flex items-center gap-3">
                         <div class="flex flex-col items-end">
-                          <label class="text-xs text-gray-500 mb-1">คะแนน</label>
+                          <label class="text-xs text-gray-500 mb-1">คะแนน (ต้อง > 0)</label>
                           <input
                             :value="getScoreInput(criterion.evaluation_criterion_id).score"
                             @input="setScore(criterion.evaluation_criterion_id, Number(($event.target as HTMLInputElement).value))"
                             type="number"
-                            :min="0"
+                            :min="0.01"
                             :max="criterion.evaluation_criterion?.max_score || 100"
                             step="0.1"
-                            class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            class="w-24 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            :class="getScoreErrors(criterion.evaluation_criterion_id).score ? 'border-red-500' : 'border-gray-300'"
                           />
+                          <p v-if="getScoreErrors(criterion.evaluation_criterion_id).score" class="mt-1 text-xs text-red-500">
+                            {{ getScoreErrors(criterion.evaluation_criterion_id).score }}
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     <!-- Comment -->
                     <div class="mt-3">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs text-gray-500">ความคิดเห็น (ไม่บังคับ)</span>
+                        <span 
+                          class="text-xs" 
+                          :class="(getScoreInput(criterion.evaluation_criterion_id).comment?.length || 0) > VALIDATION_RULES.comment.maxLength ? 'text-red-500' : 'text-gray-400'"
+                        >
+                          {{ getScoreInput(criterion.evaluation_criterion_id).comment?.length || 0 }}/{{ VALIDATION_RULES.comment.maxLength }}
+                        </span>
+                      </div>
                       <textarea
                         :value="getScoreInput(criterion.evaluation_criterion_id).comment"
                         @input="setComment(criterion.evaluation_criterion_id, ($event.target as HTMLTextAreaElement).value)"
                         rows="2"
-                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        :maxlength="VALIDATION_RULES.comment.maxLength"
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        :class="getScoreErrors(criterion.evaluation_criterion_id).comment ? 'border-red-500' : 'border-gray-200'"
                         placeholder="ความคิดเห็น (ถ้ามี)..."
                       ></textarea>
+                      <p v-if="getScoreErrors(criterion.evaluation_criterion_id).comment" class="mt-1 text-xs text-red-500">
+                        {{ getScoreErrors(criterion.evaluation_criterion_id).comment }}
+                      </p>
                     </div>
                   </div>
                 </div>
