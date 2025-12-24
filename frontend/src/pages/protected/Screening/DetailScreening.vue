@@ -15,6 +15,7 @@ const comment = ref('');
 const actionType = ref<'approve' | 'reject' | null>(null);
 const isSubmitting = ref(false);
 const currentUser = ref('');
+const errorMessage = ref(''); // สำหรับแสดงข้อความดักผิด
 
 onMounted(async () => {
     try {
@@ -54,17 +55,14 @@ const parseGoDate = (dateString: string | undefined): Date | null => {
 
 const formatDate = (dateString: string | undefined | number) => {
     if (!dateString) return 'เมื่อสักครู่';
-
     if (typeof dateString === 'number') {
         return new Date(dateString).toLocaleDateString('th-TH', {
             year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit',
         });
     }
-
     const date = parseGoDate(dateString);
     if (!date) return 'เมื่อสักครู่'; 
-    
     return date.toLocaleDateString('th-TH', {
         year: 'numeric', month: 'short', day: 'numeric',
         hour: '2-digit', minute: '2-digit',
@@ -87,7 +85,6 @@ const mapOperatorToText = (op: string) => {
 // --- Computed: Header Info ---
 const headerInfo = computed(() => {
     const root = getRootData();
-    // ดึงข้อมูลจาก application_scholarship ตาม API response
     const appSch = root.application_scholarship || root.ApplicationScholarship || {};
     const scholarship = appSch.scholarship || appSch.Scholarship || {};
     const application = appSch.application || appSch.Application || {};
@@ -98,7 +95,6 @@ const headerInfo = computed(() => {
     if(statusId === 2) statusStr = 'approved';
     if(statusId === 3) statusStr = 'rejected';
 
-    // ดึงข้อมูล round จาก semaster
     const semaster = scholarship.semaster || scholarship.Semaster || {};
     const roundText = semaster.term && semaster.academic_year 
         ? `${semaster.term}/${semaster.academic_year}` 
@@ -116,9 +112,7 @@ const headerInfo = computed(() => {
 // --- Computed: Timeline Logic ---
 const timelineEvents = computed(() => {
     const root = getRootData();
-    const events: any[] = []; // Explicit type as any[] or define interface
-    
-    // 1. Created Event
+    const events: any[] = [];
     const createdDate = parseGoDate(root.CreatedAt);
     const createdTs = createdDate ? createdDate.getTime() : Date.now() - 100000;
 
@@ -132,7 +126,6 @@ const timelineEvents = computed(() => {
         timestamp: createdTs
     });
 
-    // 2. Determine Current State
     const status = headerInfo.value.status?.toLowerCase();
     const nowTs = Date.now();
     const updateDate = parseGoDate(root.UpdatedAt);
@@ -171,41 +164,31 @@ const timelineEvents = computed(() => {
         });
     }
 
-    // Sort
     events.sort((a, b) => b.timestamp - a.timestamp);
-    
-    // Fix: Handle possible undefined array elements
     if (events.length > 0) {
         const first = events[0];
-        // ตรวจสอบ first ก่อนใช้งาน
         if (first && first.status !== 'past-approved' && first.status !== 'past-rejected') {
              if (first.status.startsWith('past')) first.status = 'current';
         }
-        
-        // Loop เริ่มที่ 1
         for(let i=1; i<events.length; i++) {
              const currentEvent = events[i];
-             // ตรวจสอบ currentEvent ก่อนใช้งาน
              if (currentEvent && currentEvent.status === 'current') {
                 currentEvent.status = 'past';
              }
         }
     }
-
     return events;
 });
 
 // --- Computed: Criteria Logic ---
 const screeningCriteria = computed(() => {
     const root = getRootData();
-    // ดึงข้อมูลจาก application_scholarship.scholarship ตาม API response
     const appSch = root.application_scholarship || root.ApplicationScholarship || {};
     const scholarship = appSch.scholarship || appSch.Scholarship || root.scholarship || root.Scholarship || {};
     const rawFeatures = scholarship.featurescholarships || scholarship.FeatureScholarships || scholarship.feature_scholarships || []; 
 
     if (!Array.isArray(rawFeatures) || rawFeatures.length === 0) return [];
 
-    // ดึงข้อมูล student จาก application_scholarship.application.student_profile
     const application = appSch.application || appSch.Application || root.application || {};
     const student = application.student_profile || application.StudentProfile || {};
     const family = student.family_info || student.FamilyInfo || {};
@@ -231,12 +214,8 @@ const screeningCriteria = computed(() => {
             const guardianInc = Number(family.guardian_income || 0);
             const guardianIsParent = family.guardian_is_parent || '';
             
-            // Only count guardian income if guardian is "other" (not father or mother)
-            // This prevents counting the same income twice
             let totalFamilyIncome = fatherInc + motherInc;
             if (guardianIsParent === 'other' || guardianIsParent === '') {
-              // Only add guardian income if it's a different person
-              // Check if guardian name is different from father/mother name
               const guardianName = family.guardian_name || '';
               const fatherName = family.father_name || '';
               const motherName = family.mother_name || '';
@@ -249,7 +228,6 @@ const screeningCriteria = computed(() => {
                 let parentCount = 0;
                 if (fatherInc > 0 || family.father_name) parentCount++;
                 if (motherInc > 0 || family.mother_name) parentCount++;
-                // Only count guardian as additional person if they are "other"
                 if (guardianIsParent === 'other' && (guardianInc > 0 || family.guardian_name)) {
                   const guardianName = family.guardian_name || '';
                   const fatherName = family.father_name || '';
@@ -259,7 +237,6 @@ const screeningCriteria = computed(() => {
                   }
                 }
                 if (parentCount === 0) parentCount = 1; 
-
                 const totalMembers = 1 + Number(student.siblings_count || 0) + parentCount;
                 studentValueNum = totalFamilyIncome / (totalMembers > 0 ? totalMembers : 1);
                 studentValueStr = formatNumber(studentValueNum) + ' บ./คน';
@@ -289,7 +266,6 @@ const screeningCriteria = computed(() => {
         }
 
         const requirementText = `${mapOperatorToText(operator)} ${formatNumber(requiredValue)} ${unit}`;
-
         return { id: item.ID || index, label, requirement: requirementText, studentValue: studentValueStr, isPassed };
     });
 });
@@ -309,6 +285,7 @@ watch(() => props.isOpen, (val) => {
         comment.value = '';
         actionType.value = null;
         isSubmitting.value = false;
+        errorMessage.value = ''; // Reset error message เมื่อเปิด modal ใหม่
     }
 });
 
@@ -322,6 +299,21 @@ const submitAction = async (type: 'approve' | 'reject') => {
     if (!root.ID) return;
 
     let statusId = type === 'approve' ? 2 : 3;
+    errorMessage.value = ''; // Clear error ก่อนเริ่มทำงาน
+
+    // --- [VALIDATION LOGIC] ---
+    if (type === 'reject') {
+        const trimmedComment = comment.value.trim();
+        if (!trimmedComment) {
+            errorMessage.value = 'กรุณากรอกเหตุผลที่ไม่ผ่านการคัดกรองก่อนยืนยัน';
+            return; // หยุดการทำงาน ไม่ให้ไปต่อที่ API
+        }
+        if (trimmedComment.length < 5) {
+            errorMessage.value = 'เหตุผลต้องมีความยาวอย่างน้อย 5 ตัวอักษร';
+            return;
+        }
+    }
+    // --------------------------
 
     isSubmitting.value = true;
     try {
@@ -329,10 +321,8 @@ const submitAction = async (type: 'approve' | 'reject') => {
             status_screening_id: statusId,
             rejection_reason: type === 'reject' ? comment.value.trim() : null
         });
-
         emit('action-completed');
         closeModal();
-
     } catch (error) {
         console.error(error);
         alert('เกิดข้อผิดพลาดในการบันทึก');
@@ -431,7 +421,8 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                     </button>
                                     
                                     <button @click="actionType = 'reject'" :disabled="isSubmitting"
-                                        class="btn btn-outline btn-error w-full hover:text-white">
+                                        class="btn btn-outline btn-error w-full hover:text-white"
+                                        :class="{'bg-error text-white': actionType === 'reject'}">
                                         ไม่ผ่านการคัดกรอง
                                     </button>
                                 </div>
@@ -441,12 +432,18 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                         ระบุเหตุผลที่ปฏิเสธ:
                                     </p>
                                     <textarea v-model="comment" 
-                                        class="textarea textarea-bordered w-full h-24 text-sm border-error focus:ring-error"
+                                        class="textarea textarea-bordered w-full h-24 text-sm focus:ring-error"
+                                        :class="errorMessage ? 'border-error' : 'border-gray-300'"
                                         placeholder="เช่น เกรดเฉลี่ยไม่ถึงเกณฑ์, รายได้เกินกำหนด..."></textarea>
+                                    
+                                    <p v-if="errorMessage" class="text-error text-xs mt-1 font-medium">{{ errorMessage }}</p>
+
                                     <div class="flex justify-end gap-2 mt-3">
-                                        <button @click="actionType = null" class="btn btn-ghost btn-xs text-gray-500">ยกเลิก</button>
+                                        <button @click="actionType = null; errorMessage = ''" class="btn btn-ghost btn-xs text-gray-500">ยกเลิก</button>
                                         <button @click="submitAction('reject')" 
-                                            class="btn btn-sm btn-error text-white border-none">
+                                            :disabled="isSubmitting"
+                                            class="btn btn-sm btn-error text-white border-none shadow-sm">
+                                            <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
                                             ยืนยันผล
                                         </button>
                                     </div>
@@ -469,9 +466,7 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ประวัติการดำเนินการ</h3>
                                 <ul class="timeline timeline-vertical timeline-compact -ml-4">
                                     <li v-for="(event, index) in timelineEvents" :key="event.id">
-                                        
                                         <hr v-if="index > 0" class="bg-gray-200" />
-                                        
                                         <div class="timeline-middle">
                                             <div v-if="event.status === 'current'" class="relative flex items-center justify-center w-6 h-6">
                                                 <span class="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
@@ -499,17 +494,14 @@ const submitAction = async (type: 'approve' | 'reject') => {
                                             <div class="text-xs text-gray-500 mb-2">
                                                 {{ event.date }} • โดย {{ event.actor }}
                                             </div>
-                    
                                             <div v-if="event.status.includes('rejected')" 
                                                  class="bg-red-50 border border-red-100 rounded-xl p-3 text-sm text-red-800 w-full break-words">
                                                 {{ event.description }}
                                             </div>
-                                            
                                             <div v-else class="text-xs text-gray-600 break-words">
                                                 {{ event.description }}
                                             </div>
                                         </div>
-
                                         <hr v-if="index < timelineEvents.length - 1" class="bg-gray-200" />
                                     </li>
                                 </ul>

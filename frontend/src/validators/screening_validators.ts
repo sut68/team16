@@ -12,10 +12,6 @@ export const validateScreeningStatusForm = (payload: UpdateScreeningStatusPayloa
     // 1. ตรวจสอบว่าต้องใส่ (Required)
     if (!payload.rejection_reason || payload.rejection_reason.trim() === '') {
       errors.rejection_reason = "กรุณาระบุเหตุผลที่ไม่ผ่านการคัดกรอง";
-    } 
-    // 2. ตรวจสอบความยาวสูงสุด
-    else if (payload.rejection_reason.length > 100) {
-      errors.rejection_reason = "เหตุผลต้องไม่เกิน 100 ตัวอักษร";
     }
   }
 
