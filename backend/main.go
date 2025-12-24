@@ -256,13 +256,13 @@ func main() {
 		api.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
 		api.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
 		api.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
-		api.PUT("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
+		api.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
 		api.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
 
 		// Interview Round Criteria (เกณฑ์ในแต่ละรอบสัมภาษณ์)
 		api.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
 		api.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
-		api.PUT("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
+		api.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
 		api.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
 
 		// Evaluations (การประเมินผู้สมัคร)
