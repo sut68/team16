@@ -14,12 +14,12 @@ type FamilyInfo struct {
 	MotherIncome     float64 `gorm:"type:decimal(10,2)" json:"mother_income" valid:"range(0|10000000)~Mother Income cannot be negative"`
 
 	// ผู้ปกครอง - ถ้าเป็นพ่อหรือแม่ ให้ระบุใน GuardianIsParent เพื่อไม่นับรายได้ซ้ำ
-	GuardianName       string  `json:"guardian_name"`
-	GuardianOccupation string  `json:"guardian_occupation"`
+	GuardianName       string  `json:"guardian_name" valid:"required~Guardian Name is required"`
+	GuardianOccupation string  `json:"guardian_occupation" valid:"required~Guardian Occupation is required"`
 	GuardianIncome     float64 `gorm:"type:decimal(10,2)" json:"guardian_income" valid:"range(0|10000000)~Guardian Income cannot be negative"`
-	GuardianRelation   string  `json:"guardian_relation"`
+	GuardianRelation   string  `json:"guardian_relation" valid:"required~Guardian Relation is required"`
 	// GuardianIsParent: "father" = ผู้ปกครองคือบิดา, "mother" = ผู้ปกครองคือมารดา, "" = บุคคลอื่น
-	GuardianIsParent string `json:"guardian_is_parent"`
+	GuardianIsParent string `json:"guardian_is_parent" valid:""`
 
 	ProfileID uint           `json:"profile_id" valid:"required~Profile ID is required"`
 	Profile   StudentProfile `gorm:"foreignKey:ProfileID;references:ID" json:"student_profile" valid:"-"`
