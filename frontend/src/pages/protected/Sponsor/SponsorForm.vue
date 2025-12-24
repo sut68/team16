@@ -4,7 +4,7 @@ import type { PropType } from 'vue';
 import type { IndustryResponse } from '@/interfaces/sponsor';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
 import { IndustryService } from '@/services/sponsor/industry';
-import { validateSponsorForm } from '@/validators/sponsorValidator';
+import { validateSponsorForm } from '@/validators/sponsor_validator';
 import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
 // ---------------- Props / Emits ----------------
