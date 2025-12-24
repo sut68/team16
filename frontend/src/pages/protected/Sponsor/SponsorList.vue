@@ -436,6 +436,7 @@ onMounted(fetchSponsors)
     v-if="currentSponsorId !== null"
     v-model:isOpen="isContactsOpen"
     :sponsorId="currentSponsorId"
+    :sponsorName="currentSponsor?.company_name ?? ''"
     :initialContacts="currentContacts"
     @saved="onContactsSaved"
     @close="() => { isContactsOpen = false }"

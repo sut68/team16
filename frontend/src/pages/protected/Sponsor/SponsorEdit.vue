@@ -5,7 +5,7 @@ import type { SponsorResponse, SponsorPayload } from '@/interfaces/sponsor';
 import type { IndustryResponse } from '@/interfaces/sponsor'; // <-- ปรับ path ตามจริง
 import { SponsorService } from '@/services/sponsor/sponsor';
 import { IndustryService } from '@/services/sponsor/industry'; // <-- ตรวจสอบ path ให้ตรง
-import { validateSponsorForm } from '@/validators/sponsorValidator';
+import { validateSponsorForm } from '@/validators/sponsor_validator';
 import Swal from 'sweetalert2';
 import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
@@ -224,12 +224,19 @@ function close() {
         :aria-labelledby="`${dialogId}-title`"
         class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
-        <!-- header -->
-        <div class="px-4 py-3 border-b flex items-center justify-between bg-slate-50">
-          <h3 :id="`${dialogId}-title`" class="text-lg font-semibold">แก้ไขข้อมูลบริษัท</h3>
+        <!-- Header -->
+        <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
           <div>
-            <button class="btn btn-ghost btn-sm" @click="close">ปิด</button>
+            <h2 :id="`${dialogId}-title`" class="text-xl font-bold text-[#1e3a8a]">แก้ไขข้อมูลบริษัท</h2>
           </div>
+
+          <button class="btn btn-circle btn-ghost btn-sm" @click="close" aria-label="ปิด">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <!-- body -->
