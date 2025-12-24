@@ -146,6 +146,7 @@ func main() {
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
 		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
+		api.GET("/sponsors/:id/scholarships", controllers.GetSponsorScholarships)
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
 		// api.GET("/scholarships", controllers.GetAllScholarship)
