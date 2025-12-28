@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
+import SUTLogoImport from '@/assets/logo/Institute_of_Engineering_SUT_Logo.svg';
 import { Get } from '@/services/api/https';
+import ScholarshipCardList from '@/components/ui/ScholarshipCardList.vue';
+import StatisticsSection from '@/components/ui/StatisticsSection.vue';
+import type { ScholarshipResponse } from '@/interfaces/scholarship';
+import FooterBgImport from '@/assets/Suranapa-Tower01.jpg';
 
 // 2. ประกาศตัวแปรเพื่อรับค่า (แก้ปัญหา Type Error)
 const SuryaGraphic = SuryaGraphicImport;
+const SUTLogo = SUTLogoImport;
+const FooterBg = FooterBgImport;
 
 interface TabItem {
   id: string;
@@ -25,10 +33,11 @@ interface NewsPost {
   };
 }
 
-const activeTab = ref<string>('bachelor');
+const activeTab = ref<string>('all');
 const newsPosts = ref<NewsPost[]>([]);
 
 const tabs: TabItem[] = [
+  { id: 'all', label: 'ทั้งหมด' },
   { id: 'bachelor', label: 'ปริญญาตรี' },
   { id: 'master', label: 'ปริญญาโท' },
   { id: 'doctoral', label: 'ปริญญาเอก' },
@@ -51,45 +60,56 @@ onMounted(() => {
   fetchNews();
 });
 
-const filteredScholarships = computed(() => {
-  // Debug: Log data to see what we got
-  console.log('News Data:', newsPosts.value);
+// const filteredScholarships = computed(() => {
+//   // Debug: Log data to see what we got
+//   console.log('News Data:', newsPosts.value);
   
-  // Return all news for now because backend types (Full/Partial) don't match tabs (Bachelor/Master)
-  return newsPosts.value; 
+//   // Return all news for now because backend types (Full/Partial) don't match tabs (Bachelor/Master)
+//   return newsPosts.value; 
 
-  /* 
-  const currentTabLabel = tabs.find(t => t.id === activeTab.value)?.label;
-  if (!currentTabLabel) return [];
+//   /* 
+//   const currentTabLabel = tabs.find(t => t.id === activeTab.value)?.label;
+//   if (!currentTabLabel) return [];
   
-  return newsPosts.value.filter((n) => {
-    // Optional chaining in case of missing data
-    return n.scholarship?.typescholarship?.type_name === currentTabLabel;
-  });
-  */
-});
+//   return newsPosts.value.filter((n) => {
+//     // Optional chaining in case of missing data
+//     return n.scholarship?.typescholarship?.type_name === currentTabLabel;
+//   });
+//   */
+// });
 
 const setActiveTab = (id: string) => {
   activeTab.value = id;
 };
+
+// Router for navigation
+const router = useRouter();
+
+// Handle scholarship card click
+function handleViewScholarshipDetail(_scholarship: ScholarshipResponse) {
+  // Navigate to login or detail page
+  router.push('/login');
+}
+
+function handleViewAllScholarships() {
+  router.push('/login');
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#EEEEEE] font-sans" data-testid="homepage-container">
+  <div class="min-h-screen font-sans bg-gray-50" data-testid="homepage-container">
 
     <header class="bg-white shadow-sm sticky top-0 z-50" data-testid="homepage-header">
-      <div class="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div
-            class="w-10 h-10 bg-[#F26522] text-white flex items-center justify-center font-bold text-xl rounded shadow-sm border border-[#8B001D]">
-            SUT</div>
-          <div class="flex flex-col">
-            <span class="font-bold text-lg text-[#253C90] leading-none">SURANAREE</span>
-            <span class="text-[10px] text-gray-500 tracking-wider">UNIVERSITY OF TECHNOLOGY</span>
-          </div>
+      <div class="container mx-auto px-4 h-20 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img 
+            :src="SUTLogo" 
+            alt="SUT Logo" 
+            class="h-14 object-contain"
+          />
         </div>
 
-        <nav class="hidden md:flex gap-6 text-sm font-medium text-gray-600" data-testid="homepage-nav">
+        <nav class="hidden md:flex gap-8 text-base font-medium text-gray-600" data-testid="homepage-nav">
           <a href="#" class="hover:text-[#F26522] transition">สมัครเรียน</a>
           <a href="#" class="hover:text-[#F26522] transition">คณะและหลักสูตร</a>
           <a href="#" class="hover:text-[#F26522] transition">ชีวิตในมหาลัย</a>
@@ -97,9 +117,9 @@ const setActiveTab = (id: string) => {
         </nav>
 
         <router-link to="/login"
-          class="bg-[#F26522] hover:bg-[#6d0016] text-white px-5 py-2 rounded-md font-bold text-sm transition shadow-lg flex items-center gap-2"
+          class="bg-[#F26522] hover:bg-[#6d0016] text-white px-6 py-2.5 rounded-lg font-bold text-base transition shadow-lg flex items-center gap-2"
           data-testid="homepage-login-button">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
@@ -108,9 +128,16 @@ const setActiveTab = (id: string) => {
       </div>
     </header>
 
+    <!-- Hero Banner -->
     <section class="relative bg-[#8B001D] text-white py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
-      <div class="absolute inset-0 z-0 bg-cover bg-left-top bg-no-repeat opacity-20"
-        :style="{ backgroundImage: `url(${SuryaGraphic})`, backgroundPosition: '-50px -50px' }"></div>
+      <div class="absolute inset-0 z-0 overflow-hidden opacity-20">
+        <img 
+          :src="SuryaGraphic" 
+          alt="" 
+          class="surya-rotate"
+          style="position: absolute; top: -50px; left: -50px;"
+        />
+      </div>
       <div
         class="absolute top-0 right-0 w-80 h-80 bg-[#F26522] opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2">
       </div>
@@ -156,6 +183,7 @@ const setActiveTab = (id: string) => {
       </div>
     </section>
 
+    <!-- Tabs -->
     <section class="container mx-auto px-4 -mt-8 relative z-20" data-testid="homepage-tabs-section">
       <div class="bg-white rounded-xl shadow-xl p-2 md:p-4 max-w-4xl mx-auto border-b-4 border-[#F26522]">
         <div class="flex flex-wrap justify-center gap-2 md:gap-4">
@@ -173,7 +201,7 @@ const setActiveTab = (id: string) => {
       </div>
     </section>
 
-    <section class="container mx-auto px-4 py-16 max-w-5xl" data-testid="homepage-scholarships-section">
+    <!-- <section class="container mx-auto px-4 py-16 max-w-5xl" data-testid="homepage-scholarships-section">
       <div class="mb-8 border-b pb-4 border-gray-300">
         <h2 class="text-3xl font-bold text-[#253C90]">
           ทุนการศึกษาที่ได้รับ:
@@ -206,6 +234,21 @@ const setActiveTab = (id: string) => {
       <div v-else class="text-center py-12 text-gray-400" data-testid="homepage-scholarships-empty">
         <p>ไม่มีรายการทุนในหมวดหมู่นี้ขณะนี้</p>
       </div>
+    </section> -->
+
+    <!-- Statistics Section สถิติเดี๋ยวไปดึงข้อมูลมาอีกที -->
+    <StatisticsSection />
+
+    <!-- Scholarship Cards Section ส่วนแสดงทุนการศึกษาที่เปิดรับสมัคร -->
+    <section class="container mx-auto px-4 py-12" data-testid="homepage-scholarship-cards">
+      <ScholarshipCardList
+        :limit="6"
+        :only-open="true"
+        title="ทุนการศึกษาที่เปิดรับสมัคร"
+        :show-view-all="true"
+        @view-detail="handleViewScholarshipDetail"
+        @view-all="handleViewAllScholarships"
+      />
     </section>
 
     <div class="fixed right-0 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-1 hidden md:flex" data-testid="homepage-social-links">
@@ -217,7 +260,106 @@ const setActiveTab = (id: string) => {
         class="w-10 h-10 bg-[#06C755] text-white flex items-center justify-center hover:w-12 transition-all shadow-md">L</a>
     </div>
 
+    <!-- Footer -->
+    <footer class="relative mt-16">
+      <img 
+        :src="FooterBg" 
+        alt="" 
+        class="w-full object-cover"
+      />
+      
+      <!-- gradient: 100% gray-50 (top) to 0% transparent (bottom) -->
+      <div class="absolute inset-0 bg-gradient-to-b from-gray-50 via-gray-50/30 via-40% to-transparent"></div>
+      
+      <!-- Footer content -->
+      <div class="absolute inset-0 z-10 flex items-end pb-8">
+        <div class="container mx-auto px-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-white mb-8">
+            <div class="md:col-span-1">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-[#F26522] rounded-lg flex items-center justify-center font-bold text-white">
+                  SUT
+                </div>
+                <div>
+                  <h3 class="font-bold text-lg">SURANAREE</h3>
+                  <p class="text-xs text-white/70">University of Technology</p>
+                </div>
+              </div>
+              <p class="text-sm text-white/80 leading-relaxed">
+                ระบบทุนการศึกษา มหาวิทยาลัยเทคโนโลยีสุรนารี
+              </p>
+            </div>
+
+            <!-- Quick Links เดี๋ยวค่อยมาปรับอีกที-->
+            <div>
+              <h4 class="font-bold mb-4 text-[#F26522]">เมนูลัด</h4>
+              <ul class="space-y-2 text-sm text-white/80">
+                <li><a href="#" class="hover:text-[#F26522] transition">หน้าแรก</a></li>
+                <li><a href="#" class="hover:text-[#F26522] transition">ทุนการศึกษา</a></li>
+                <li><a href="#" class="hover:text-[#F26522] transition">สมัครทุน</a></li>
+                <li><a href="#" class="hover:text-[#F26522] transition">ติดต่อเรา</a></li>
+              </ul>
+            </div>
+
+            <!-- Contact -->
+            <div>
+              <h4 class="font-bold mb-4 text-[#F26522]">ติดต่อเรา</h4>
+              <ul class="space-y-2 text-sm text-white/80">
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                  </svg>
+                  044-224-xxxx
+                </li>
+                <li class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                  scholarship@sut.ac.th
+                </li>
+              </ul>
+            </div>
+
+            <!-- Social -->
+            <div>
+              <h4 class="font-bold mb-4 text-[#F26522]">ติดตามเรา</h4>
+              <div class="flex gap-3">
+                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
+                  <span class="font-bold">F</span>
+                </a>
+                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
+                  <span class="font-bold">Y</span>
+                </a>
+                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
+                  <span class="font-bold">L</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-white/20 pt-6 text-center text-sm text-white/60">
+            <p>พัฒนาโดย Team 16 | SE Project</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+@keyframes slow-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.surya-rotate {
+  /* ปรับเวลาหมุน */
+  animation: slow-rotate 60s linear infinite;
+  transform-origin: center center;
+}
+</style>
