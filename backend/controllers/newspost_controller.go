@@ -105,7 +105,7 @@ func CreateNewsPost(c *gin.Context) {
 	file, err := c.FormFile("file_path")
 	if err == nil {
 		extension := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
+		fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
 		filePath = "uploads/news/" + fileName
 
 		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
@@ -203,7 +203,7 @@ func UpdateNewsPost(c *gin.Context) {
 	if err == nil {
 		// ✅ กรณีมีไฟล์ใหม่: บันทึกไฟล์ และอัปเดต FilePath
 		extension := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("news-%d%s", time.Now().UnixNano(), extension)
+		fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
 		filePath := "uploads/news/" + fileName
 
 		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {

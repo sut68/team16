@@ -52,7 +52,7 @@ const filteredNewsList = computed(() => {
     }
     if (searchTerm.value) {
         const term = searchTerm.value.toLowerCase();
-        items = items.filter(item => 
+        items = items.filter((item: any) => 
             item.title.toLowerCase().includes(term) || 
             item.caption.toLowerCase().includes(term)
         );
@@ -124,12 +124,21 @@ const fetchData = async (background = false) => {
         latestNewsIdFromAPI.value = maxId;
     }
 
-    newsItems.value = posts.map((post: any) => ({
+    // Helper to strip HTML tags
+    const stripHtml = (html: string) => {
+       if (!html) return "";
+       return html.replace(/<[^>]*>?/gm, '');
+    };
+
+    // Filter: Show Public (1) and Members Only (4)
+    const validPosts = posts.filter((post: any) => post.status_news_id === 1 || post.status_news_id === 4);
+
+    newsItems.value = validPosts.map((post: any) => ({
       id: Number(post.ID || post.id), 
       title: post.title,
-      desc: post.post_detail,
+      desc: stripHtml(post.post_detail),
       caption: post.scholarship?.scholarship_name || 'ข่าวทั่วไป', // ชื่อทุน
-      postDetail: post.post_detail,
+      postDetail: stripHtml(post.post_detail),
       imagePath: post.file_path ? `${API_BASE_URL}/${post.file_path}` : null,
       isLiked: favSet.has(post.ID || post.id),
       createdAt: post.CreatedAt,

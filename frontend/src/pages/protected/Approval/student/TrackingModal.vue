@@ -253,6 +253,13 @@ const getStepStatus = (stepId: number) => {
 };
 
 const latestComment = computed(() => {
+  // 1. Check Screening Rejection (Step 2)
+  const screening = props.applicationData?.screening;
+  if (processState.value.currentStep === 2 && processState.value.status === 'error') {
+      return screening?.rejection_reason || "คุณสมบัติไม่ผ่านเกณฑ์การคัดกรอง";
+  }
+
+  // 2. Check Document Approval Rejection/Request Change
   const docs =
     props.applicationData?.application_documents ||
     props.applicationData?.application_documents;

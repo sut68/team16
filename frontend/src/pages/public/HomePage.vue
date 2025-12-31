@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
 import SUTLogoImport from '@/assets/logo/Institute_of_Engineering_SUT_Logo.svg';
-import { Get } from '@/services/api/https';
-import ScholarshipCardList from '@/components/ui/ScholarshipCardList.vue';
+import NewsCardList from '@/components/ui/NewsCardList.vue';
 import StatisticsSection from '@/components/ui/StatisticsSection.vue';
-import type { ScholarshipResponse } from '@/interfaces/scholarship';
+import type { NewsPost } from '@/interfaces/news_post';
 import FooterBgImport from '@/assets/Suranapa-Tower01.jpg';
 
-// 2. ประกาศตัวแปรเพื่อรับค่า (แก้ปัญหา Type Error)
+
 const SuryaGraphic = SuryaGraphicImport;
 const SUTLogo = SUTLogoImport;
 const FooterBg = FooterBgImport;
@@ -19,22 +18,7 @@ interface TabItem {
   label: string;
 }
 
-interface NewsPost {
-  ID: number;
-  title: string;
-  post_detail: string;
-  scholarship: {
-    sponsor: {
-      company_name: string; // Corrected from sponsor_name
-    };
-    typescholarship: {
-      type_name: string;
-    };
-  };
-}
-
 const activeTab = ref<string>('all');
-const newsPosts = ref<NewsPost[]>([]);
 
 const tabs: TabItem[] = [
   { id: 'all', label: 'ทั้งหมด' },
@@ -44,40 +28,6 @@ const tabs: TabItem[] = [
   { id: 'inter', label: 'International' },
 ];
 
-const fetchNews = async () => {
-  try {
-    // Use Get with requireAuth = false to avoid token warning and headers
-    const response = await Get('/newsposts', false);
-    if (response) {
-      newsPosts.value = response;
-    }
-  } catch (error) {
-    console.error('Error fetching news:', error);
-  }
-};
-
-onMounted(() => {
-  fetchNews();
-});
-
-// const filteredScholarships = computed(() => {
-//   // Debug: Log data to see what we got
-//   console.log('News Data:', newsPosts.value);
-  
-//   // Return all news for now because backend types (Full/Partial) don't match tabs (Bachelor/Master)
-//   return newsPosts.value; 
-
-//   /* 
-//   const currentTabLabel = tabs.find(t => t.id === activeTab.value)?.label;
-//   if (!currentTabLabel) return [];
-  
-//   return newsPosts.value.filter((n) => {
-//     // Optional chaining in case of missing data
-//     return n.scholarship?.typescholarship?.type_name === currentTabLabel;
-//   });
-//   */
-// });
-
 const setActiveTab = (id: string) => {
   activeTab.value = id;
 };
@@ -85,15 +35,17 @@ const setActiveTab = (id: string) => {
 // Router for navigation
 const router = useRouter();
 
-// Handle scholarship card click
-function handleViewScholarshipDetail(_scholarship: ScholarshipResponse) {
+// Handle news card click
+function handleViewNewsDetail(_news : NewsPost) {
   // Navigate to login or detail page
+  // For now, redirect to login as per original code
   router.push('/login');
 }
 
-function handleViewAllScholarships() {
+function handleViewAllNews() {
   router.push('/login');
 }
+
 </script>
 
 <template>
@@ -201,53 +153,18 @@ function handleViewAllScholarships() {
       </div>
     </section>
 
-    <!-- <section class="container mx-auto px-4 py-16 max-w-5xl" data-testid="homepage-scholarships-section">
-      <div class="mb-8 border-b pb-4 border-gray-300">
-        <h2 class="text-3xl font-bold text-[#253C90]">
-          ทุนการศึกษาที่ได้รับ:
-          <span class="text-[#F26522] text-xl font-normal ml-2">({{ tabs.find((t: { id: any; }) => t.id ===
-            activeTab)?.label }})</span>
-        </h2>
-      </div>
-
-      <div v-if="filteredScholarships.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="homepage-scholarships-grid">
-        <div v-for="news in filteredScholarships" :key="news.ID"
-          class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-xl transition group cursor-pointer relative overflow-hidden"
-          :data-testid="`homepage-scholarship-card-${news.ID}`">
-          <div class="absolute top-0 left-0 w-2 h-full bg-[#F26522] group-hover:w-3 transition-all"></div>
-
-          <h3 class="text-xl font-bold text-[#253C90] mb-2 group-hover:text-[#F26522] transition">{{ news.title
-            }}</h3>
-          <p class="text-gray-600 mb-4 font-light line-clamp-2">{{ news.post_detail }}</p>
-
-          <div class="flex items-center justify-between mt-4">
-            <span class="text-[#8B001D] font-bold bg-[#F26522]/10 px-3 py-1 rounded-full text-sm">
-              {{ news.scholarship?.sponsor?.company_name || 'ทุนการศึกษา' }}
-            </span>
-            <router-link to="/login" class="text-[#253C90] font-semibold text-sm hover:text-[#F26522] hover:underline">
-              ดูรายละเอียด >
-            </router-link>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="text-center py-12 text-gray-400" data-testid="homepage-scholarships-empty">
-        <p>ไม่มีรายการทุนในหมวดหมู่นี้ขณะนี้</p>
-      </div>
-    </section> -->
-
-    <!-- Statistics Section สถิติเดี๋ยวไปดึงข้อมูลมาอีกที -->
+    <!-- Statistics Section -->
     <StatisticsSection />
 
-    <!-- Scholarship Cards Section ส่วนแสดงทุนการศึกษาที่เปิดรับสมัคร -->
-    <section class="container mx-auto px-4 py-12" data-testid="homepage-scholarship-cards">
-      <ScholarshipCardList
+    <!-- News Cards Section -->
+    <section class="container mx-auto px-4 py-12" data-testid="homepage-news-section">
+      <NewsCardList
         :limit="6"
-        :only-open="true"
-        title="ทุนการศึกษาที่เปิดรับสมัคร"
+        :only-public="true"
+        title="ข่าวประชาสัมพันธ์"
         :show-view-all="true"
-        @view-detail="handleViewScholarshipDetail"
-        @view-all="handleViewAllScholarships"
+        @view-detail="handleViewNewsDetail"
+        @view-all="handleViewAllNews"
       />
     </section>
 

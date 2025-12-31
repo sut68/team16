@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { getNewsPostById, updateNewsPost } from '@/services/api/news_post';
 import { validateNewsPostForm } from '@/validators/newspost_validators';
+import { Bold, Italic, Underline, Palette, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-vue-next';
 
 const props = defineProps<{ id: number }>();
 const emit = defineEmits(['close', 'success']);
@@ -54,7 +55,66 @@ const validate = () => {
 };
 
 // ตรวจสอบเมื่อมีการพิมพ์ (แต่จะแสดงสีแดงเฉพาะ field ที่เคย touched แล้ว)
+// ตรวจสอบเมื่อมีการพิมพ์ (แต่จะแสดงสีแดงเฉพาะ field ที่เคย touched แล้ว)
 watch([form, newImageFile], () => validate(), { deep: true });
+
+const editorRef = ref<HTMLElement | null>(null);
+
+const applyFormat = (command: string, value: string | undefined = undefined) => {
+  document.execCommand(command, false, value);
+  editorRef.value?.focus();
+  updateToolbarState();
+};
+
+const applyFormatBlock = (value: string) => {
+  document.execCommand('formatBlock', false, value);
+  editorRef.value?.focus();
+  updateToolbarState();
+};
+
+const activeFormats = ref({
+  bold: false,
+  italic: false,
+  underline: false,
+  insertUnorderedList: false,
+  insertOrderedList: false,
+  justifyLeft: false,
+  justifyCenter: false,
+  justifyRight: false,
+  justifyFull: false,
+  heading: 'p',
+});
+
+const updateToolbarState = () => {
+  activeFormats.value = {
+    bold: document.queryCommandState('bold'),
+    italic: document.queryCommandState('italic'),
+    underline: document.queryCommandState('underline'),
+    insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+    insertOrderedList: document.queryCommandState('insertOrderedList'),
+    justifyLeft: document.queryCommandState('justifyLeft'),
+    justifyCenter: document.queryCommandState('justifyCenter'),
+    justifyRight: document.queryCommandState('justifyRight'),
+    justifyFull: document.queryCommandState('justifyFull'),
+    heading: document.queryCommandValue('formatBlock') || 'p',
+  };
+};
+
+const onEditorInput = (event: Event) => {
+  const target = event.target as HTMLElement;
+  form.value.post_detail = target.innerHTML;
+  touched.value.post_detail = true;
+  updateToolbarState();
+};
+
+watch(isLoading, async (newVal: boolean) => {
+  if (!newVal) {
+    await nextTick();
+    if (editorRef.value) {
+      editorRef.value.innerHTML = form.value.post_detail;
+    }
+  }
+});
 
 const displayImage = computed(() => {
   if (previewImage.value) return previewImage.value;
@@ -159,12 +219,124 @@ const handleSave = async () => {
 
                 <div class="form-control w-full">
                     <label class="label pb-1.5"><span class="label-text font-bold text-slate-700 text-sm">เนื้อหาข่าว *</span></label>
-                    <textarea 
-                        v-model="form.post_detail" 
+                    <div :class="['border rounded-lg overflow-hidden transition-all', (touched.post_detail && errors.post_detail) ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200 focus-within:ring-1 focus-within:ring-[#1e3a8a]']">
+                      <!-- Toolbar -->
+                      <!-- Toolbar -->
+                      <div class="flex gap-1 p-2 bg-slate-100 border-b border-slate-200 flex-wrap items-center">
+                        <select 
+                          @change="(e: Event) => applyFormatBlock((e.target as HTMLSelectElement).value)" 
+                          .value="activeFormats.heading"
+                          class="select select-bordered select-xs w-32 bg-white"
+                        >
+                          <option value="p">ปกติ</option>
+                          <option value="h1">หัวข้อ 1</option>
+                          <option value="h2">หัวข้อ 2</option>
+                          <option value="h3">หัวข้อ 3</option>
+                          <option value="h4">หัวข้อ 4</option>
+                          <option value="h5">หัวข้อ 5</option>
+                        </select>
+
+                        <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('bold')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.bold ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="ตัวหนา"
+                        >
+                          <Bold :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('italic')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.italic ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="ตัวเอียง"
+                        >
+                          <Italic :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('underline')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.underline ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="ขีดเส้นใต้"
+                        >
+                          <Underline :size="18" />
+                        </button>
+                        
+                        <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('insertUnorderedList')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.insertUnorderedList ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="รายการแบบจุด"
+                        >
+                          <List :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('insertOrderedList')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.insertOrderedList ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="รายการแบบตัวเลข"
+                        >
+                          <ListOrdered :size="18" />
+                        </button>
+
+                        <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('justifyLeft')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.justifyLeft ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="ชิดซ้าย"
+                        >
+                          <AlignLeft :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('justifyCenter')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.justifyCenter ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="กึ่งกลาง"
+                        >
+                          <AlignCenter :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('justifyRight')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.justifyRight ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="ชิดขวา"
+                        >
+                          <AlignRight :size="18" />
+                        </button>
+                        <button 
+                          type="button" 
+                          @mousedown.prevent="applyFormat('justifyFull')" 
+                          :class="['p-1.5 rounded transition-colors', activeFormats.justifyFull ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                          title="กระจายแบบเต็ม"
+                        >
+                          <AlignJustify :size="18" />
+                        </button>
+
+                        <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                        <div class="flex items-center gap-1 p-1.5 hover:bg-gray-200 rounded cursor-pointer relative group" title="สีตัวอักษร">
+                          <Palette :size="18" class="text-slate-700"/>
+                          <input type="color" @input="(e: Event) => applyFormat('foreColor', (e.target as HTMLInputElement).value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                        </div>
+                      </div>
+                      
+                      <!-- Editable Area -->
+                      <div 
+                        ref="editorRef"
+                        contenteditable="true"
+                        class="rich-text-content min-h-[450px] lg:h-[calc(100vh-320px)] p-4 text-base leading-relaxed overflow-y-auto prose max-w-none outline-none"
+                        @input="onEditorInput"
+                        @keyup="updateToolbarState"
+                        @mouseup="updateToolbarState"
+                        @click="updateToolbarState"
                         @blur="touched.post_detail = true"
-                        :class="['textarea textarea-bordered min-h-[450px] lg:h-[calc(100vh-320px)] p-4 text-base leading-relaxed transition-all rounded-lg resize-none focus:ring-1 focus:ring-[#1e3a8a]', (touched.post_detail && errors.post_detail) ? 'border-red-500 bg-red-50' : 'bg-slate-50 border-slate-200']"
-                        placeholder="เขียนรายละเอียดข่าวสาร..."
-                    ></textarea>
+                      ></div>
+                    </div>
                     <p v-if="touched.post_detail && errors.post_detail" class="text-red-500 text-[11px] mt-1 ml-1">{{ errors.post_detail }}</p>
                 </div>
             </div>
@@ -214,4 +386,58 @@ const handleSave = async () => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+.rich-text-content :deep(ul) {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(li) {
+  margin: 0.5em 0;
+  display: list-item !important; /* Force display list-item just in case */
+}
+
+/* Heading Styles */
+.rich-text-content :deep(h1) {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+.rich-text-content :deep(h2) {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.75em 0;
+}
+
+.rich-text-content :deep(h3) {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+.rich-text-content :deep(h4) {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 1.12em 0;
+}
+
+.rich-text-content :deep(h5) {
+  font-size: 0.83em;
+  font-weight: bold;
+  margin: 1.5em 0;
+}
+
+.rich-text-content :deep(h6) {
+  font-size: 0.67em;
+  font-weight: bold;
+  margin: 1.67em 0;
+}
 </style>
