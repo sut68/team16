@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { InterviewAPI } from '@/services/api';
-import { LocationAPI } from '@/services/api/location'; // เพิ่ม Import Location
+import { LocationAPI } from '@/services/api/location'; 
 import { getMyProfile } from '@/services/api/user';
 import { getStudentApplications } from '@/services/api/application';
-import type { InterviewRound, Slot, InterviewBooking, Location, InterviewMode } from '@/interfaces/interview'; // เพิ่ม Type
+import type { InterviewRound, Slot, InterviewBooking, Location, InterviewMode } from '@/interfaces/interview'; 
 import type { MyProfileResponse } from '@/interfaces/user';
 import type { ApplicationScholarshipResponse } from '@/interfaces/application_scholarship';
 import Swal from 'sweetalert2';
 
 // Interface เสริมสำหรับแสดงผล
-interface InterviewBookingWithSlot extends InterviewBooking {
+interface InterviewBookingWithDetails extends InterviewBooking {
     slot?: Slot;
+    round?: InterviewRound;
 }
 
 // --- 1. State Management ---
 const isLoading = ref(true);
 const studentProfile = ref<MyProfileResponse | null>(null);
 const allRounds = ref<InterviewRound[]>([]);
-const myBooking = ref<InterviewBookingWithSlot | null>(null);
+const myBookings = ref<InterviewBookingWithDetails[]>([]);
 const studentApplications = ref<ApplicationScholarshipResponse[]>([]);
-const locations = ref<Location[]>([]); // เพิ่ม State Location
-const interviewModes = ref<InterviewMode[]>([]); // เพิ่ม State Mode
+const locations = ref<Location[]>([]);
+const interviewModes = ref<InterviewMode[]>([]);
 
 const isBookingModalOpen = ref(false);
 const selectedRound = ref<InterviewRound | null>(null);
@@ -41,7 +42,6 @@ const fetchData = async () => {
         if (profileRes && profileRes.role && profileRes.role === 'student') {
             const studentId = profileRes.data.ID;
 
-            // เพิ่มการ Fetch Location และ Mode
             const [appsRes, roundsRes, bookingRes, locationsRes, modesRes] = await Promise.all([
                 getStudentApplications(studentId),
                 InterviewAPI.getAllRounds(),
@@ -56,17 +56,17 @@ const fetchData = async () => {
             interviewModes.value = modesRes || [];
 
             if (bookingRes && bookingRes.length > 0) {
-                const booking = bookingRes[0];
-                if (booking) {
+                myBookings.value = bookingRes.map(booking => {
                     const slot = allRounds.value
-                        .flatMap(r => r.slots)
+                        .flatMap(r => r.slots || [])
                         .find(s => s.ID === booking.slot_id);
-                    myBooking.value = { ...booking, slot } as InterviewBookingWithSlot;
-                } else {
-                    myBooking.value = null;
-                }
+                    
+                    const round = allRounds.value.find(r => r.slots?.some(s => s.ID === booking.slot_id));
+
+                    return { ...booking, slot, round };
+                }).filter(b => b.slot && b.round); // Ensure booking is valid
             } else {
-                myBooking.value = null;
+                myBookings.value = [];
             }
         }
     } catch (error) {
@@ -85,10 +85,18 @@ const qualifiedScholarshipIds = computed(() => {
         .map(app => app.scholarship_id);
 });
 
+// Scholarship IDs for which an interview has already been booked.
+const bookedScholarshipIds = computed(() => {
+    return myBookings.value.map(booking => booking.round?.scholarship_id).filter(id => id !== undefined);
+});
+
+
 const displayedRounds = computed(() => {
     if (!allRounds.value) return [];
+    // Show rounds for scholarships that are qualified AND not yet booked.
     return allRounds.value.filter(round =>
-        qualifiedScholarshipIds.value.includes(round.scholarship_id)
+        qualifiedScholarshipIds.value.includes(round.scholarship_id) &&
+        !bookedScholarshipIds.value.includes(round.scholarship_id)
     );
 });
 
@@ -104,7 +112,7 @@ const getBookedCount = (round: InterviewRound) => {
     return round.slots.filter(s => s.is_booked).length;
 }
 
-// --- Helper Functions for UI (เหมือนตัว Manager) ---
+// --- Helper Functions for UI ---
 
 const getModeName = (round: InterviewRound) => {
     if ((round as any).interview_mode?.name) return (round as any).interview_mode.name;
@@ -130,11 +138,6 @@ const getRoundStatus = (round: InterviewRound) => {
 
 // --- 4. Methods ---
 const openBookingModal = async (round: InterviewRound) => {
-    if (myBooking.value) {
-        Swal.fire('แจ้งเตือน', 'คุณมีการจองอยู่แล้ว กรุณายกเลิกการจองเดิมก่อน', 'warning');
-        return;
-    }
-
     isLoading.value = true;
     try {
         const freshRound = await InterviewAPI.getRoundById(round.ID);
@@ -160,7 +163,7 @@ const confirmBooking = async () => {
     const app = studentApplications.value.find(a => a.scholarship_id === selectedRound.value?.scholarship_id);
 
     if (!app) {
-        Swal.fire('ผิดพลาด', 'ไม่พบใบสมัครสำหรับทุนนี้ (App ID Not Found)', 'error');
+        Swal.fire('ผิดพลาด', 'ไม่พบใบสมัครสำหรับทุนนี้', 'error');
         return;
     }
 
@@ -201,9 +204,7 @@ const confirmBooking = async () => {
     }
 };
 
-const cancelBooking = async () => {
-    if (!myBooking.value) return;
-
+const cancelBooking = async (bookingId: number) => {
     const result = await Swal.fire({
         title: 'ยืนยันการยกเลิก',
         text: 'เมื่อยกเลิกแล้ว สิทธิ์จะว่างให้ผู้อื่นจองทันที',
@@ -217,10 +218,9 @@ const cancelBooking = async () => {
     if (result.isConfirmed) {
         isLoading.value = true;
         try {
-            await InterviewAPI.deleteBooking(myBooking.value.ID);
+            await InterviewAPI.deleteBooking(bookingId);
             Swal.fire('สำเร็จ', 'ยกเลิกการจองเรียบร้อยแล้ว', 'success');
-            myBooking.value = null;
-            await fetchData();
+            await fetchData(); // Refetch all data to update UI
         } catch (error) {
             console.error("Cancellation failed:", error);
             Swal.fire('ผิดพลาด', 'การยกเลิกล้มเหลว', 'error');
@@ -262,14 +262,17 @@ const cancelBooking = async () => {
                 </div>
             </div>
 
-            <div v-if="myBooking" class="mb-8 animate-fade-in">
-                <div
+            <div v-if="myBookings.length > 0" class="mb-8 animate-fade-in space-y-4">
+                 <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                    นัดหมายของคุณ <span class="badge badge-accent badge-sm">{{ myBookings.length }}</span>
+                </h3>
+                <div v-for="booking in myBookings" :key="booking.ID"
                     class="card bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white shadow-lg relative overflow-hidden">
                     <div
                         class="card-body relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 p-6">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-4 flex-1">
                             <div
-                                class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -277,24 +280,24 @@ const cancelBooking = async () => {
                                 </svg>
                             </div>
                             <div>
-                                <h2 class="font-bold text-lg">จองสำเร็จ</h2>
-                                <p class="text-blue-100 text-sm">นัดหมายการสัมภาษณ์ของคุณ</p>
+                                <h2 class="font-bold text-lg leading-tight">{{ booking.round?.scholarship?.scholarship_name }}</h2>
+                                <p class="text-blue-100 text-sm">{{ booking.round?.name }}</p>
                             </div>
                         </div>
-                        <div v-if="myBooking.slot"
-                            class="flex-1 bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/20 text-sm w-full">
+                        <div v-if="booking.slot"
+                            class="bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/20 text-sm w-full md:w-auto md:min-w-[280px]">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                                 <p><span class="opacity-70 text-xs mr-2">วันที่:</span>{{ new
-                                    Date(myBooking.slot.start_time).toLocaleDateString('th-TH', { dateStyle: 'medium' })
+                                    Date(booking.slot.start_time).toLocaleDateString('th-TH', { dateStyle: 'medium' })
                                 }}</p>
                                 <p><span class="opacity-70 text-xs mr-2">เวลา:</span>{{ new
-                                    Date(myBooking.slot.start_time).toLocaleTimeString('th-TH', {
+                                    Date(booking.slot.start_time).toLocaleTimeString('th-TH', {
                                         hour: '2-digit',
                                         minute: '2-digit'
                                     }) }} น.</p>
                             </div>
                         </div>
-                        <button @click="cancelBooking"
+                        <button @click="cancelBooking(booking.ID)"
                             class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20 tooltip tooltip-left"
                             data-tip="ยกเลิก">✕</button>
                     </div>
@@ -302,11 +305,11 @@ const cancelBooking = async () => {
             </div>
 
             <div class="flex-1">
-                <h3 v-if="!myBooking" class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <h3 v-if="displayedRounds.length > 0" class="font-bold text-slate-700 mb-4 flex items-center gap-2">
                     รอบที่เปิดให้จอง <span class="badge badge-ghost badge-sm">{{ displayedRounds.length }}</span>
                 </h3>
 
-                <div v-if="displayedRounds.length > 0 && !myBooking"
+                <div v-if="displayedRounds.length > 0"
                     class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
                     <div v-for="round in displayedRounds" :key="round.ID"
                         class="group card bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-visible">
@@ -398,7 +401,7 @@ const cancelBooking = async () => {
                                 </div>
 
                                 <button @click="openBookingModal(round)"
-                                    :disabled="getRoundStatus(round) === 'Full' || (myBooking !== null)"
+                                    :disabled="getRoundStatus(round) === 'Full'"
                                     class="btn btn-sm px-4 bg-[#1e3a8a] border-none text-white hover:bg-[#152c6f] disabled:bg-gray-100 disabled:text-gray-400 shadow-sm whitespace-nowrap">
                                     {{ getRoundStatus(round) === 'Full' ? 'ที่นั่งเต็ม' : 'เลือกเวลา' }}
                                 </button>
@@ -407,7 +410,7 @@ const cancelBooking = async () => {
                     </div>
                 </div>
 
-                <div v-else-if="!myBooking"
+                <div v-if="displayedRounds.length === 0 && myBookings.length === 0"
                     class="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
                     <p class="text-gray-500 font-medium">ไม่พบรอบสัมภาษณ์ที่สามารถจองได้</p>
                     <p class="text-xs text-gray-400 mt-1">คุณอาจยังไม่ได้รับสิทธิ์ หรือรอบยังไม่เปิด</p>

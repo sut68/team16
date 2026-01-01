@@ -36,9 +36,8 @@ func GetInterviewRoundByID(c *gin.Context) {
 		Preload("AdminProfile").
 		Preload("InterviewMode").
 		Preload("Location").
-		Preload("Slots").
 		Preload("Slots.InterviewerSlots.Interviewer").
-		Preload("Slots.IntervieweBookings").
+		Preload("Slots.IntervieweBookings.ApplicationScholarship.Application.StudentProfile.Major").
 		First(&round, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Interview round not found"})
 		return
@@ -264,8 +263,8 @@ func GetStudentBookings(c *gin.Context) {
 func DeleteInterviewBooking(c *gin.Context) {
 	id := c.Param("id")
 	var booking entity.IntervieweBooking
-	
-	// Find the booking
+
+	// Find the booking to be deleted
 	if err := config.DB.First(&booking, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
 		return
@@ -274,15 +273,33 @@ func DeleteInterviewBooking(c *gin.Context) {
 	// Start a transaction
 	tx := config.DB.Begin()
 
-	// Delete the booking
+	// 1. Delete the booking itself
 	if err := tx.Delete(&booking).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete booking"})
 		return
 	}
 
-	// Update the slot's is_booked status
-	if err := tx.Model(&entity.Slot{}).Where("id = ?", booking.SlotID).Update("is_booked", false).Error; err != nil {
+	// 2. Find the associated slot
+	var slot entity.Slot
+	if err := tx.First(&slot, booking.SlotID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Associated slot not found"})
+		return
+	}
+
+	// 3. Decrement the book_count and update the status
+	newBookCount := uint(0)
+	if slot.BookCount > 0 {
+		newBookCount = slot.BookCount - 1
+	}
+
+	isBooked := newBookCount > 0
+
+	if err := tx.Model(&slot).Updates(map[string]interface{}{
+		"book_count": newBookCount,
+		"is_booked":  isBooked,
+	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update slot status"})
 		return
