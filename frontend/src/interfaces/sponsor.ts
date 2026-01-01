@@ -59,3 +59,36 @@ export interface SponsorView {
   status: string
   contacts_count: number
 }
+
+// Sponsor Scholarships Response
+// ----------------------
+export interface SponsorScholarshipStatusResponse {
+  ID: number
+  status_name: string
+}
+
+export interface SponsorScholarshipTypeResponse {
+  ID: number
+  type_name: string
+}
+
+export interface SponsorSemasterResponse {
+  ID: number
+  year: number
+  term: number
+  is_active?: boolean
+}
+
+export interface SponsorScholarshipResponse {
+  ID: number
+  scholarship_name: string
+  description: string
+  open_date: string
+  close_date: string
+  statusscholarship_id: number
+  statusscholarship: SponsorScholarshipStatusResponse
+  typescholarship_id: number
+  typescholarship: SponsorScholarshipTypeResponse
+  semaster_id: number
+  semaster: SponsorSemasterResponse
+}

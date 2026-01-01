@@ -5,7 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
-	//"backend/seed/approval"
+	"backend/seed/approval"
 	"backend/seed/evaluation"
 	"backend/seed/interview"
 	"backend/seed/location"
@@ -89,12 +89,13 @@ func SeedAll(db *gorm.DB) error {
 		return err
 	}
 
-	// if err := approval.SeedApplications(db); err != nil {
-	// 	return err
-	// }
-	// if err := approval.SeedApplicationScholarships(db); err != nil {
-	// 	return err
-	// } 
+	if err := approval.SeedApplications(db); err != nil {
+		return err
+	}
+	
+	if err := approval.SeedApplicationScholarships(db); err != nil {
+		return err
+	} 
 
 	// if err := approval.SeedApplicationDocuments(db); err != nil {
 	// 	return err
@@ -120,6 +121,14 @@ func SeedAll(db *gorm.DB) error {
 	}
 
 	if err := evaluation.SeedInterviewRoundCriteria(db); err != nil {
+		return err
+	}
+	
+	if err := evaluation.SeedEvaluations(db); err != nil {
+		return err
+	}
+
+	if err := evaluation.SeedEvaluationScores(db); err != nil {
 		return err
 	}
 

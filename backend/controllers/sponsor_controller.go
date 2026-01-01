@@ -24,7 +24,7 @@ func GetSponsors(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, sponsors)
 }
 
-// GET /sponsors/:id 
+// GET /sponsors/:id
 func GetSponsorsByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -42,6 +42,69 @@ func GetSponsorsByID(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, sponsor)
+}
+
+// GET /sponsors/:id/scholarships
+func GetSponsorScholarships(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid sponsor id"})
+		return
+	}
+
+	// ตรวจสอบว่า Sponsor มีอยู่จริง
+	var sponsor entity.Sponsor
+	if err := config.DB.First(&sponsor, id).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "sponsor not found"})
+		return
+	}
+
+	// Response struct เพื่อหลีกเลี่ยง circular dependency
+	type ScholarshipResponse struct {
+		ID                  uint                     `json:"ID"`
+		ScholarshipName     string                   `json:"scholarship_name"`
+		Description         string                   `json:"description"`
+		OpenDate            string                   `json:"open_date"`
+		CloseDate           string                   `json:"close_date"`
+		StatusscholarshipID uint                     `json:"statusscholarship_id"`
+		Statusscholarship   entity.Statusscholarship `json:"statusscholarship"`
+		TypescholarshipID   uint                     `json:"typescholarship_id"`
+		Typescholarship     entity.Typescholarship   `json:"typescholarship"`
+		SemasterID          uint                     `json:"semaster_id"`
+		Semaster            entity.Semaster          `json:"semaster"`
+	}
+
+	var scholarships []entity.Scholarship
+	if err := config.DB.
+		Where("sponsor_id = ?", id).
+		Preload("Statusscholarship").
+		Preload("Typescholarship").
+		Preload("Semaster").
+		Find(&scholarships).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Map to response struct
+	var response []ScholarshipResponse
+	for _, s := range scholarships {
+		response = append(response, ScholarshipResponse{
+			ID:                  s.ID,
+			ScholarshipName:     s.ScholarshipName,
+			Description:         s.Description,
+			OpenDate:            s.OpenDate,
+			CloseDate:           s.CloseDate,
+			StatusscholarshipID: s.StatusscholarshipID,
+			Statusscholarship:   s.Statusscholarship,
+			TypescholarshipID:   s.TypescholarshipID,
+			Typescholarship:     s.Typescholarship,
+			SemasterID:          s.SemasterID,
+			Semaster:            s.Semaster,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 // POST /sponsors
@@ -62,8 +125,8 @@ func CreateSponsor(ctx *gin.Context) {
 
 	// ป้องกัน client ส่งค่า ID หรือ SponsorID มาเอง
 	for i := range inputValues.Contacts {
-    inputValues.Contacts[i].ID = 0
-    inputValues.Contacts[i].SponsorID = 0
+		inputValues.Contacts[i].ID = 0
+		inputValues.Contacts[i].SponsorID = 0
 	}
 
 	sponsor := entity.Sponsor{

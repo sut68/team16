@@ -2,22 +2,25 @@
   import { ref, computed, onMounted } from 'vue'
   import type { EvaluationResponse } from '@/interfaces/evaluation'
   import { EvaluationService } from '@/services/evaluation/evaluation'
-  import { useRouter } from 'vue-router'
   import Swal from 'sweetalert2'
+  import EvaluationFormModal from './EvaluationFormModal.vue'
+  import StatCard from '@/components/ui/StatCard.vue'
 
   // Icons
   import { 
-    Search, X, Filter, Eye, ClipboardCheck, 
+    Search, X, Filter, ClipboardCheck, 
     Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Trash2
   } from 'lucide-vue-next'
-
-  const router = useRouter()
 
   // ========== State ==========
   const evaluations = ref<EvaluationResponse[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const searchQuery = ref('')
+
+  // Modal State
+  const isFormModalOpen = ref(false)
+  const selectedEvaluationId = ref<number | null>(null)
   const statusFilter = ref<string>('')
 
   // ========== Computed ==========
@@ -96,12 +99,13 @@
     }
   }
 
-  function goToEvaluationForm(evaluation: EvaluationResponse) {
-    router.push({ name: 'EvaluationForm', params: { id: evaluation.ID } })
+  function openEvaluationForm(evaluation: EvaluationResponse) {
+    selectedEvaluationId.value = evaluation.ID
+    isFormModalOpen.value = true
   }
 
-  function goToEvaluationDetail(evaluation: EvaluationResponse) {
-    router.push({ name: 'EvaluationDetail', params: { id: evaluation.ID } })
+  function onFormModalCompleted() {
+    fetchEvaluations()
   }
 
   async function handleDelete(evaluation: EvaluationResponse) {
@@ -136,7 +140,7 @@
 
 <template>
   <div 
-    class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" 
+    class="evaluation-list-wrapper w-full mx-auto flex flex-col h-full p-6 bg-white" 
     data-theme="light"
   >
     <!-- Header -->
@@ -189,22 +193,30 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl p-4 text-white shadow-lg">
-        <div class="text-sm opacity-80">ทั้งหมด</div>
-        <div class="text-3xl font-bold">{{ totalEvaluations }}</div>
-      </div>
-      <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white shadow-lg">
-        <div class="text-sm opacity-80">รอประเมิน</div>
-        <div class="text-3xl font-bold">{{ pendingCount }}</div>
-      </div>
-      <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg">
-        <div class="text-sm opacity-80">กำลังประเมิน</div>
-        <div class="text-3xl font-bold">{{ inProgressCount }}</div>
-      </div>
-      <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white shadow-lg">
-        <div class="text-sm opacity-80">เสร็จสิ้น</div>
-        <div class="text-3xl font-bold">{{ completedCount }}</div>
-      </div>
+      <StatCard
+        label="ทั้งหมด"
+        :value="totalEvaluations"
+        icon="total"
+        color="slate"
+      />
+      <StatCard
+        label="รอประเมิน"
+        :value="pendingCount"
+        icon="pending"
+        color="amber"
+      />
+      <StatCard
+        label="กำลังประเมิน"
+        :value="inProgressCount"
+        icon="inProgress"
+        color="blue"
+      />
+      <StatCard
+        label="เสร็จสิ้น"
+        :value="completedCount"
+        icon="completed"
+        color="green"
+      />
     </div>
 
     <!-- Loading State -->
@@ -282,19 +294,11 @@
 
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <!-- View Detail -->
-                  <button 
-                    @click="goToEvaluationDetail(e)"
-                    class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="ดูรายละเอียด"
-                  >
-                    <Eye class="w-4 h-4" />
-                  </button>
 
                   <!-- Evaluate -->
                   <button 
                     v-if="e.status === 'pending' || e.status === 'in_progress'"
-                    @click="goToEvaluationForm(e)"
+                    @click="openEvaluationForm(e)"
                     class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="ประเมิน"
                   >
@@ -327,8 +331,15 @@
             </tr>
           </tbody>
         </table>
-      </div>
     </div>
+    </div>
+
+    <!-- Evaluation Form Modal -->
+    <EvaluationFormModal
+      v-model:isOpen="isFormModalOpen"
+      :evaluationId="selectedEvaluationId"
+      @completed="onFormModalCompleted"
+    />
   </div>
 </template>
 
@@ -341,6 +352,12 @@ table {
 thead th {
   position: sticky;
   top: 0;
+  background: white;
   z-index: 10;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
 }
 </style>
