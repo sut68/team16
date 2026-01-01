@@ -202,13 +202,11 @@ func main() {
 
 		api.GET("/application-documents", controllers.GetApplicationDocuments)
 		api.POST("/application-documents", controllers.CreateApplicationDocument)
-		api.PATCH("/application-documents/:id", controllers.UpdateApplicationDocument)
 		api.DELETE("/application-documents/:id", controllers.DeleteApplicationDocument)
 
 		api.GET("/approval-requirements", controllers.GetApprovalRequirements)
 		api.GET("/approval-requirements/:id", controllers.GetApprovalRequirementByID)
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
-		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
 
 		api.GET("/screening", controllers.GetAllScreenings)
