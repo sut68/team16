@@ -287,59 +287,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, document)
 }
 
-// PATCH /application-documents/:id
-func UpdateApplicationDocument(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid application document id"})
-		return
-	}
-	var document entity.ApplicationDocument
-	if err := config.DB.First(&document, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Application document not found"})
-		return
-	}
-	var input struct {
-		FileName *string `json:"file_name" valid:"optional,stringlength(1|255)~File name is too long"`
-	}
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := validators.ValidateStruct(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "validation failed",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	tx := config.DB.Begin()
-
-	if input.FileName != nil {
-		if err := tx.Model(&document).Update("file_name", *input.FileName).Error; err != nil {
-			tx.Rollback()
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
-		return
-	}
-
-	if err := config.DB.First(&document, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, document)
-}
-
 // DELETE /application-documents/:id
 func DeleteApplicationDocument(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -482,81 +429,6 @@ func CreateApprovalDecision(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, decision)
 }
 
-// PATCH /approval-decisions/:id
-func UpdateApprovalDecision(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval decision id"})
-		return
-	}
-	var decision entity.ApprovalDecision
-	if err := config.DB.First(&decision, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval decision not found"})
-		return
-	}
-	var input struct {
-		Decision *string `json:"decision" valid:"optional,in(approve|reject|request-change)~Invalid decision"`
-		Comment  *string `json:"comment" valid:"optional,stringlength(0|500)~Comment too long"`
-	}
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := validators.ValidateStruct(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "validation failed",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	tx := config.DB.Begin()
-
-	updates := make(map[string]interface{})
-	if input.Decision != nil {
-		updates["decision"] = *input.Decision
-	}
-	if input.Comment != nil {
-		updates["comment"] = *input.Comment
-	}
-	if len(updates) > 0 {
-		if err := tx.Model(&decision).Updates(updates).Error; err != nil {
-			tx.Rollback()
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
-		return
-	}
-
-	if err := config.DB.Preload("ApprovalTask").First(&decision, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
-		return
-	}
-	ctx.JSON(http.StatusOK, decision)
-}
-
-// DELETE /approval-decisions/:id
-func DeleteApprovalDecision(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval decision id"})
-		return
-	}
-	if err := config.DB.Delete(&entity.ApprovalDecision{}, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Approval decision deleted successfully"})
-}
-
 // GET /approval-requirements
 func GetApprovalRequirements(ctx *gin.Context) {
 	var requirements []entity.ApprovalRequirement
@@ -604,23 +476,6 @@ func CreateApprovalRequirement(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, requirement)
-}
-
-// PATCH /approval-requirements/:id
-func UpdateApprovalRequirement(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval requirement id"})
-		return
-	}
-	var requirement entity.ApprovalRequirement
-	if err := config.DB.First(&requirement, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval requirement not found"})
-		return
-	}
-	// no update logic was implemented in original, so we just return the entity.
-	ctx.JSON(http.StatusOK, requirement)
 }
 
 // DELETE /approval-requirements/:id

@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { InterviewAPI } from '@/services/api';
-import { LocationAPI } from '@/services/api/location'; // เพิ่ม Import Location
+import { LocationAPI } from '@/services/api/location'; 
 import { getMyProfile } from '@/services/api/user';
 import { getStudentApplications } from '@/services/api/application';
-import type { InterviewRound, Slot, InterviewBooking, Location, InterviewMode } from '@/interfaces/interview'; // เพิ่ม Type
+import type { InterviewRound, Slot, InterviewBooking, Location, InterviewMode } from '@/interfaces/interview'; 
 import type { MyProfileResponse } from '@/interfaces/user';
 import type { ApplicationScholarshipResponse } from '@/interfaces/application_scholarship';
 import Swal from 'sweetalert2';
 
 // Interface เสริมสำหรับแสดงผล
-interface InterviewBookingWithSlot extends InterviewBooking {
+interface InterviewBookingWithDetails extends InterviewBooking {
     slot?: Slot;
+    round?: InterviewRound;
 }
 
 // --- 1. State Management ---
 const isLoading = ref(true);
 const studentProfile = ref<MyProfileResponse | null>(null);
 const allRounds = ref<InterviewRound[]>([]);
-const myBooking = ref<InterviewBookingWithSlot | null>(null);
+const myBookings = ref<InterviewBookingWithDetails[]>([]);
 const studentApplications = ref<ApplicationScholarshipResponse[]>([]);
-const locations = ref<Location[]>([]); // เพิ่ม State Location
-const interviewModes = ref<InterviewMode[]>([]); // เพิ่ม State Mode
+const locations = ref<Location[]>([]);
+const interviewModes = ref<InterviewMode[]>([]);
 
 const isBookingModalOpen = ref(false);
 const selectedRound = ref<InterviewRound | null>(null);
@@ -41,7 +42,6 @@ const fetchData = async () => {
         if (profileRes && profileRes.role && profileRes.role === 'student') {
             const studentId = profileRes.data.ID;
 
-            // เพิ่มการ Fetch Location และ Mode
             const [appsRes, roundsRes, bookingRes, locationsRes, modesRes] = await Promise.all([
                 getStudentApplications(studentId),
                 InterviewAPI.getAllRounds(),
@@ -56,17 +56,17 @@ const fetchData = async () => {
             interviewModes.value = modesRes || [];
 
             if (bookingRes && bookingRes.length > 0) {
-                const booking = bookingRes[0];
-                if (booking) {
+                myBookings.value = bookingRes.map(booking => {
                     const slot = allRounds.value
-                        .flatMap(r => r.slots)
+                        .flatMap(r => r.slots || [])
                         .find(s => s.ID === booking.slot_id);
-                    myBooking.value = { ...booking, slot } as InterviewBookingWithSlot;
-                } else {
-                    myBooking.value = null;
-                }
+                    
+                    const round = allRounds.value.find(r => r.slots?.some(s => s.ID === booking.slot_id));
+
+                    return { ...booking, slot, round };
+                }).filter(b => b.slot && b.round); // Ensure booking is valid
             } else {
-                myBooking.value = null;
+                myBookings.value = [];
             }
         }
     } catch (error) {
@@ -85,10 +85,19 @@ const qualifiedScholarshipIds = computed(() => {
         .map(app => app.scholarship_id);
 });
 
+// Scholarship IDs for which an interview has already been booked.
+const bookedScholarshipIds = computed(() => {
+    return myBookings.value.map(booking => booking.round?.scholarship_id).filter(id => id !== undefined);
+});
+
+
 const displayedRounds = computed(() => {
     if (!allRounds.value) return [];
+    // Show rounds for scholarships that are qualified AND not yet booked AND not closed.
     return allRounds.value.filter(round =>
-        qualifiedScholarshipIds.value.includes(round.scholarship_id)
+        qualifiedScholarshipIds.value.includes(round.scholarship_id) &&
+        !bookedScholarshipIds.value.includes(round.scholarship_id) &&
+        getRoundStatus(round) !== 'Closed'
     );
 });
 
@@ -104,7 +113,7 @@ const getBookedCount = (round: InterviewRound) => {
     return round.slots.filter(s => s.is_booked).length;
 }
 
-// --- Helper Functions for UI (เหมือนตัว Manager) ---
+// --- Helper Functions for UI ---
 
 const getModeName = (round: InterviewRound) => {
     if ((round as any).interview_mode?.name) return (round as any).interview_mode.name;
@@ -122,19 +131,32 @@ const getLocationLabel = (round: InterviewRound) => {
     return 'Online Meeting';
 };
 
-const getRoundStatus = (round: InterviewRound) => {
+const getRoundStatus = (round: InterviewRound): 'Closed' | 'Full' | 'Open' => {
+    const roundEnd = new Date(round.end_date_time);
+    if (roundEnd.getTime() < new Date().getTime()) return 'Closed';
+
     if (!round.slots || round.slots.length === 0) return 'Open';
     const isFull = round.slots.every(slot => slot.is_booked);
     return isFull ? 'Full' : 'Open';
 };
 
+const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
+const formatTime = (date: string | Date) => {
+    return new Date(date).toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+    }) + ' น.';
+};
+
 // --- 4. Methods ---
 const openBookingModal = async (round: InterviewRound) => {
-    if (myBooking.value) {
-        Swal.fire('แจ้งเตือน', 'คุณมีการจองอยู่แล้ว กรุณายกเลิกการจองเดิมก่อน', 'warning');
-        return;
-    }
-
     isLoading.value = true;
     try {
         const freshRound = await InterviewAPI.getRoundById(round.ID);
@@ -160,7 +182,7 @@ const confirmBooking = async () => {
     const app = studentApplications.value.find(a => a.scholarship_id === selectedRound.value?.scholarship_id);
 
     if (!app) {
-        Swal.fire('ผิดพลาด', 'ไม่พบใบสมัครสำหรับทุนนี้ (App ID Not Found)', 'error');
+        Swal.fire('ผิดพลาด', 'ไม่พบใบสมัครสำหรับทุนนี้', 'error');
         return;
     }
 
@@ -201,9 +223,7 @@ const confirmBooking = async () => {
     }
 };
 
-const cancelBooking = async () => {
-    if (!myBooking.value) return;
-
+const cancelBooking = async (bookingId: number) => {
     const result = await Swal.fire({
         title: 'ยืนยันการยกเลิก',
         text: 'เมื่อยกเลิกแล้ว สิทธิ์จะว่างให้ผู้อื่นจองทันที',
@@ -217,10 +237,9 @@ const cancelBooking = async () => {
     if (result.isConfirmed) {
         isLoading.value = true;
         try {
-            await InterviewAPI.deleteBooking(myBooking.value.ID);
+            await InterviewAPI.deleteBooking(bookingId);
             Swal.fire('สำเร็จ', 'ยกเลิกการจองเรียบร้อยแล้ว', 'success');
-            myBooking.value = null;
-            await fetchData();
+            await fetchData(); // Refetch all data to update UI
         } catch (error) {
             console.error("Cancellation failed:", error);
             Swal.fire('ผิดพลาด', 'การยกเลิกล้มเหลว', 'error');
@@ -232,21 +251,21 @@ const cancelBooking = async () => {
 </script>
 
 <template>
-    <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible"
+    <div class="w-full mx-auto flex flex-col p-6 bg-white rounded-tl-[30px] shadow h-full"
         data-theme="light">
 
         <div v-if="isLoading" class="flex justify-center items-center h-full">
             <span class="loading loading-spinner loading-lg"></span>
         </div>
 
-        <div v-else class="animate-fade-in">
-            <div class="mb-6">
+        <div v-else class="animate-fade-in flex flex-col h-full overflow-hidden">
+            <div class="mb-6 shrink-0">
                 <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1">จองรอบสัมภาษณ์</h1>
                 <p class="text-gray-500 text-sm" v-if="studentProfile && 'first_name_th' in studentProfile.data">{{
                     (studentProfile.data as any).first_name_th }} {{ (studentProfile.data as any).last_name_th }}</p>
             </div>
 
-            <div class="mb-8 bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
+            <div class="mb-8 bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-3 -mt-4">
                 <div class="bg-blue-100 p-2 rounded-lg text-blue-600 mt-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd"
@@ -262,14 +281,17 @@ const cancelBooking = async () => {
                 </div>
             </div>
 
-            <div v-if="myBooking" class="mb-8 animate-fade-in">
-                <div
+            <div v-if="myBookings.length > 0" class="mb-3 animate-fade-in space-y-4 -mt-5">
+                 <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                    นัดหมายของคุณ <span class="badge badge-accent badge-sm">{{ myBookings.length }}</span>
+                </h3>
+                <div v-for="booking in myBookings" :key="booking.ID"
                     class="card bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white shadow-lg relative overflow-hidden">
                     <div
                         class="card-body relative z-10 flex flex-col md:flex-row justify-between items-center gap-6 p-6">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-4 flex-1">
                             <div
-                                class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -277,55 +299,55 @@ const cancelBooking = async () => {
                                 </svg>
                             </div>
                             <div>
-                                <h2 class="font-bold text-lg">จองสำเร็จ</h2>
-                                <p class="text-blue-100 text-sm">นัดหมายการสัมภาษณ์ของคุณ</p>
+                                <h2 class="font-bold text-lg leading-tight">{{ booking.round?.scholarship?.scholarship_name }}</h2>
+                                <p class="text-blue-100 text-sm">{{ booking.round?.name }}</p>
                             </div>
                         </div>
-                        <div v-if="myBooking.slot"
-                            class="flex-1 bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/20 text-sm w-full">
+                        <div v-if="booking.slot"
+                            class="bg-white/10 rounded-lg p-3 backdrop-blur-md border border-white/20 text-sm w-full md:w-auto md:min-w-[280px]">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                                 <p><span class="opacity-70 text-xs mr-2">วันที่:</span>{{ new
-                                    Date(myBooking.slot.start_time).toLocaleDateString('th-TH', { dateStyle: 'medium' })
+                                    Date(booking.slot.start_time).toLocaleDateString('th-TH', { dateStyle: 'medium' })
                                 }}</p>
                                 <p><span class="opacity-70 text-xs mr-2">เวลา:</span>{{ new
-                                    Date(myBooking.slot.start_time).toLocaleTimeString('th-TH', {
+                                    Date(booking.slot.start_time).toLocaleTimeString('th-TH', {
                                         hour: '2-digit',
                                         minute: '2-digit'
                                     }) }} น.</p>
                             </div>
                         </div>
-                        <button @click="cancelBooking"
+                        <button @click="cancelBooking(booking.ID)"
                             class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20 tooltip tooltip-left"
                             data-tip="ยกเลิก">✕</button>
                     </div>
                 </div>
             </div>
 
-            <div class="flex-1">
-                <h3 v-if="!myBooking" class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <div class="bg-slate-50/30 rounded-3xl shadow-sm border border-slate-100 p-6 flex-1 min-h-0 overflow-y-auto">
+                <h3 v-if="displayedRounds.length > 0" class="font-bold text-slate-700 mb-4 flex items-center gap-2 -mt-3">
                     รอบที่เปิดให้จอง <span class="badge badge-ghost badge-sm">{{ displayedRounds.length }}</span>
                 </h3>
 
-                <div v-if="displayedRounds.length > 0 && !myBooking"
+                <div v-if="displayedRounds.length > 0"
                     class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
                     <div v-for="round in displayedRounds" :key="round.ID"
                         class="group card bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 rounded-2xl overflow-visible">
 
                         <div
                             class="px-5 py-4 border-b border-gray-50 bg-slate-50/50 flex flex-col justify-start items-start rounded-t-2xl relative">
-                            <div class="flex gap-2 mb-2">
-                                <div class="badge badge-sm font-medium border-none text-white shadow-sm" :class="{
+                            <div class="flex flex-wrap gap-2 mb-2 items-center">
+                                <div class="badge badge-sm font-medium border-none text-white shadow-sm shrink-0" :class="{
                                     'badge-success': getRoundStatus(round) === 'Open',
                                     'badge-error': getRoundStatus(round) === 'Full'
                                 }">
                                     {{ getRoundStatus(round) === 'Open' ? 'เปิดให้จอง' : 'เต็มแล้ว' }}
                                 </div>
-                                <div v-if="round.scholarship" class="badge badge-sm badge-outline text-gray-500">
+                                <div v-if="round.scholarship" class="badge badge-sm badge-outline text-gray-500 max-w-full truncate" :title="round.scholarship.scholarship_name">
                                     {{ round.scholarship.scholarship_name }}
                                 </div>
                             </div>
                             <h3
-                                class="font-bold text-[#1e3a8a] text-lg leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">
+                                class="font-bold text-[#1e3a8a] text-lg leading-tight group-hover:text-blue-600 transition-colors break-words">
                                 {{ round.name }}
                             </h3>
                         </div>
@@ -342,20 +364,10 @@ const cancelBooking = async () => {
                                 </div>
                                 <div>
                                     <p class="font-semibold text-slate-700">
-                                        วันที่ {{ new Date(round.start_date_time).toLocaleDateString('th-TH', {
-                                            day:
-                                                'numeric', month: 'short', year: '2-digit'
-                                        }) }}
+                                        {{ formatDate(round.start_date_time) }}
                                     </p>
                                     <p class="text-xs">
-                                        {{ new Date(round.start_date_time).toLocaleTimeString('th-TH', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        }) }} -
-                                        {{ new Date(round.end_date_time).toLocaleTimeString('th-TH', {
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        }) }}
+                                        {{ formatTime(round.start_date_time) }} - {{ formatTime(round.end_date_time) }}
                                     </p>
                                 </div>
                             </div>
@@ -377,7 +389,7 @@ const cancelBooking = async () => {
                                 </div>
                                 <div class="overflow-hidden">
                                     <p class="font-semibold text-slate-700">{{ getModeName(round) }}</p>
-                                    <p class="text-xs truncate w-full" :title="getLocationLabel(round)">{{
+                                    <p class="text-sm break-words" :title="getLocationLabel(round)">{{
                                         getLocationLabel(round) }}</p>
                                 </div>
                             </div>
@@ -398,7 +410,7 @@ const cancelBooking = async () => {
                                 </div>
 
                                 <button @click="openBookingModal(round)"
-                                    :disabled="getRoundStatus(round) === 'Full' || (myBooking !== null)"
+                                    :disabled="getRoundStatus(round) === 'Full'"
                                     class="btn btn-sm px-4 bg-[#1e3a8a] border-none text-white hover:bg-[#152c6f] disabled:bg-gray-100 disabled:text-gray-400 shadow-sm whitespace-nowrap">
                                     {{ getRoundStatus(round) === 'Full' ? 'ที่นั่งเต็ม' : 'เลือกเวลา' }}
                                 </button>
@@ -407,22 +419,19 @@ const cancelBooking = async () => {
                     </div>
                 </div>
 
-                <div v-else-if="!myBooking"
-                    class="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                <div v-if="displayedRounds.length === 0 && myBookings.length === 0"
+                    class="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 h-full">
                     <p class="text-gray-500 font-medium">ไม่พบรอบสัมภาษณ์ที่สามารถจองได้</p>
                     <p class="text-xs text-gray-400 mt-1">คุณอาจยังไม่ได้รับสิทธิ์ หรือรอบยังไม่เปิด</p>
                 </div>
             </div>
         <Teleport to="body">
             <div v-if="isBookingModalOpen && selectedRound" 
-                 class="fixed inset-0 z-[100] flex items-start justify-center pt-[50px]  bg-black/60 backdrop-blur-sm p-4 transition-all duration-300">
+                 class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300">
     
-                <div class="bg-white w-full h-full md:max-w-6xl md:h-[80vh] md:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-pop-in relative">
+                <div class="bg-white w-full max-h-[90vh] h-full md:h-[80vh] md:max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-pop-in relative">
                     
-                    
-
-                    <div class="w-full md:w-[350px] bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
-                        
+                    <div class="hidden md:flex w-[350px] bg-slate-50 border-r border-slate-200 flex-col shrink-0">
                         <div class="p-5 bg-[#1e3a8a] text-white">
                             <div class="badge bg-orange-500 text-white border-none mb-2 text-xs">
                                 {{ selectedRound.scholarship?.scholarship_name || 'ทุนการศึกษา' }}
@@ -449,9 +458,7 @@ const cancelBooking = async () => {
                                     </div>
                                 </div>
                             </div>
-
                             <div class="divider my-1"></div>
-
                             <div>
                                 <h3 class="text-[15px] font-bold text-slate-400 uppercase tracking-wider mb-1">หมายเหตุ</h3>
                                 <div class="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 leading-relaxed shadow-sm">
@@ -462,17 +469,20 @@ const cancelBooking = async () => {
                     </div>
 
                     <div class="flex-1 bg-white flex flex-col h-full min-h-0">
-                        <div class="md:hidden p-3 border-b text-center font-bold text-slate-700 text-sm">เลือกเวลาสัมภาษณ์</div>
+                        <div class="md:hidden p-4 bg-[#1e3a8a] text-white shrink-0">
+                            <h3 class="font-bold text-lg truncate">{{ selectedRound.name }}</h3>
+                            <p class="text-xs text-blue-200">{{ new Date(selectedRound.start_date_time).toLocaleDateString('th-TH', { dateStyle: 'medium'}) }} | {{ getModeName(selectedRound) }}</p>
+                        </div>
 
                         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
                             <div class="flex justify-between items-center mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-800">เลือกช่วงเวลาที่ต้องการจองสัมภาษณ์</h3>
-                                    <p class="text-slate-500 text-sm">เลือกช่วงเวลาที่คุณสะดวก</p>
+                                    <h3 class="text-lg font-bold text-slate-800">เลือกเวลาสัมภาษณ์</h3>
+                                    <p class="text-slate-500 text-sm hidden sm:block">เลือกช่วงเวลาที่คุณสะดวก</p>
                                 </div>
-                                <div class="hidden sm:flex gap-2 text-[13px]">
+                                <div class="flex gap-2 text-[10px] sm:text-[13px]">
                                     <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white border border-green-400"></span> ว่าง</div>
-                                    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-50 border border-blue-600"></span> ที่เลือก</div>
+                                    <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-50 border border-blue-600"></span> เลือก</div>
                                     <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-gray-100 border border-gray-200"></span> ไม่ว่าง</div>
                                 </div>
                             </div>
@@ -481,11 +491,11 @@ const cancelBooking = async () => {
                                 <span class="loading loading-spinner loading-md text-blue-600"></span>
                             </div>
 
-                            <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
                                 <button v-for="slot in availableSlots" :key="slot.ID"
                                     @click="!slot.is_booked && selectSlot(slot)"
                                     :disabled="slot.is_booked"
-                                    class="relative group flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 h-20"
+                                    class="relative group flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 h-[70px] sm:h-20"
                                     :class="[
                                         slot.is_booked 
                                             ? 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed' 
@@ -495,15 +505,15 @@ const cancelBooking = async () => {
                                     ]">
                                     
                                     <div v-if="selectedSlot?.ID === slot.ID" class="absolute top-1 right-1 text-blue-600 animate-bounce-short">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                                     </div>
 
-                                    <span class="text-lg font-bold tracking-tight mb-1" 
+                                    <span class="text-base sm:text-lg font-bold tracking-tight mb-1" 
                                         :class="selectedSlot?.ID === slot.ID ? 'text-blue-700' : (slot.is_booked ? 'text-gray-400' : 'text-slate-700')">
                                         {{ new Date(slot.start_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
                                     </span>
                                     
-                                    <span class="text-[12px] px-2 py-0.5 rounded-full font-medium"
+                                    <span class="text-[10px] sm:text-[12px] px-2 py-0.5 rounded-full font-medium"
                                         :class="[
                                             slot.is_booked ? 'bg-gray-200 text-gray-500' :
                                             (selectedSlot?.ID === slot.ID ? 'bg-blue-200 text-blue-800' : 'bg-green-100 text-green-700')
@@ -514,14 +524,14 @@ const cancelBooking = async () => {
                             </div>
                         </div>
 
-                        <div class="p-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                        <div class="p-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20 shrink-0">
                             <div class="flex items-center gap-2 w-full sm:w-auto">
-                                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
                                 <div>
                                     <p class="text-[10px] text-slate-500">เวลาที่เลือก</p>
-                                    <p class="font-bold text-slate-800 text-sm">
+                                    <p class="font-bold text-slate-800 text-sm truncate">
                                         {{ selectedSlot ? new Date(selectedSlot.start_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : '-' }}
                                     </p>
                                 </div>
@@ -532,14 +542,14 @@ const cancelBooking = async () => {
                                 <button @click="confirmBooking" 
                                     :disabled="!selectedSlot" 
                                     class="btn btn-sm bg-[#1e3a8a] text-white hover:bg-[#152c6f] border-none px-6 flex-1 sm:flex-none shadow-md shadow-blue-900/10 transition-all hover:scale-105 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:scale-100">
-                                    ยืนยันการจอง
+                                    ยืนยัน
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            </Teleport>
+        </Teleport>
         </div>
     </div>
 </template>

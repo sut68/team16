@@ -117,6 +117,45 @@ const historyItems = computed(() => {
   );
 });
 
+const stats = computed(() => {
+    if (activeTab.value === 'pending') {
+        const purePending = pendingItems.value.filter(t => !checkIsResubmitted(t));
+        const resubmitted = pendingItems.value.filter(t => checkIsResubmitted(t));
+
+        return {
+            title1: 'เอกสารรอตรวจทั้งหมด',
+            value1: pendingItems.value.length,
+            desc1: 'รายการ',
+            
+            title2: 'ยื่นครั้งแรก',
+            value2: purePending.length,
+            desc2: 'รายการ',
+            
+            title3: 'ส่งแก้ไข',
+            value3: resubmitted.length,
+            desc3: 'รายการ'
+        };
+    } else { // history tab
+        const approvedCount = historyItems.value.filter(i => i.status === 'approved').length;
+        const rejectedCount = historyItems.value.filter(i => i.status === 'rejected').length;
+        const totalHistory = historyItems.value.length;
+
+        return {
+            title1: 'เอกสารทั้งหมด',
+            value1: totalHistory,
+            desc1: 'ในประวัติ',
+            
+            title2: 'อนุมัติทั้งหมด',
+            value2: approvedCount,
+            desc2: `จาก ${totalHistory} รายการ`,
+            
+            title3: 'ปฏิเสธทั้งหมด',
+            value3: rejectedCount,
+            desc3: `จาก ${totalHistory} รายการ`
+        };
+    }
+});
+
 const filteredItems = computed((): ApprovalTaskDisplay[] => {
   let result: ApprovalTaskDisplay[] = [];
 
@@ -185,6 +224,47 @@ const handleActionCompleted = () => {
 <template>
   <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light" data-testid="approval-list-page">
     
+    <h1 class="text-2xl font-bold text-slate-800 mb-10">อนุมัติเอกสาร</h1>
+    
+    <!-- Stats Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+        
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title1 }}</div>
+                <div class="text-blue-600 text-3xl font-bold">{{ stats.value1 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc1 }}</div>
+            </div>
+            <div class="text-blue-600 bg-blue-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title2 }}</div>
+                <div class="text-emerald-700 text-3xl font-bold">{{ stats.value2 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc2 }}</div>
+            </div>
+            <div class="text-emerald-700 bg-green-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title3 }}</div>
+                <div class="text-3xl font-bold" :class="activeTab === 'pending' ? 'text-orange-500' : 'text-red-600'">{{ stats.value3 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc3 }}</div>
+            </div>
+            <div class="p-3 rounded-full" :class="activeTab === 'pending' ? 'text-orange-500 bg-orange-50' : 'text-red-600 bg-red-50'">
+                <svg v-if="activeTab === 'pending'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            </div>
+        </div>
+        
+    </div>
+
     <div class="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 mb-6 border-b border-gray-200">
       
       <div class="flex gap-8 -mb-[1px] w-full xl:w-auto overflow-x-auto hide-scrollbar">

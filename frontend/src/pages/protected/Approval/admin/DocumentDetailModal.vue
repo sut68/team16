@@ -378,9 +378,15 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
         return;
     }
 
-    if ((type === 'reject' || type === 'request-change') && !comment.value.trim()) {
-        submissionError.value = 'กรุณาระบุเหตุผลประกอบการพิจารณา';
-        return;
+    if (type === 'reject' || type === 'request-change') {
+        if (!comment.value.trim()) {
+            submissionError.value = 'กรุณาระบุเหตุผลประกอบการพิจารณา';
+            return;
+        }
+        if (comment.value.trim().length < 5) {
+            submissionError.value = 'เหตุผลที่ระบุต้องมีความยาวอย่างน้อย 5 ตัวอักษร';
+            return;
+        }
     }
 
     isSubmitting.value = true;
@@ -640,12 +646,6 @@ const openSpecificDocument = (path: string) => {
                                             ยืนยัน
                                         </button>
                                     </div>
-                                </div>
-
-                                <div v-if="submissionError"
-                                        class="text-error text-xs mt-2 font-medium bg-red-50 p-2 rounded"
-                                        data-testid="submission-error-message">
-                                        {{ submissionError }}
                                 </div>
                             </div>
                         </div>

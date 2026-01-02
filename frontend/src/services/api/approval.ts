@@ -32,13 +32,5 @@ export const makeApprovalDecision = async (payload: DecisionPayload) => {
     throw new Error('Failed to create approval decision')
   }
 
-  // 2. Update the parent task's status
-  const newStatus = payload.decision === 'approve' ? 'approved' : payload.decision === 'reject' ? 'rejected' : 'request-change'
-  
-  // axiosInstance รองรับ patch อัตโนมัติ (ในขณะที่ Wrapper เดิมของคุณไม่มี Patch)
-  const taskUpdateResponse = await https.patch(`/approval-tasks/${payload.task_id}`, {
-    status: newStatus
-  })
-
-  return taskUpdateResponse.data
+  return decisionResponse.data
 }
