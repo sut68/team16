@@ -56,13 +56,59 @@ const editorRef = ref<HTMLElement | null>(null);
 
 const applyFormat = (command: string, value: string | undefined = undefined) => {
   document.execCommand(command, false, value);
-  editorRef.value?.focus();
   updateToolbarState();
 };
 
-const applyFormatBlock = (value: string) => {
-  document.execCommand('formatBlock', false, value);
-  editorRef.value?.focus();
+const lastRange = ref<Range | null>(null);
+
+const applyFontSize = (size: string) => {
+  const selection = window.getSelection();
+  let range: Range | null = null;
+  
+  if (selection && selection.rangeCount > 0) {
+    const currentRange = selection.getRangeAt(0);
+    if (editorRef.value && editorRef.value.contains(currentRange.commonAncestorContainer)) {
+      range = currentRange;
+    }
+  }
+  
+  if (!range && lastRange.value) {
+    range = lastRange.value;
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+  
+  if (!range) return;
+
+  const span = document.createElement('span');
+  span.style.fontSize = size + 'px';
+
+  if (range.collapsed) {
+     // กรณีไม่ได้เลือกข้อความ ให้ใส่ zero-width space เพื่อให้พิมพ์ต่อได้ในขนาดใหม่
+     span.innerHTML = '&#8203;';
+     range.insertNode(span);
+     
+     // ย้าย Cursor ไปข้างใน span
+     range.selectNodeContents(span);
+     range.collapse(false);
+     selection?.removeAllRanges();
+     selection?.addRange(range);
+  } else {
+     // กรณีเลือกข้อความ
+     const content = range.extractContents();
+     span.appendChild(content);
+     range.insertNode(span);
+     
+     // Select กลับไปที่ข้อความเดิม
+     range.selectNodeContents(span);
+     selection?.removeAllRanges();
+     selection?.addRange(range);
+  }
+
+  if (editorRef.value) {
+      form.value.post_detail = editorRef.value.innerHTML;
+      touched.value.post_detail = true;
+  }
   updateToolbarState();
 };
 
@@ -77,6 +123,7 @@ const activeFormats = ref({
   justifyRight: false,
   justifyFull: false,
   heading: 'p',
+  fontSize: '16',
 });
 
 const updateToolbarState = () => {
@@ -91,7 +138,29 @@ const updateToolbarState = () => {
     justifyRight: document.queryCommandState('justifyRight'),
     justifyFull: document.queryCommandState('justifyFull'),
     heading: document.queryCommandValue('formatBlock') || 'p',
+    fontSize: '16',
   };
+
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Save range if we are in editor
+      if (editorRef.value && editorRef.value.contains(range.commonAncestorContainer)) {
+          lastRange.value = range.cloneRange();
+          
+          const parent = range.commonAncestorContainer.nodeType === 3 
+            ? range.commonAncestorContainer.parentElement 
+            : range.commonAncestorContainer as HTMLElement;
+            
+          if (parent) {
+              const computedSize = window.getComputedStyle(parent).fontSize;
+              if (computedSize) {
+                  activeFormats.value.fontSize = parseFloat(computedSize).toString();
+              }
+          }
+      }
+  }
 };
 
 const onEditorInput = (event: Event) => {
@@ -101,7 +170,6 @@ const onEditorInput = (event: Event) => {
   updateToolbarState();
 };
 
-// แก้ไข warning: ลบ newValues, oldValues ออกเพราะไม่ได้ใช้
 watch(
   [form, newImageFile],
   () => {
@@ -207,17 +275,23 @@ onMounted(async () => {
               <!-- Toolbar -->
               <!-- Toolbar -->
               <div class="flex gap-1 p-2 bg-gray-100 border-b border-gray-200 flex-wrap items-center">
+
                 <select 
-                  @change="(e: Event) => applyFormatBlock((e.target as HTMLSelectElement).value)" 
-                  .value="activeFormats.heading"
-                  class="select select-bordered select-xs w-32 bg-white"
+                  @change="(e: Event) => applyFontSize((e.target as HTMLSelectElement).value)" 
+                  .value="activeFormats.fontSize"
+                  class="select select-bordered select-xs w-24 bg-white"
+                  title="ขนาดตัวอักษร"
                 >
-                  <option value="p">ปกติ</option>
-                  <option value="h1">หัวข้อ 1</option>
-                  <option value="h2">หัวข้อ 2</option>
-                  <option value="h3">หัวข้อ 3</option>
-                  <option value="h4">หัวข้อ 4</option>
-                  <option value="h5">หัวข้อ 5</option>
+                  <option value="12">12 px</option>
+                  <option value="14">14 px</option>
+                  <option value="16">16 px</option>
+                  <option value="18">18 px</option>
+                  <option value="20">20 px</option>
+                  <option value="22">22 px</option>
+                  <option value="24">24 px</option>
+                  <option value="28">28 px</option>
+                  <option value="32">32 px</option>
+                  <option value="36">36 px</option>
                 </select>
 
                 <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
