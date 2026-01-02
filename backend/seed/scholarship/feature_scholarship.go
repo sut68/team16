@@ -2,6 +2,7 @@ package scholarship
 
 import (
 	"backend/entity"
+
 	"gorm.io/gorm"
 )
 
@@ -34,4 +35,3 @@ func SeedFeatureScholarships(db *gorm.DB) error {
 	}
 	return nil
 }
-

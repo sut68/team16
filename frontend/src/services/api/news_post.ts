@@ -12,19 +12,19 @@ function convertToFormData(payload: Partial<UpdateNewsPost>): FormData {
     if (payload.status_news_id !== undefined) formData.append("status_news_id", payload.status_news_id.toString());
 
     if (payload.file_path) {
-    if (payload.file_path instanceof File) {
-        formData.append("file_path", payload.file_path);
-    } else if (typeof payload.file_path === "string") {
-        formData.append("file_path", payload.file_path);
+        if (payload.file_path instanceof File) {
+            formData.append("file_path", payload.file_path);
+        } else if (typeof payload.file_path === "string") {
+            formData.append("file_path", payload.file_path);
+        }
     }
-}
 
 
     return formData;
 }
 
-export const getAllNewsPosts = async (): Promise<NewsPost[]> => {
-    const response: any = await Get('/newsposts');
+export const getAllNewsPosts = async (requireAuth: boolean = true): Promise<NewsPost[]> => {
+    const response: any = await Get('/newsposts', requireAuth);
     if (Array.isArray(response)) return response;
     if (response && Array.isArray(response.data)) return response.data;
     return [];
@@ -43,13 +43,13 @@ interface NewsPostDetailResponse {
 export const getNewsPostById = async (id: number): Promise<NewsPostDetailResponse> => {
     // 1. เรียก API
     const response: any = await Get(`/newsposts/${id}`);
-    
+
     // 2. ตรวจสอบโครงสร้าง Response ที่ Go Backend ส่งมา
     if (response && response.news_post) {
         // ถ้าโครงสร้างถูกต้อง (มี news_post อยู่) ให้ return ออกไป
-        return response as NewsPostDetailResponse; 
+        return response as NewsPostDetailResponse;
     }
-    
+
     // 3. ถ้าไม่พบ หรือเป็น Error ให้โยน Error
     throw new Error('Invalid or empty API response structure for NewsPost ID: ' + id);
 }
@@ -61,7 +61,7 @@ export const getNewsPostById = async (id: number): Promise<NewsPostDetailRespons
 // }
 export const createNewsPost = async (payload: CreateNewsPostPayload | FormData): Promise<NewsPost> => {
     const dataToSend = payload instanceof FormData ? payload : convertToFormData(payload);
-    
+
     // เรียกใช้ Post (ซึ่ง requireAuth เป็น true โดย default)
     const response: any = await Post('/newsposts', dataToSend);
 
@@ -73,11 +73,11 @@ export const createNewsPost = async (payload: CreateNewsPostPayload | FormData):
 
     // เนื่องจาก Post.then((res) => res.data) ไปแล้ว 
     // ค่า response ตรงนี้คือข้อมูล NewsPost ที่สร้างสำเร็จแล้วครับ
-    return response; 
+    return response;
 }
 
 export const updateNewsPost = async (id: number, data: UpdateNewsPost | FormData): Promise<any> => {
-    const response: any = await Put(`/newsposts/${id}`, data); 
+    const response: any = await Put(`/newsposts/${id}`, data);
     return response;
 };
 

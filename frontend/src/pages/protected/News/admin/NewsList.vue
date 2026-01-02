@@ -196,7 +196,7 @@ onMounted(() => { fetchNews(); });
             <option :value="1">สาธารณะ</option>
             <option :value="2">ฉบับร่าง</option>
             <option :value="3">จัดเก็บ</option>
-            <option :value="5">เฉพาะสมาชิก</option>
+            <option :value="4">เฉพาะสมาชิก</option>
         </select>
 
       </div>

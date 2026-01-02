@@ -53,8 +53,6 @@ func TestScreeningValidation(t *testing.T) {
 		return entity.Screening{
 			AdminProfileID:           1,
 			AdminProfile:             validAdmin,
-			ApplicationID:            1, // Add ApplicationID
-			Application:              validApplication,
 			StatusScreeningID:        1, // สมมติ 1 = "ผ่าน"
 			StatusScreening:          validStatus,
 			ApplicationScholarshipID: 1,

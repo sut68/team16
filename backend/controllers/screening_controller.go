@@ -8,9 +8,9 @@ import (
 )
 
 func GetAllScreenings(c *gin.Context) {
-
 	var screenings []entity.Screening
 
+	// Only preload fields required for the list view
 	err := config.DB.
 		Preload("StatusScreening").
 		Preload("ApplicationScholarship.Application.StudentProfile").
@@ -24,7 +24,69 @@ func GetAllScreenings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"data": screenings})
+	// Create a lightweight response structure
+	type StudentProfileDTO struct {
+		FirstNameTH string `json:"first_name_th"`
+		LastNameTH  string `json:"last_name_th"`
+	}
+	type ApplicationDTO struct {
+		StudentProfile StudentProfileDTO `json:"student_profile"`
+	}
+	type SemasterDTO struct {
+		Term         string `json:"Term"` // Match frontend expectation
+		AcademicYear string `json:"AcademicYear"`
+		Round        string `json:"round"`
+	}
+	type ScholarshipDTO struct {
+		ScholarshipName string      `json:"scholarship_name"`
+		Semaster        SemasterDTO `json:"semaster"`
+	}
+	type AppScholarshipDTO struct {
+		Application ApplicationDTO `json:"application"`
+		Scholarship ScholarshipDTO `json:"scholarship"`
+	}
+	type ScreeningDTO struct {
+		ID                     uint              `json:"ID"`
+		CreatedAt              string            `json:"CreatedAt"`
+		StatusScreeningID      uint              `json:"status_screening_id"`
+		RejectionReason        *string           `json:"rejection_reason"`
+		ApplicationScholarship AppScholarshipDTO `json:"application_scholarship"`
+	}
+
+	var response []ScreeningDTO
+	for _, s := range screenings {
+		appSch := s.ApplicationScholarship
+		sch := appSch.Scholarship
+		sem := sch.Semaster
+		app := appSch.Application
+		student := app.StudentProfile
+
+		dto := ScreeningDTO{
+			ID:                s.ID,
+			CreatedAt:         s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			StatusScreeningID: s.StatusScreeningID,
+			RejectionReason:   s.RejectionReason,
+			ApplicationScholarship: AppScholarshipDTO{
+				Scholarship: ScholarshipDTO{
+					ScholarshipName: sch.ScholarshipName,
+					Semaster: SemasterDTO{
+						Term:         sem.Term,
+						AcademicYear: sem.AcademicYear,
+						Round:        sem.Round,
+					},
+				},
+				Application: ApplicationDTO{
+					StudentProfile: StudentProfileDTO{
+						FirstNameTH: student.FirstNameTH,
+						LastNameTH:  student.LastNameTH,
+					},
+				},
+			},
+		}
+		response = append(response, dto)
+	}
+
+	c.JSON(200, gin.H{"data": response})
 }
 
 func GetScreeningByID(c *gin.Context) {

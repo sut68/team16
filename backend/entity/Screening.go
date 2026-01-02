@@ -10,10 +10,6 @@ type Screening struct {
 	AdminProfileID uint         `json:"admin_profile_id" gorm:"not null" valid:"required~AdminProfileID is required"`
 	AdminProfile   AdminProfile `json:"admin_profile" gorm:"foreignKey:AdminProfileID" valid:"-"`
 
-	// ---------- Application ----------
-	ApplicationID uint        `json:"application_id" gorm:"not null" valid:"required~ApplicationID is required"`
-	Application   Application `json:"application" gorm:"foreignKey:ApplicationID" valid:"-"`
-
 	// ---------- Status Screening ----------
 	StatusScreeningID uint            `json:"status_screening_id" gorm:"not null" valid:"required~StatusScreeningID is required"`
 	StatusScreening   StatusScreening `json:"status_screening" gorm:"foreignKey:StatusScreeningID" valid:"-"`
