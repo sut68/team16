@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted, nextTick } from 'vue';
-import { InterviewAPI, type InterviewRoundCreate, type InterviewRoundUpdate } from '@/services/api'; 
+import { InterviewAPI, type InterviewRoundCreate, type InterviewRoundUpdate, type InterviewerCreate } from '@/services/api'; 
 import { ScholarshipAPI } from '@/services/api/scholarship'; 
 import { LocationAPI } from '@/services/api/location';
 import type { InterviewRound, Interviewer, Location, InterviewMode, Slot } from '@/interfaces/interview';
 import type { ScholarshipResponse } from '@/interfaces/scholarship';
 import Swal from 'sweetalert2';
 import { Plus } from 'lucide-vue-next';
+import FlatPickr from 'vue-flatpickr-component';
+import 'flatpickr/dist/flatpickr.css';
+import { Thai } from 'flatpickr/dist/l10n/th.js';
+
 // --- Interfaces ---
 interface StudentProfile {
     ID: number;
@@ -25,9 +29,25 @@ const isLoading = ref(true);
 const isModalOpen = ref(false);
 const isFilterOpen = ref(false);
 const isStudentDetailModalOpen = ref(false);
+const isNewInterviewerModalOpen = ref(false);
 const modalMode = ref<'create' | 'view' | 'edit'>('create');
 const activeTab = ref<'active' | 'history'>('active');
 const editingRoundId = ref<number | null>(null);
+
+const isScholarshipDropdownOpen = ref(false);
+const scholarshipSearch = ref('');
+
+const filteredScholarships = computed(() => {
+    if (!scholarshipSearch.value) return scholarships.value;
+    const lowerSearch = scholarshipSearch.value.toLowerCase();
+    return scholarships.value.filter(s => s.scholarship_name.toLowerCase().includes(lowerSearch));
+});
+
+const selectScholarship = (scholarship: ScholarshipResponse) => {
+    formData.scholarship_id = scholarship.ID;
+    scholarshipSearch.value = scholarship.scholarship_name;
+    isScholarshipDropdownOpen.value = false;
+};
 
 // Data from API
 const allRounds = ref<InterviewRound[]>([]);
@@ -59,6 +79,29 @@ const formData = reactive({
     interview_mode_id: null as number | null,
     location_id: null as number | null,
     meeting_link: '',
+});
+
+const newInterviewerData = reactive({
+    interviewer_firstname: '',
+    interviewer_lastname: '',
+    email: ''
+});
+
+// FlatPickr Configuration
+const dateConfig = reactive({
+    altInput: true,
+    altFormat: "d F Y", // Display format (e.g., 2 มกราคม 2026)
+    dateFormat: "Y-m-d", // Model format (e.g., 2026-01-02)
+    locale: Thai,
+    disableMobile: true
+});
+
+const timeConfig = reactive({
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    time_24hr: true,
+    disableMobile: true
 });
 
 // เก็บค่าตั้งต้นตอนโหลดโหมด Edit เพื่อเช็คว่ามีการเปลี่ยนเวลา/วันที่ไหม
@@ -131,10 +174,8 @@ const getLocationLabel = (round: InterviewRound) => {
 
 const getRoundStatus = (round: InterviewRound): 'Closed' | 'Full' | 'Open' => {
     const roundEnd = new Date(round.end_date_time);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (roundEnd.getTime() < today.getTime()) return 'Closed';
+    
+    if (roundEnd.getTime() < new Date().getTime()) return 'Closed';
     if (!round.slots || round.slots.length === 0) return 'Open';
     const isFull = round.slots.every(slot => slot.is_booked);
     return isFull ? 'Full' : 'Open';
@@ -186,6 +227,7 @@ const stats = computed(() => {
         };
     }
 });
+
 
 const filteredRounds = computed(() => {
     let result = allRounds.value;
@@ -298,11 +340,16 @@ const openCreateModal = () => {
         location_id: null, meeting_link: ''
     });
     isModalOpen.value = true;
+    scholarshipSearch.value = '';
 };
 
 const populateFormWithRoundDetails = (details: InterviewRound) => {
     const start = new Date(details.start_date_time);
     const end = new Date(details.end_date_time);
+
+    // Set search text for dropdown
+    const scholarship = scholarships.value.find(s => s.ID === details.scholarship_id);
+    scholarshipSearch.value = scholarship ? scholarship.scholarship_name : '';
 
     Object.assign(formData, {
         name: details.name,
@@ -409,8 +456,8 @@ const handleUpdate = async () => {
         description: formData.description,
         start_date_time: startDateTime,
         end_date_time: endDateTime,
-        scholarship_id: formData.scholarship_id,
-        interview_mode_id: formData.interview_mode_id,
+        scholarship_id: formData.scholarship_id as number,
+        interview_mode_id: formData.interview_mode_id as number,
         location_id: formData.location_id ? Number(formData.location_id) : null,
         meeting_link: formData.meeting_link,
         interviewer_ids: formData.interviewer_ids,
@@ -431,8 +478,34 @@ const handleUpdate = async () => {
 };
 
 const saveRound = async () => {
-    if (!formData.scholarship_id || !formData.date || !formData.start_time || !formData.end_time || !formData.end_date || !formData.interview_mode_id) {
-        Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'warning');
+    const missingFields: string[] = [];
+    if (!formData.name) missingFields.push("ชื่อรอบสัมภาษณ์");
+    if (!formData.scholarship_id) missingFields.push("ทุนการศึกษา");
+    if (!formData.date) missingFields.push("วันที่เริ่มต้น");
+    if (!formData.end_date) missingFields.push("วันที่สิ้นสุด");
+    if (!formData.start_time) missingFields.push("เวลาเริ่มต้น");
+    if (!formData.end_time) missingFields.push("เวลาสิ้นสุด");
+    if (!formData.interview_mode_id) missingFields.push("รูปแบบการสัมภาษณ์");
+    if (!formData.slot_duration) missingFields.push("ระยะเวลาต่อคน");
+    if (!formData.interviewer_ids || formData.interviewer_ids.length === 0) missingFields.push("กรรมการสัมภาษณ์");
+    
+    // Check location if mode is Onsite
+    if (selectedModeName.value === 'Onsite' && !formData.location_id) {
+        missingFields.push("สถานที่");
+    }
+
+    if (missingFields.length > 0) {
+        let msgHtml = '<ul style="text-align: left; margin-left: 20px;">';
+        missingFields.forEach(field => {
+            msgHtml += `<li>- ${field}</li>`;
+        });
+        msgHtml += '</ul>';
+
+        Swal.fire({
+            title: 'กรุณากรอกข้อมูลให้ครบถ้วน',
+            html: msgHtml,
+            icon: 'warning'
+        });
         return;
     }
 
@@ -443,9 +516,10 @@ const saveRound = async () => {
     const payload: InterviewRoundCreate = {
         name: formData.name, description: formData.description,
         start_date_time: startDateTime, end_date_time: endDateTime,
-        slot_duration: formData.slot_duration, scholarship_id: formData.scholarship_id,
+        slot_duration: formData.slot_duration, 
+        scholarship_id: formData.scholarship_id as number,
         admin_profile_id: adminProfileId, interviewer_ids: formData.interviewer_ids,
-        interview_mode_id: formData.interview_mode_id,
+        interview_mode_id: formData.interview_mode_id as number,
         location_id: formData.location_id ? Number(formData.location_id) : null,
         meeting_link: formData.meeting_link
     };
@@ -462,10 +536,67 @@ const saveRound = async () => {
         isLoading.value = false;
     }
 };
+
+const openNewInterviewerModal = () => {
+    Object.assign(newInterviewerData, {
+        interviewer_firstname: '',
+        interviewer_lastname: '',
+        email: ''
+    });
+    isNewInterviewerModalOpen.value = true;
+};
+
+const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
+const formatTime = (date: string | Date) => {
+    return new Date(date).toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+    }) + ' น.';
+};
+
+const saveNewInterviewer = async () => {
+    if (!newInterviewerData.interviewer_firstname || !newInterviewerData.interviewer_lastname || !newInterviewerData.email) {
+        Swal.fire('ข้อมูลไม่ครบถ้วน', 'กรุณากรอกชื่อ, นามสกุล, และอีเมล', 'warning');
+        return;
+    }
+
+    const payload: InterviewerCreate = {
+        interviewer_firstname: newInterviewerData.interviewer_firstname,
+        interviewer_lastname: newInterviewerData.interviewer_lastname,
+        email: newInterviewerData.email,
+    };
+
+    isLoading.value = true;
+    try {
+        const newInterviewer = await InterviewAPI.createInterviewer(payload);
+        isNewInterviewerModalOpen.value = false;
+
+        // Refresh interviewer list and automatically select the new one
+        const interviewersRes = await InterviewAPI.getAllInterviewers();
+        interviewersList.value = interviewersRes || [];
+        if (!formData.interviewer_ids.includes(newInterviewer.ID)) {
+            formData.interviewer_ids.push(newInterviewer.ID);
+        }
+
+        Swal.fire('สำเร็จ', 'เพิ่มกรรมการสัมภาษณ์คนใหม่เรียบร้อยแล้ว', 'success');
+
+    } catch (error: any) {
+         Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถเพิ่มกรรมการได้', 'error');
+    } finally {
+        isLoading.value = false;
+    }
+}
 </script>
 
 <template>
-    <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light">
+    <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" data-theme="light">
 
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
             <h1 class="text-2xl font-bold text-slate-800">จัดการรอบสัมภาษณ์</h1>
@@ -478,7 +609,7 @@ const saveRound = async () => {
 
         <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
             
-            <div class="p-3 flex flex-row items-center justify-between">
+            <div class="p-4 flex flex-row items-center justify-between">
                 <div>
                     <div class="text-slate-500 text-sm mb-1">{{ stats.title1 }}</div>
                     <div class="text-[#1e3a8a] text-3xl font-bold">{{ stats.value1 }}</div>
@@ -491,7 +622,7 @@ const saveRound = async () => {
                 </div>
             </div>
 
-            <div class="p-3 flex flex-row items-center justify-between">
+            <div class="p-4 flex flex-row items-center justify-between">
                 <div>
                     <div class="text-slate-500 text-sm mb-1">{{ stats.title2 }}</div>
                     <div class="text-emerald-700 text-3xl font-bold">{{ stats.value2 }}</div>
@@ -504,7 +635,7 @@ const saveRound = async () => {
                 </div>
             </div>
 
-            <div class="p-3 flex flex-row items-center justify-between">
+            <div class="p-4 flex flex-row items-center justify-between">
                 <div>
                     <div class="text-slate-500 text-sm mb-1">{{ stats.title3 }}</div>
                     <div class="text-orange-500 text-3xl font-bold">{{ stats.value3 }}</div>
@@ -580,7 +711,7 @@ const saveRound = async () => {
             </div>
         </div>
 
-        <div class="bg-slate-50/30 rounded-3xl shadow-sm border border-slate-100 p-6 min-h-[500px] flex-1">
+        <div class="bg-slate-50/30 rounded-3xl shadow-sm border border-slate-100 p-6 flex-1 overflow-y-auto min-h-0">
             
             <div v-if="activeTab === 'active'" class="animate-fade-in">
                 <div v-if="filteredRounds.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -589,19 +720,19 @@ const saveRound = async () => {
                         
                         <div class="px-5 py-4 border-b border-gray-50 bg-slate-50/50 flex justify-between items-start rounded-t-2xl">
                             <div>
-                                <div class="flex gap-2 mb-2">
-                                    <div class="badge badge-sm font-medium border-none text-white shadow-sm" :class="{
+                                <div class="flex flex-wrap gap-2 mb-2 items-center">
+                                    <div class="badge badge-sm font-medium border-none text-white shadow-sm shrink-0" :class="{
                                         'badge-success': getRoundStatus(round) === 'Open',
                                         'badge-error': getRoundStatus(round) === 'Full',
                                         'badge-ghost text-gray-500': getRoundStatus(round) === 'Closed'
                                     }">
                                         {{ getRoundStatus(round) === 'Open' ? 'เปิดให้จอง' : (getRoundStatus(round) === 'Full' ? 'เต็มแล้ว' : 'ปิด') }}
                                     </div>
-                                    <div v-if="round.scholarship" class="badge badge-sm badge-outline text-gray-500">
+                                    <div v-if="round.scholarship" class="badge badge-sm badge-outline text-gray-500 max-w-full truncate" title="{{ round.scholarship.scholarship_name }}">
                                         {{ round.scholarship.scholarship_name }}
                                     </div>
                                 </div>
-                                <h3 class="font-bold text-[#1e3a8a] text-lg leading-tight">{{ round.name }}</h3>
+                                <h3 class="font-bold text-[#1e3a8a] text-lg leading-tight break-words">{{ round.name }}</h3>
                             </div>
                             <div class="dropdown dropdown-end">
                                 <label tabindex="0" class="btn btn-circle btn-ghost btn-sm text-gray-400"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-5 h-5 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg></label>
@@ -620,8 +751,8 @@ const saveRound = async () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-slate-700">{{ new Date(round.start_date_time).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit'}) }}</p>
-                                    <p class="text-xs text-gray-500">{{ new Date(round.start_date_time).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}) }} - {{ new Date(round.end_date_time).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}) }}</p>
+                                    <p class="font-semibold text-slate-700">{{ formatDate(round.start_date_time) }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatTime(round.start_date_time) }} - {{ formatTime(round.end_date_time) }}</p>
                                 </div>
                             </div>
 
@@ -632,7 +763,7 @@ const saveRound = async () => {
                                 </div>
                                 <div>
                                     <p class="font-semibold text-slate-700">{{ getModeName(round) }}</p>
-                                    <p class="text-xs text-gray-500 truncate max-w-[150px]">{{ getLocationLabel(round) }}</p>
+                                    <p class="text-sm text-gray-500 break-words">{{ getLocationLabel(round) }}</p>
                                 </div>
                             </div>
 
@@ -684,8 +815,8 @@ const saveRound = async () => {
                             <tr v-for="round in filteredRounds" :key="round.ID" class="hover:bg-slate-50 transition-colors">
                                 <td class="font-medium text-slate-700">
                                     <div class="flex flex-col">
-                                        <span>{{ new Date(round.start_date_time).toLocaleDateString('th-TH', { dateStyle: 'medium' }) }}</span>
-                                        <span class="text-xs text-gray-400 font-light">{{ new Date(round.start_date_time).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}) }} - {{ new Date(round.end_date_time).toLocaleTimeString('th-TH', {hour: '2-digit', minute: '2-digit'}) }}</span>
+                                        <span>{{ formatDate(round.start_date_time) }}</span>
+                                        <span class="text-xs text-gray-400 font-light">{{ formatTime(round.start_date_time) }} - {{ formatTime(round.end_date_time) }}</span>
                                     </div>
                                 </td>
                                 <td><div class="font-bold text-[#1e3a8a]">{{ round.name }}</div></td>
@@ -738,12 +869,46 @@ const saveRound = async () => {
                                     <label class="label"><span class="label-text font-medium">ชื่อรอบสัมภาษณ์</span></label>
                                     <input v-model="formData.name" type="text" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
                                 </div>
-                                <div class="form-control w-full">
+                                <div class="form-control w-full relative">
                                     <label class="label"><span class="label-text font-medium">สำหรับทุน</span></label>
-                                    <select v-model="formData.scholarship_id" class="select select-bordered select-sm w-full" :disabled="modalMode === 'view'">
-                                        <option disabled :value="null">เลือกทุน...</option>
-                                        <option v-for="s in scholarships" :key="s.ID" :value="s.ID">{{ s.scholarship_name }}</option>
-                                    </select>
+                                    
+                                    <!-- Searchable Input -->
+                                    <div class="relative">
+                                        <input 
+                                            type="text" 
+                                            v-model="scholarshipSearch" 
+                                            @focus="isScholarshipDropdownOpen = true"
+                                            placeholder="ค้นหาชื่อทุน..." 
+                                            class="input input-bordered input-sm w-full pr-10" 
+                                            :disabled="modalMode === 'view'"
+                                        />
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dropdown List -->
+                                    <ul v-if="isScholarshipDropdownOpen && modalMode !== 'view'" 
+                                        class="absolute z-50 mt-1 w-full bg-white shadow-xl max-h-60 overflow-y-auto rounded-lg border border-gray-100 divide-y divide-gray-50 top-[70px]">
+                                        <li v-for="s in filteredScholarships" :key="s.ID">
+                                            <button 
+                                                @click="selectScholarship(s)" 
+                                                class="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors text-sm text-slate-700 flex flex-col"
+                                                type="button"
+                                            >
+                                                <span class="font-medium">{{ s.scholarship_name }}</span>
+                                                <span class="text-xs text-gray-400" v-if="s.typescholarship">{{ s.typescholarship.type_name }}</span>
+                                            </button>
+                                        </li>
+                                        <li v-if="filteredScholarships.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">
+                                            ไม่พบข้อมูลทุน
+                                        </li>
+                                    </ul>
+
+                                    <!-- Overlay to close dropdown when clicking outside -->
+                                    <div v-if="isScholarshipDropdownOpen" @click="isScholarshipDropdownOpen = false" class="fixed inset-0 z-40 bg-transparent"></div>
                                 </div>
                                 <div class="form-control w-full">
                                     <label class="label"><span class="label-text font-medium">รายละเอียดเพิ่มเติม</span></label>
@@ -756,18 +921,18 @@ const saveRound = async () => {
                                 <div class="form-control w-full">
                                     <label class="label"><span class="label-text font-medium">วันที่</span></label>
                                     <div class="grid grid-cols-2 gap-2">
-                                        <input v-model="formData.date" type="date" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
-                                        <input v-model="formData.end_date" type="date" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
+                                        <flat-pickr v-model="formData.date" :config="dateConfig" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" placeholder="วันที่เริ่มต้น" />
+                                        <flat-pickr v-model="formData.end_date" :config="dateConfig" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" placeholder="วันที่สิ้นสุด" />
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div class="form-control">
                                         <label class="label"><span class="label-text font-medium">เริ่ม</span></label>
-                                        <input v-model="formData.start_time" type="time" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
+                                        <flat-pickr v-model="formData.start_time" :config="timeConfig" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
                                     </div>
                                     <div class="form-control">
                                         <label class="label"><span class="label-text font-medium">สิ้นสุด</span></label>
-                                        <input v-model="formData.end_time" type="time" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
+                                        <flat-pickr v-model="formData.end_time" :config="timeConfig" class="input input-bordered input-sm w-full" :disabled="modalMode === 'view'" />
                                     </div>
                                 </div>
                                 <div class="form-control w-full">
@@ -799,7 +964,13 @@ const saveRound = async () => {
 
                         <div class="lg:col-span-2 space-y-6">
                             <div class="card bg-white shadow-sm border border-gray-100 p-5">
-                                <h3 class="font-bold text-slate-700 mb-3">กรรมการสัมภาษณ์</h3>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="font-bold text-slate-700">กรรมการสัมภาษณ์</h3>
+                                    <button @click="openNewInterviewerModal" class="btn btn-xs btn-outline btn-primary gap-1" :disabled="modalMode === 'view'">
+                                        <Plus class="w-3 h-3"/>
+                                        เพิ่ม
+                                    </button>
+                                </div>
                                 <div class="flex flex-wrap gap-2">
                                     <label v-for="interviewer in interviewersList" :key="interviewer.ID"
                                         class="cursor-pointer border rounded-lg px-3 py-2 flex items-center gap-2 transition-all"
@@ -807,6 +978,9 @@ const saveRound = async () => {
                                         <input type="checkbox" :value="interviewer.ID" v-model="formData.interviewer_ids" class="checkbox checkbox-primary checkbox-xs" :disabled="modalMode === 'view'" />
                                         <span class="text-sm">{{ interviewer.interviewer_firstname }} {{ interviewer.interviewer_lastname }}</span>
                                     </label>
+                                    <div v-if="interviewersList.length === 0" class="text-xs text-gray-400 text-center w-full py-4">
+                                        ไม่มีข้อมูลกรรมการ, กด 'เพิ่ม' เพื่อสร้างใหม่
+                                    </div>
                                 </div>
                             </div>
 
@@ -847,7 +1021,7 @@ const saveRound = async () => {
                                                     'bg-white border-green-200 cursor-not-allowed': !slot.is_booked
                                                 }">
                                                 <span class="font-bold text-lg" :class="slot.is_booked ? 'text-slate-700' : 'text-slate-700'">
-                                                    {{ new Date(slot.start_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
+                                                    {{ formatTime(slot.start_time) }}
                                                 </span>
                                                 
                                                 <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
@@ -875,6 +1049,37 @@ const saveRound = async () => {
                     <button v-if="modalMode === 'edit'" @click="handleUpdate" class="btn bg-blue-600 text-white hover:bg-blue-700">บันทึกการแก้ไข</button>
                 </div>
             </div>
+        </div>
+        
+        <!-- New Interviewer Modal -->
+        <div v-if="isNewInterviewerModalOpen" class="fixed inset-0 z-[101] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
+                <div class="px-6 py-4 border-b flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-slate-800">เพิ่มกรรมการสัมภาษณ์ใหม่</h2>
+                    <button @click="isNewInterviewerModalOpen = false" class="btn btn-circle btn-ghost btn-sm text-gray-500">✕</button>
+                </div>
+                <div class="p-6 space-y-4">
+                     <div class="form-control w-full">
+                        <label class="label"><span class="label-text font-medium">ชื่อจริง</span></label>
+                        <input v-model="newInterviewerData.interviewer_firstname" type="text" class="input input-bordered w-full" />
+                    </div>
+                     <div class="form-control w-full">
+                        <label class="label"><span class="label-text font-medium">นามสกุล</span></label>
+                        <input v-model="newInterviewerData.interviewer_lastname" type="text" class="input input-bordered w-full" />
+                    </div>
+                     <div class="form-control w-full">
+                        <label class="label"><span class="label-text font-medium">อีเมล</span></label>
+                        <input v-model="newInterviewerData.email" type="email" class="input input-bordered w-full" />
+                    </div>
+                </div>
+                <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                    <button @click="isNewInterviewerModalOpen = false" class="btn btn-ghost">ยกเลิก</button>
+                    <button @click="saveNewInterviewer" class="btn btn-primary" :disabled="isLoading">
+                         <span v-if="isLoading" class="loading loading-spinner loading-xs"></span>
+                        บันทึก
+                    </button>
+                </div>
+             </div>
         </div>
 
         <!-- Student Detail Modal -->
@@ -929,4 +1134,12 @@ const saveRound = async () => {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+
+<style>
+/* Global override for Flatpickr size */
+.flatpickr-calendar {
+    transform: scale(0.85); /* Scale down by 15% */
+    transform-origin: top left; /* Keep it anchored correctly */
+}
 </style>

@@ -178,16 +178,26 @@ func GetAllInterviewers(c *gin.Context) {
 
 // CreateInterviewer godoc
 func CreateInterviewer(c *gin.Context) {
-	var interviewer entity.Interviewer
-	if err := c.ShouldBindJSON(&interviewer); err != nil {
+	var input entity.Interviewer
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := config.DB.Create(&interviewer).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	// Use FirstOrCreate to find an interviewer by email or create a new one.
+	// The 'where' clause specifies the unique field to look for.
+	// The struct passed as the second argument contains the data for creation if not found.
+	if err := config.DB.Where(entity.Interviewer{Email: input.Email}).
+		Attrs(entity.Interviewer{
+			InterviewerFirstname: input.InterviewerFirstname,
+			InterviewerLastname:  input.InterviewerLastname,
+		}).
+		FirstOrCreate(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find or create interviewer: " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, interviewer)
+
+	c.JSON(http.StatusOK, input) // Return the found or newly created interviewer
 }
 
 // --- InterviewBooking Handlers ---
