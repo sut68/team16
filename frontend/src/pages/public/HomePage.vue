@@ -129,7 +129,7 @@ function handleViewAllScholarships() {
     </header>
 
     <!-- Hero Banner -->
-    <section class="relative bg-[#8B001D] text-white py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
+    <section class="relative bg-gradient-to-r from-[#8B001D] to-[#f97316] text-white py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
       <div class="absolute inset-0 z-0 overflow-hidden opacity-20">
         <img 
           :src="SuryaGraphic" 
