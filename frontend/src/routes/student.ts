@@ -24,7 +24,7 @@ const studentRoutes: Array<RouteRecordRaw> = [
       {
         path: 'assistance',
         name: 'StudentAssistance',
-        component: () => import('@/pages/protected/Assistance/student/studentchat.vue'),
+        component: () => import('@/pages/protected/Test/StudentInterviewBookingTest.vue'),
       },
       {
         path: 'profilestudent',
