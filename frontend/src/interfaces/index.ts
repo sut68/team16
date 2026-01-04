@@ -6,3 +6,5 @@ export * from './approval';
 export * from './application_scholarship';
 export * from './semaster';
 export * from './featurescholarship';
+export * from './assistance';
+export * from './chatroom';
