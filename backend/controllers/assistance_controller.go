@@ -11,7 +11,7 @@ import (
 // getall
 func GetAllAssistance(c *gin.Context) {
 	var items []entity.Assistance
-	if err := config.DB.Find(&items).Error; err != nil {
+	if err := config.DB.Preload("Chatroom").Preload("Sender").Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -22,7 +22,7 @@ func GetAllAssistance(c *gin.Context) {
 func GetAssistanceByID(c *gin.Context) {
 	id := c.Param("id")
 	var item entity.Assistance
-	if err := config.DB.First(&item, id).Error; err != nil {
+	if err := config.DB.Preload("Chatroom").Preload("Sender").First(&item, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}

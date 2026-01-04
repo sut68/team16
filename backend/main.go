@@ -11,6 +11,7 @@ import (
 	"backend/controllers"
 	"backend/entity"
 	"backend/seed"
+	"backend/middlewares"
 )
 
 func main() {
@@ -49,6 +50,8 @@ func main() {
 		&entity.Scholarship{},
 		&entity.Featurescholarship{},
 		&entity.Typefeature{},
+		&entity.Assistance{},
+		&entity.Chatroom{},
 		&entity.Screening{},
 		&entity.SponsorIndustry{},
 		&entity.Sponsor{},
@@ -110,6 +113,8 @@ func main() {
 		&entity.IntervieweBooking{},
 		&entity.Location{},
 		&entity.InterviewMode{},
+		&entity.Assistance{},
+		&entity.Chatroom{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -185,6 +190,23 @@ func main() {
 		api.POST("/assistance", controllers.CreateAssistance)
 		api.PUT("/assistance/:id", controllers.UpdateAssistance)
 		api.DELETE("/assistance/:id", controllers.DeleteAssistance)
+
+		//chatroom
+		authorized := api.Group("/")
+		authorized.Use(middlewares.AuthMiddleware())
+		{
+			authorized.POST("/chatroom", controllers.CreateChatroom)
+			authorized.GET("/chatroom", controllers.GetAllChatroom)
+			authorized.GET("/chatroom/:id", controllers.GetChatroomByID)
+			authorized.DELETE("/chatroom/:id", controllers.DeleteChatroom)
+			authorized.GET("/chatroom/my-open", controllers.GetMyOpenChatroom)
+			authorized.GET("/chatroom/open", controllers.GetAllOpenChatrooms)
+			authorized.PUT("/chatroom/:id", controllers.UpdateChatroom)
+
+		}
+		
+		//websocket
+		api.GET("/ws", controllers.WebSocketHandler)
 
 		api.GET("/approval-tasks", controllers.GetApprovalTasks)
 		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
