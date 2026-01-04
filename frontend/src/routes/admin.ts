@@ -66,6 +66,11 @@ const adminRoutes: Array<RouteRecordRaw> = [
         name: 'profileAdmin',
         component: () => import('@/pages/protected/User/MyProfile.vue'),
       },
+      {
+        path: 'evaluations',
+        name: 'Evaluations',
+        component: () => import('../pages/protected/Evaluation/EvaluationPage.vue')
+      },
     ],
     meta: { requiresAuth: true, role: 'admin' },
   },

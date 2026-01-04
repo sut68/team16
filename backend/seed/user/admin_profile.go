@@ -18,6 +18,7 @@ func SeedAdminProfiles(db *gorm.DB) error {
 			Position:       "SuperAdmin",
 			Email:          "admin@example.com",
 			UserID:         adminUser.ID,
+			Phone:          "0812345678",
 		}
 
 		if err := db.Create(&adminProfile).Error; err != nil {

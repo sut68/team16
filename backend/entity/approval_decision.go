@@ -14,4 +14,7 @@ type ApprovalDecision struct {
 
 	TaskID       uint         `json:"task_id" valid:"required~Task ID is required"`
 	ApprovalTask ApprovalTask `gorm:"foreignKey:TaskID" json:"approval_task" valid:"-"`
+
+	AdminID uint         `json:"admin_id" valid:"required~Admin ID is required"`
+	Admin   AdminProfile `gorm:"foreignKey:AdminID" json:"admin_profile" valid:"-"`
 }

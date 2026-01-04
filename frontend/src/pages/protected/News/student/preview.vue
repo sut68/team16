@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { X, ImageIcon, Calendar, Clock, GraduationCap, CheckCircle2, AlertCircle, Send } from 'lucide-vue-next';
 import { getNewsPostById } from '@/services/api/news_post'; 
 import type { NewsPostDetailResponse } from '@/interfaces/news_post';
@@ -11,6 +12,7 @@ const loading = ref(true);
 const error = ref('');
 const news = ref<any>(null);
 const features = ref<any[]>([]);
+const router = useRouter();
 
 // --- Helper Functions (Logic เดิม 100%) ---
 const formatDate = (dateString: string | undefined) => {
@@ -19,6 +21,8 @@ const formatDate = (dateString: string | undefined) => {
     if (isNaN(date.getTime()) || date.getFullYear() < 2000) return 'ไม่ระบุ';
     return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
+// ... (Helper functions omitted for brevity, keeping existing logic) ...
 
 // ✅ ปรับปรุง: เพิ่ม canApply เพื่อคุมปุ่มกด (Logic เวลาเดิม)
 const getScholarshipStatus = (openDateStr: string | undefined, closeDateStr: string | undefined) => {
@@ -105,9 +109,16 @@ const formatCondition = (feature: any) => {
 
 // ✅ เพิ่มฟังก์ชันกดสมัคร
 const handleApply = () => {
-    // ใส่ Logic การกดสมัครตรงนี้ เช่น router.push ไปหน้าฟอร์ม
-    console.log("Applying for scholarship ID:", news.value?.scholarship?.ID);
-    alert("เข้าสู่หน้าสมัครทุน (ใส่ Router ตรงนี้ได้เลย)");
+    // Navigate to ApplyScholarship page with scholarship ID
+    if (news.value?.scholarship?.ID) {
+        router.push({ 
+            name: 'ApplyScholarship', 
+            query: { id: news.value.scholarship.ID } 
+        });
+    } else {
+        // Fallback if no ID (shouldn't happen if logic is correct)
+        router.push({ name: 'ApplyScholarship' });
+    }
 };
 
 const fetchDetail = async () => {
@@ -169,9 +180,7 @@ onMounted(() => { fetchDetail(); });
                 </div>
 
                 <div class="max-w-4xl mx-auto px-6 md:px-8">
-                    <div class="prose prose-slate max-w-none mb-10 text-slate-600 leading-relaxed whitespace-pre-line">
-                        {{ news.post_detail }}
-                    </div>
+                    <div class="rich-text-content prose prose-slate max-w-none mb-10 text-slate-600 leading-relaxed break-words" v-html="news.post_detail"></div>
 
                     <div v-if="news.scholarship" class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
                         
@@ -303,4 +312,58 @@ onMounted(() => { fetchDetail(); });
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+
+.rich-text-content :deep(ul) {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(li) {
+  margin: 0.5em 0;
+  display: list-item !important; /* Force display list-item just in case */
+}
+
+/* Heading Styles */
+.rich-text-content :deep(h1) {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+.rich-text-content :deep(h2) {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.75em 0;
+}
+
+.rich-text-content :deep(h3) {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+.rich-text-content :deep(h4) {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 1.12em 0;
+}
+
+.rich-text-content :deep(h5) {
+  font-size: 0.83em;
+  font-weight: bold;
+  margin: 1.5em 0;
+}
+
+.rich-text-content :deep(h6) {
+  font-size: 0.67em;
+  font-weight: bold;
+  margin: 1.67em 0;
+}
 </style>

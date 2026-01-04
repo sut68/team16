@@ -117,6 +117,45 @@ const historyItems = computed(() => {
   );
 });
 
+const stats = computed(() => {
+    if (activeTab.value === 'pending') {
+        const purePending = pendingItems.value.filter(t => !checkIsResubmitted(t));
+        const resubmitted = pendingItems.value.filter(t => checkIsResubmitted(t));
+
+        return {
+            title1: 'เอกสารรอตรวจทั้งหมด',
+            value1: pendingItems.value.length,
+            desc1: 'รายการ',
+            
+            title2: 'ยื่นครั้งแรก',
+            value2: purePending.length,
+            desc2: 'รายการ',
+            
+            title3: 'ส่งแก้ไข',
+            value3: resubmitted.length,
+            desc3: 'รายการ'
+        };
+    } else { // history tab
+        const approvedCount = historyItems.value.filter(i => i.status === 'approved').length;
+        const rejectedCount = historyItems.value.filter(i => i.status === 'rejected').length;
+        const totalHistory = historyItems.value.length;
+
+        return {
+            title1: 'เอกสารทั้งหมด',
+            value1: totalHistory,
+            desc1: 'ในประวัติ',
+            
+            title2: 'อนุมัติทั้งหมด',
+            value2: approvedCount,
+            desc2: `จาก ${totalHistory} รายการ`,
+            
+            title3: 'ปฏิเสธทั้งหมด',
+            value3: rejectedCount,
+            desc3: `จาก ${totalHistory} รายการ`
+        };
+    }
+});
+
 const filteredItems = computed((): ApprovalTaskDisplay[] => {
   let result: ApprovalTaskDisplay[] = [];
 
@@ -183,8 +222,49 @@ const handleActionCompleted = () => {
 </script>
 
 <template>
-  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light">
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light" data-testid="approval-list-page">
     
+    <h1 class="text-2xl font-bold text-slate-800 mb-10">อนุมัติเอกสาร</h1>
+    
+    <!-- Stats Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+        
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title1 }}</div>
+                <div class="text-blue-600 text-3xl font-bold">{{ stats.value1 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc1 }}</div>
+            </div>
+            <div class="text-blue-600 bg-blue-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title2 }}</div>
+                <div class="text-emerald-700 text-3xl font-bold">{{ stats.value2 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc2 }}</div>
+            </div>
+            <div class="text-emerald-700 bg-green-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title3 }}</div>
+                <div class="text-3xl font-bold" :class="activeTab === 'pending' ? 'text-orange-500' : 'text-red-600'">{{ stats.value3 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc3 }}</div>
+            </div>
+            <div class="p-3 rounded-full" :class="activeTab === 'pending' ? 'text-orange-500 bg-orange-50' : 'text-red-600 bg-red-50'">
+                <svg v-if="activeTab === 'pending'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            </div>
+        </div>
+        
+    </div>
+
     <div class="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 mb-6 border-b border-gray-200">
       
       <div class="flex gap-8 -mb-[1px] w-full xl:w-auto overflow-x-auto hide-scrollbar">
@@ -194,6 +274,7 @@ const handleActionCompleted = () => {
           :class="activeTab === 'pending' 
             ? 'text-[#1e3a8a] border-[#1e3a8a]' 
             : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+          data-testid="tab-pending"
         >
            เอกสารที่รอการอนุมัติ
            <span v-if="pendingItems.length > 0" 
@@ -208,6 +289,7 @@ const handleActionCompleted = () => {
           :class="activeTab === 'history' 
             ? 'text-[#1e3a8a] border-[#1e3a8a]' 
             : 'text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300'"
+          data-testid="tab-history"
         >
            ประวัติการอนุมัติ
         </a>
@@ -216,13 +298,15 @@ const handleActionCompleted = () => {
       <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto pb-4 xl:pb-2">
         
         <select v-if="activeTab === 'pending'" v-model="sortOrder"
-          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
+          class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4"
+          data-testid="sort-order-select"
+        >
           <option value="newest">ใหม่ล่าสุด</option>
           <option value="oldest">ส่งมานานสุด</option>
         </select>
 
         <div v-if="activeTab === 'history'" class="relative w-full md:w-auto">
-          <button @click="isFilterOpen = !isFilterOpen" class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm">
+          <button @click="isFilterOpen = !isFilterOpen" class="btn btn-sm btn-outline bg-white border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 gap-2 h-10 rounded-full font-normal px-5 w-full md:w-auto shadow-sm" data-testid="filter-button">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
             </svg>
@@ -230,13 +314,15 @@ const handleActionCompleted = () => {
           </button>
 
           <div v-if="isFilterOpen" class="fixed inset-0 z-20" @click="isFilterOpen = false"></div>
-          <div v-if="isFilterOpen" class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl z-30 border p-4 animate-pop-in">
+          <div v-if="isFilterOpen" class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl z-30 border p-4 animate-pop-in" data-testid="filter-popup">
               <p class="font-bold text-base mb-3 text-slate-700">ตัวกรองประวัติ</p>
               <div class="space-y-3">
                 <div>
                     <label class="text-xs font-medium text-gray-500">ปีการศึกษา</label>
                     <select v-model="filterYear"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm"
+                      data-testid="filter-year-select"
+                    >
                       <option value="all">ทุกปีการศึกษา</option>
                       <option v-for="year in availableYears" :key="year.value" :value="year.value">{{ year.label }}</option>
                     </select>
@@ -244,7 +330,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">เทอม</label>
                     <select v-model="filterTerm" :disabled="filterYear === 'all'"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100"
+                      data-testid="filter-term-select"
+                    >
                       <option value="all">ทุกเทอม</option>
                       <option v-for="term in availableTerms" :key="term.value" :value="term.value">{{ term.label }}</option>
                     </select>
@@ -252,7 +340,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">รอบ</label>
                     <select v-model="filterRound" :disabled="filterTerm === 'all'"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] font-medium text-gray-600 shadow-sm disabled:bg-gray-100"
+                      data-testid="filter-round-select"
+                    >
                       <option value="all">ทุกรอบ</option>
                       <option v-for="round in availableRounds" :key="round.value" :value="round.value">{{ round.label }}</option>
                     </select>
@@ -260,7 +350,9 @@ const handleActionCompleted = () => {
                 <div>
                     <label class="text-xs font-medium text-gray-500">สถานะ</label>
                     <select v-model="filterStatus"
-                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] shadow-sm font-medium text-gray-600">
+                      class="select select-bordered select-sm w-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] shadow-sm font-medium text-gray-600"
+                      data-testid="filter-status-select"
+                    >
                       <option value="all">สถานะทั้งหมด</option>
                       <option value="approved">อนุมัติแล้ว</option>
                       <option value="rejected">ปฏิเสธ</option>
@@ -279,24 +371,28 @@ const handleActionCompleted = () => {
             </svg>
           </span>
           <input type="text" v-model="searchQuery" placeholder="ค้นหาชื่อทุน, ผู้สมัคร..."
-            class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm" />
+            class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm"
+            data-testid="search-input"
+          />
         </div>
       </div>
     </div>
 
-    <div v-if="isLoading" class="text-center py-20 text-gray-500">
+    <div v-if="isLoading" class="text-center py-20 text-gray-500" data-testid="loading-indicator">
       <span class="loading loading-spinner loading-lg"></span>
       <p>Loading data...</p>
     </div>
-    <div v-if="error" class="text-center py-20 text-red-500">
+    <div v-if="error" class="text-center py-20 text-red-500" data-testid="error-message">
       <p>{{ error }}</p>
       <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
     
-    <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1">
+    <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1" data-testid="approval-list-container">
       <transition-group name="fade" tag="div" class="space-y-4">
         <div v-for="item in filteredItems" :key="item.ID" @click="handleCardClick(item)"
-          class="card bg-white border border-gray-250 shadow-sm rounded-2xl cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+          class="card bg-white border border-gray-250 shadow-sm rounded-2xl cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
+          :data-testid="`approval-card-${item.ID}`"
+        >
           <div class="card-body p-4 md:p-5 flex flex-row items-center justify-between min-h-[6rem]">
             <div class="flex flex-col overflow-hidden pr-2">
               <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -358,7 +454,9 @@ const handleActionCompleted = () => {
           </div>
         </div>
         <div v-if="filteredItems.length === 0" :key="'empty'"
-          class="flex flex-col items-center justify-center py-16 text-gray-400">
+          class="flex flex-col items-center justify-center py-16 text-gray-400"
+          data-testid="empty-list-message"
+        >
           <div class="bg-gray-50 p-4 rounded-full mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 opacity-50" fill="none" viewBox="0 0 24 24"
               stroke="currentColor">
@@ -371,7 +469,7 @@ const handleActionCompleted = () => {
         </div>
       </transition-group>
     </div>
-    <DocumentDetailModal v-if="isModalOpen" :isOpen="isModalOpen" :documentData="selectedDocument"
+    <DocumentDetailModal v-show="isModalOpen" :isOpen="isModalOpen" :documentData="selectedDocument"
       @close="isModalOpen = false" @action-completed="handleActionCompleted" />
   </div>
 </template>

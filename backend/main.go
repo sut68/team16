@@ -70,6 +70,10 @@ func main() {
 		&entity.IntervieweBooking{},
 		&entity.Location{},
 		&entity.InterviewMode{},
+		&entity.EvaluationScore{},
+		&entity.Evaluation{},
+		&entity.InterviewRoundCriterion{},
+		&entity.EvaluationCriterion{},
 	); err != nil {
 		log.Fatalf("DropTable failed: %v", err)
 	}
@@ -115,6 +119,10 @@ func main() {
 		&entity.InterviewMode{},
 		&entity.Assistance{},
 		&entity.Chatroom{},
+		&entity.EvaluationCriterion{},
+		&entity.InterviewRoundCriterion{},
+		&entity.Evaluation{},
+		&entity.EvaluationScore{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	} else {
@@ -143,6 +151,7 @@ func main() {
 		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
 		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
 		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
+		api.GET("/sponsors/:id/scholarships", controllers.GetSponsorScholarships)
 
 		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
 		// api.GET("/scholarships", controllers.GetAllScholarship)
@@ -216,13 +225,11 @@ func main() {
 
 		api.GET("/application-documents", controllers.GetApplicationDocuments)
 		api.POST("/application-documents", controllers.CreateApplicationDocument)
-		api.PATCH("/application-documents/:id", controllers.UpdateApplicationDocument)
 		api.DELETE("/application-documents/:id", controllers.DeleteApplicationDocument)
 
 		api.GET("/approval-requirements", controllers.GetApprovalRequirements)
 		api.GET("/approval-requirements/:id", controllers.GetApprovalRequirementByID)
 		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
-		api.PATCH("/approval-requirements/:id", controllers.UpdateApprovalRequirement)
 		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
 
 		api.GET("/screening", controllers.GetAllScreenings)
@@ -264,6 +271,33 @@ func main() {
 		// Student Favorite News
 		api.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
 		api.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+
+		// Evaluation System (ระบบพิจารณาผู้รับทุน)
+		// Evaluation Criteria
+		api.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
+		api.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
+		api.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
+		api.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
+		api.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
+
+		// Interview Round Criteria (เกณฑ์ในแต่ละรอบสัมภาษณ์)
+		api.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
+		api.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
+		api.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
+		api.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
+
+		// Evaluations (การประเมินผู้สมัคร)
+		api.GET("/evaluations", controllers.GetAllEvaluations)
+		api.GET("/evaluations/:id", controllers.GetEvaluationByID)
+		api.POST("/evaluations", controllers.CreateEvaluation)
+		api.PATCH("/evaluations/:id", controllers.UpdateEvaluation)
+		api.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
+		api.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
+
+		// Evaluation Scores (คะแนนรายเกณฑ์)
+		api.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
+		api.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
+		api.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
 
 	}
 

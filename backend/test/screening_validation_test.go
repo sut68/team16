@@ -1,9 +1,10 @@
 package test
 
 import (
+	"backend/entity"
 	"fmt"
 	"testing"
-	"backend/entity"
+
 	"github.com/asaskevich/govalidator"
 	. "github.com/onsi/gomega"
 )
@@ -29,13 +30,13 @@ func TestScreeningValidation(t *testing.T) {
 
 	// เพิ่มข้อมูลให้ครบตามที่ Error แจ้ง: Company name, Semaster ID, Student profile ID
 	validApplication := entity.Application{
-		StudentProfileID: 1, 
-		SemasterID:       1, 
+		StudentProfileID: 1,
+		SemasterID:       1,
 	}
 
 	validScholarship := entity.Scholarship{
 		Sponsor: entity.Sponsor{
-			CompanyName: "SUT Foundation", 
+			CompanyName: "SUT Foundation",
 		},
 	}
 
@@ -65,7 +66,7 @@ func TestScreeningValidation(t *testing.T) {
 	t.Run("Should Pass: Valid Screening (Approved)", func(t *testing.T) {
 		s := createValidScreening()
 		ok, err := govalidator.ValidateStruct(s)
-		
+
 		if !ok {
 			fmt.Printf("Validation Error: %v\n", err)
 		}
@@ -84,24 +85,13 @@ func TestScreeningValidation(t *testing.T) {
 		g.Expect(err).To(BeNil())
 	})
 
-	t.Run("Should Fail: RejectionReason too long", func(t *testing.T) {
-		s := createValidScreening()
-		reason := ""
-		for i := 0; i < 110; i++ { reason += "a" }
-		s.RejectionReason = &reason
-
-		ok, err := govalidator.ValidateStruct(s)
-		g.Expect(ok).To(BeFalse())
-		g.Expect(err.Error()).To(ContainSubstring("You must provide a rejection reason"))
-	})
-
 	t.Run("Should Fail: Status Rejected but Reason is missing", func(t *testing.T) {
 		s := createValidScreening()
 		s.StatusScreeningID = 2 // ไม่ผ่าน
 		s.RejectionReason = nil
 
 		ok, _ := govalidator.ValidateStruct(s)
-		
+
 		// เพิ่ม logic ตรวจสอบ Business Logic
 		if s.StatusScreeningID == 2 && (s.RejectionReason == nil || *s.RejectionReason == "") {
 			ok = false

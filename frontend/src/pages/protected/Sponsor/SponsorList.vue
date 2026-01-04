@@ -14,7 +14,7 @@ import SponsorForm from './SponsorForm.vue'
 import SponsorEdit from './SponsorEdit.vue'
 import SponsorContact from './SponsorContact.vue'
 import SponsorActionMenu from '@/components/ui/SponsorActionMenu.vue'
-import SponsorStatCard from '@/components/ui/SponsorStatCard.vue'
+import StatCard from '@/components/ui/StatCard.vue'
 import SearchBar from '@/components/ui/SearchBar.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 
@@ -216,21 +216,21 @@ onMounted(fetchSponsors)
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" data-testid="sponsor-stats-container">
-      <SponsorStatCard 
+      <StatCard 
         label="Total Sponsors" 
         :value="totalSponsors"
         icon="sponsors"
         color="purple"
         data-testid="sponsor-stat-total"
       />
-      <SponsorStatCard 
+      <StatCard 
         label="Active Sponsors" 
         :value="activeSponsors"
         icon="active"
         color="green"
         data-testid="sponsor-stat-active"
       />
-      <SponsorStatCard 
+      <StatCard 
         label="Total Contacts" 
         :value="totalContacts"
         icon="contacts"
@@ -368,30 +368,36 @@ onMounted(fetchSponsors)
                 </div>
               </td>
             </tr>
+
+            <!-- Empty State Row -->
+            <tr v-if="total === 0" data-testid="sponsor-empty-state" class="border-0 hover:bg-transparent">
+              <td colspan="7" class="h-[400px] border-0 align-middle">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div class="bg-gray-100 p-5 rounded-full mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <p v-if="searchQuery" class="text-gray-500">
+                    ไม่พบข้อมูลที่ตรงกับ "<strong class="text-gray-700">{{ searchQuery }}</strong>"
+                  </p>
+                  <p v-else class="text-gray-500">ยังไม่มีบริษัทในระบบ</p>
+                  <button 
+                    @click="openCreateForm" 
+                    class="btn-ghost-rounded mt-4"
+                    data-testid="btn-add-first-sponsor"
+                  >
+                    <Plus class="w-4 h-4"/>
+                    <span>เพิ่มบริษัทแรก</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
       
-      <!-- Empty State -->
-      <div v-if="total === 0" class="flex flex-col items-center py-16 text-gray-400" data-testid="sponsor-empty-state">
-        <div class="bg-gray-100 p-5 rounded-full mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <p v-if="searchQuery" class="text-gray-500">ไม่พบข้อมูลที่ตรงกับ "{{ searchQuery }}"</p>
-        <p v-else class="text-gray-500">ยังไม่มีบริษัทในระบบ</p>
-        <button 
-          @click="openCreateForm" 
-          class="btn-ghost-rounded mt-4"
-          data-testid="btn-add-first-sponsor"
-        >
-          <Plus class="w-4 h-4"/>
-          <span>เพิ่มบริษัทแรก</span>
-        </button>
-      </div>
-
       <!-- Pagination -->
       <Pagination
         v-if="total > 0"
@@ -430,6 +436,7 @@ onMounted(fetchSponsors)
     v-if="currentSponsorId !== null"
     v-model:isOpen="isContactsOpen"
     :sponsorId="currentSponsorId"
+    :sponsorName="currentSponsor?.company_name ?? ''"
     :initialContacts="currentContacts"
     @saved="onContactsSaved"
     @close="() => { isContactsOpen = false }"

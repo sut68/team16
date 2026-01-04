@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"backend/config"
 	"backend/entity"
 	"backend/validators"
-
-	"github.com/gin-gonic/gin"
 )
 
 func GetApprovalTasks(ctx *gin.Context) {
@@ -19,12 +19,11 @@ func GetApprovalTasks(ctx *gin.Context) {
 	var tasks []entity.ApprovalTask
 
 	if err := config.DB.
-		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
 		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
-		Preload("ApprovalDecisions").
+		Preload("ApprovalDecisions.Admin").
 		Find(&tasks).Error; err != nil {
 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -47,7 +46,6 @@ func GetApprovalTaskByID(ctx *gin.Context) {
 	}
 	var task entity.ApprovalTask
 	if err := config.DB.
-		Preload("Admin").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
 		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
@@ -73,8 +71,7 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 	var input struct {
-		Status  *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
-		AdminID *uint   `json:"admin_id" valid:"optional"`
+		Status *string `json:"status" valid:"optional,in(pending|approved|rejected|request-change)~Invalid status"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -95,9 +92,6 @@ func UpdateApprovalTask(ctx *gin.Context) {
 	if input.Status != nil {
 		updates["status"] = *input.Status
 	}
-	if input.AdminID != nil {
-		updates["admin_id"] = *input.AdminID
-	}
 	if len(updates) > 0 {
 		if err := tx.Model(&task).Updates(updates).Error; err != nil {
 			tx.Rollback()
@@ -112,7 +106,7 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Preload("Admin").Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
+	if err := config.DB.Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
 		return
 	}
@@ -150,6 +144,7 @@ func GetDecisionHistoryByStudentID(ctx *gin.Context) {
 		Joins("JOIN applications ON applications.id = application_scholarships.application_id").
 		Where("applications.student_profile_id = ?", studentID).
 		Preload("ApprovalTask").
+		Preload("Admin").
 		Find(&decisions).Error
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -258,11 +253,20 @@ func CreateApplicationDocument(ctx *gin.Context) {
 			return
 		}
 
+		// Reset ApplicationScholarship status to pending when new document is uploaded
+		// This ensures the status chain is properly reset for re-review
+		if err := tx.Model(&entity.ApplicationScholarship{}).
+			Where("id = ?", appScholarshipID).
+			Update("status", "pending").Error; err != nil {
+			tx.Rollback()
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status: " + err.Error()})
+			return
+		}
+
 	} else {
 
 		newTask := entity.ApprovalTask{
 			Status:     "pending",
-			AdminID:    1, // Default Admin ID
 			DocumentID: document.ID,
 		}
 
@@ -283,59 +287,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, document)
 }
 
-// PATCH /application-documents/:id
-func UpdateApplicationDocument(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid application document id"})
-		return
-	}
-	var document entity.ApplicationDocument
-	if err := config.DB.First(&document, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Application document not found"})
-		return
-	}
-	var input struct {
-		FileName *string `json:"file_name" valid:"optional,stringlength(1|255)~File name is too long"`
-	}
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := validators.ValidateStruct(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "validation failed",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	tx := config.DB.Begin()
-
-	if input.FileName != nil {
-		if err := tx.Model(&document).Update("file_name", *input.FileName).Error; err != nil {
-			tx.Rollback()
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
-		return
-	}
-
-	if err := config.DB.First(&document, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, document)
-}
-
 // DELETE /application-documents/:id
 func DeleteApplicationDocument(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -354,7 +305,7 @@ func DeleteApplicationDocument(ctx *gin.Context) {
 // GET /approval-decisions
 func GetApprovalDecisions(ctx *gin.Context) {
 	var decisions []entity.ApprovalDecision
-	if err := config.DB.Preload("ApprovalTask").Find(&decisions).Error; err != nil {
+	if err := config.DB.Preload("ApprovalTask").Preload("Admin").Find(&decisions).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -370,7 +321,7 @@ func GetApprovalDecisionByID(ctx *gin.Context) {
 		return
 	}
 	var decision entity.ApprovalDecision
-	if err := config.DB.Preload("ApprovalTask").First(&decision, id).Error; err != nil {
+	if err := config.DB.Preload("ApprovalTask").Preload("Admin").First(&decision, id).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval decision not found"})
 		return
 	}
@@ -383,6 +334,7 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		Decision string `json:"decision"`
 		Comment  string `json:"comment"`
 		TaskID   uint   `json:"task_id"`
+		AdminID  uint   `json:"admin_id"`
 	}
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -393,6 +345,7 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		Decision:   input.Decision,
 		Comment:    input.Comment,
 		TaskID:     input.TaskID,
+		AdminID:    input.AdminID,
 	}
 
 	if err := validators.ValidateStruct(&decision); err != nil {
@@ -403,86 +356,77 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Create(&decision).Error; err != nil {
+	tx := config.DB.Begin()
+
+	if err := tx.Create(&decision).Error; err != nil {
+		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusCreated, decision)
-}
 
-// PATCH /approval-decisions/:id
-func UpdateApprovalDecision(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval decision id"})
-		return
+	// Update ApprovalTask status based on decision
+	taskStatus := "pending"
+	switch input.Decision {
+	case "approve":
+		taskStatus = "approved"
+	case "reject":
+		taskStatus = "rejected"
+	case "request-change":
+		taskStatus = "request-change"
 	}
-	var decision entity.ApprovalDecision
-	if err := config.DB.First(&decision, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval decision not found"})
-		return
-	}
-	var input struct {
-		Decision *string `json:"decision" valid:"optional,in(approve|reject|request-change)~Invalid decision"`
-		Comment  *string `json:"comment" valid:"optional,stringlength(0|500)~Comment too long"`
-	}
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+	if err := tx.Model(&entity.ApprovalTask{}).Where("id = ?", input.TaskID).Update("status", taskStatus).Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update task status"})
 		return
 	}
 
-	if err := validators.ValidateStruct(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "validation failed",
-			"error":   err.Error(),
-		})
-		return
+	// If decision is "approve", check if all documents for this application are approved
+	// If so, update ApplicationScholarship.status to "qualified"
+	if input.Decision == "approve" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+
+			// Count documents that are NOT approved for this application
+			var pendingCount int64
+			tx.Model(&entity.ApprovalTask{}).
+				Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+				Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+				Where("approval_tasks.status != ?", "approved").
+				Count(&pendingCount)
+
+			// If all documents are approved (pendingCount == 0), set status to "qualified"
+			if pendingCount == 0 {
+				if err := tx.Model(&entity.ApplicationScholarship{}).
+					Where("id = ?", appScholarshipID).
+					Update("status", "qualified").Error; err != nil {
+					tx.Rollback()
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
+					return
+				}
+			}
+		}
 	}
 
-	tx := config.DB.Begin()
-
-	updates := make(map[string]interface{})
-	if input.Decision != nil {
-		updates["decision"] = *input.Decision
-	}
-	if input.Comment != nil {
-		updates["comment"] = *input.Comment
-	}
-	if len(updates) > 0 {
-		if err := tx.Model(&decision).Updates(updates).Error; err != nil {
-			tx.Rollback()
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+	// If decision is "reject", update ApplicationScholarship.status to "rejected"
+	if input.Decision == "reject" {
+		var task entity.ApprovalTask
+		if err := tx.Preload("ApplicationDocument").First(&task, input.TaskID).Error; err == nil {
+			appScholarshipID := task.ApplicationDocument.ApplicationScholarshipID
+			tx.Model(&entity.ApplicationScholarship{}).
+				Where("id = ?", appScholarshipID).
+				Update("status", "rejected")
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "commit transaction failed"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed"})
 		return
 	}
 
-	if err := config.DB.Preload("ApprovalTask").First(&decision, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
-		return
-	}
-	ctx.JSON(http.StatusOK, decision)
-}
-
-// DELETE /approval-decisions/:id
-func DeleteApprovalDecision(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval decision id"})
-		return
-	}
-	if err := config.DB.Delete(&entity.ApprovalDecision{}, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Approval decision deleted successfully"})
+	ctx.JSON(http.StatusCreated, decision)
 }
 
 // GET /approval-requirements
@@ -532,23 +476,6 @@ func CreateApprovalRequirement(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, requirement)
-}
-
-// PATCH /approval-requirements/:id
-func UpdateApprovalRequirement(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "invalid approval requirement id"})
-		return
-	}
-	var requirement entity.ApprovalRequirement
-	if err := config.DB.First(&requirement, id).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Approval requirement not found"})
-		return
-	}
-	// no update logic was implemented in original, so we just return the entity.
-	ctx.JSON(http.StatusOK, requirement)
 }
 
 // DELETE /approval-requirements/:id

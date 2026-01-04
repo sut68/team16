@@ -117,19 +117,20 @@
 </script>
 
 <template>
-  <button 
-    class="btn btn-ghost btn-sm"
-    @click.stop="toggleMenu"
-    aria-haspopup="true"
-    :aria-expanded="open"
-    :aria-controls="'menu-'+props.id"
-    ref="btnRef"
-    :data-testid="`action-menu-btn-${props.id}`"
-  >
-    <Ellipsis class="w-4 h-4" />
-  </button>
+  <div class="inline-block">
+    <button 
+      class="btn btn-ghost btn-sm"
+      @click.stop="toggleMenu"
+      aria-haspopup="true"
+      :aria-expanded="open"
+      :aria-controls="'menu-'+props.id"
+      ref="btnRef"
+      :data-testid="`action-menu-btn-${props.id}`"
+    >
+      <Ellipsis class="w-4 h-4" />
+    </button>
 
-  <teleport to="body">
+    <teleport to="body">
     <div
       v-if="open"
       ref="menuRef"
@@ -182,5 +183,6 @@
         <Trash class="w-4 h-4" /> Delete
       </button>
     </div>
-  </teleport>
+    </teleport>
+  </div>
 </template>

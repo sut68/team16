@@ -18,6 +18,7 @@ const loading = ref(true);
 const searchTerm = ref('');
 const currentSlide = ref(0);
 let slideInterval: any = null;
+let pollingInterval: any = null;
 const selectedNewsId = ref<number | null>(null);
 
 // Notification State
@@ -51,7 +52,7 @@ const filteredNewsList = computed(() => {
     }
     if (searchTerm.value) {
         const term = searchTerm.value.toLowerCase();
-        items = items.filter(item => 
+        items = items.filter((item: any) => 
             item.title.toLowerCase().includes(term) || 
             item.caption.toLowerCase().includes(term)
         );
@@ -105,8 +106,8 @@ const handleToggleLike = async (newsId: number) => {
 };
 
 // --- Fetch Data ---
-const fetchData = async () => {
-  loading.value = true;
+const fetchData = async (background = false) => {
+  if (!background) loading.value = true;
   try {
     const storedId = localStorage.getItem('lastSeenNewsId');
     lastSeenNewsId.value = storedId ? Number(storedId) : 0;
@@ -123,12 +124,21 @@ const fetchData = async () => {
         latestNewsIdFromAPI.value = maxId;
     }
 
-    newsItems.value = posts.map((post: any) => ({
+    // Helper to strip HTML tags
+    const stripHtml = (html: string) => {
+       if (!html) return "";
+       return html.replace(/<[^>]*>?/gm, '');
+    };
+
+    // Filter: Show Public (1) and Members Only (4)
+    const validPosts = posts.filter((post: any) => post.status_news_id === 1 || post.status_news_id === 4);
+
+    newsItems.value = validPosts.map((post: any) => ({
       id: Number(post.ID || post.id), 
       title: post.title,
-      desc: post.post_detail,
+      desc: stripHtml(post.post_detail),
       caption: post.scholarship?.scholarship_name || 'ข่าวทั่วไป', // ชื่อทุน
-      postDetail: post.post_detail,
+      postDetail: stripHtml(post.post_detail),
       imagePath: post.file_path ? `${API_BASE_URL}/${post.file_path}` : null,
       isLiked: favSet.has(post.ID || post.id),
       createdAt: post.CreatedAt,
@@ -139,12 +149,21 @@ const fetchData = async () => {
   } catch (error) {
     console.error("Failed to fetch news:", error);
   } finally {
-    loading.value = false;
+    if (!background) loading.value = false;
   }
 };
 
-onMounted(() => { fetchData(); startAutoPlay(); });
-onUnmounted(() => { clearInterval(slideInterval); });
+onMounted(() => { 
+  fetchData(); 
+  startAutoPlay();
+  pollingInterval = setInterval(() => {
+    fetchData(true);
+  }, 30000); // 30 seconds
+});
+onUnmounted(() => { 
+  clearInterval(slideInterval);
+  if (pollingInterval) clearInterval(pollingInterval);
+});
 </script>
 
 <template>

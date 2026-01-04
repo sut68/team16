@@ -234,9 +234,8 @@ func ApplyForScholarship(ctx *gin.Context) {
 	// --- 7. Create Screening record for admin to review ---
 	screening := entity.Screening{
 		AdminProfileID:           1, // Default to first admin (will be reassigned when admin reviews)
-		ApplicationID:            application.ID,
-		StatusScreeningID:        1, // 1 = "รอตรวจสอบ" (Pending Review)
 		ApplicationScholarshipID: appScholarship.ID,
+		StatusScreeningID:        1, // 1 = "รอตรวจสอบ" (Pending Review)
 	}
 	if err := tx.Create(&screening).Error; err != nil {
 		tx.Rollback()

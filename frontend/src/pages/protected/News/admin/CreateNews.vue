@@ -5,6 +5,7 @@ import { getScholarships } from '@/services/api/scholarship';
 import { Get } from '@/services/api/https';
 import { validateNewsPostForm } from '@/validators/newspost_validators';
 import type { CreateNewsPostPayload } from '@/interfaces/news_post';
+import { Bold, Italic, Underline, Palette, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-vue-next';
 
 const emit = defineEmits(['close', 'success']);
 const isSaving = ref(false);
@@ -51,7 +52,124 @@ const performValidation = () => {
   );
 };
 
-// แก้ไข warning: ลบ newValues, oldValues ออกเพราะไม่ได้ใช้
+const editorRef = ref<HTMLElement | null>(null);
+
+const applyFormat = (command: string, value: string | undefined = undefined) => {
+  document.execCommand(command, false, value);
+  updateToolbarState();
+};
+
+const lastRange = ref<Range | null>(null);
+
+const applyFontSize = (size: string) => {
+  const selection = window.getSelection();
+  let range: Range | null = null;
+  
+  if (selection && selection.rangeCount > 0) {
+    const currentRange = selection.getRangeAt(0);
+    if (editorRef.value && editorRef.value.contains(currentRange.commonAncestorContainer)) {
+      range = currentRange;
+    }
+  }
+  
+  if (!range && lastRange.value) {
+    range = lastRange.value;
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+  
+  if (!range) return;
+
+  const span = document.createElement('span');
+  span.style.fontSize = size + 'px';
+
+  if (range.collapsed) {
+     // กรณีไม่ได้เลือกข้อความ ให้ใส่ zero-width space เพื่อให้พิมพ์ต่อได้ในขนาดใหม่
+     span.innerHTML = '&#8203;';
+     range.insertNode(span);
+     
+     // ย้าย Cursor ไปข้างใน span
+     range.selectNodeContents(span);
+     range.collapse(false);
+     selection?.removeAllRanges();
+     selection?.addRange(range);
+  } else {
+     // กรณีเลือกข้อความ
+     const content = range.extractContents();
+     span.appendChild(content);
+     range.insertNode(span);
+     
+     // Select กลับไปที่ข้อความเดิม
+     range.selectNodeContents(span);
+     selection?.removeAllRanges();
+     selection?.addRange(range);
+  }
+
+  if (editorRef.value) {
+      form.value.post_detail = editorRef.value.innerHTML;
+      touched.value.post_detail = true;
+  }
+  updateToolbarState();
+};
+
+const activeFormats = ref({
+  bold: false,
+  italic: false,
+  underline: false,
+  insertUnorderedList: false,
+  insertOrderedList: false,
+  justifyLeft: false,
+  justifyCenter: false,
+  justifyRight: false,
+  justifyFull: false,
+  heading: 'p',
+  fontSize: '16',
+});
+
+const updateToolbarState = () => {
+  activeFormats.value = {
+    bold: document.queryCommandState('bold'),
+    italic: document.queryCommandState('italic'),
+    underline: document.queryCommandState('underline'),
+    insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+    insertOrderedList: document.queryCommandState('insertOrderedList'),
+    justifyLeft: document.queryCommandState('justifyLeft'),
+    justifyCenter: document.queryCommandState('justifyCenter'),
+    justifyRight: document.queryCommandState('justifyRight'),
+    justifyFull: document.queryCommandState('justifyFull'),
+    heading: document.queryCommandValue('formatBlock') || 'p',
+    fontSize: '16',
+  };
+
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Save range if we are in editor
+      if (editorRef.value && editorRef.value.contains(range.commonAncestorContainer)) {
+          lastRange.value = range.cloneRange();
+          
+          const parent = range.commonAncestorContainer.nodeType === 3 
+            ? range.commonAncestorContainer.parentElement 
+            : range.commonAncestorContainer as HTMLElement;
+            
+          if (parent) {
+              const computedSize = window.getComputedStyle(parent).fontSize;
+              if (computedSize) {
+                  activeFormats.value.fontSize = parseFloat(computedSize).toString();
+              }
+          }
+      }
+  }
+};
+
+const onEditorInput = (event: Event) => {
+  const target = event.target as HTMLElement;
+  form.value.post_detail = target.innerHTML;
+  touched.value.post_detail = true;
+  updateToolbarState();
+};
+
 watch(
   [form, newImageFile],
   () => {
@@ -153,12 +271,126 @@ onMounted(async () => {
 
           <div class="form-control w-full">
             <label class="label pb-1 font-bold text-slate-700">เนื้อหาข่าว *</label>
-            <textarea 
-              v-model="form.post_detail" 
-              @blur="touched.post_detail = true"
-              :class="['textarea textarea-bordered min-h-[400px] bg-slate-50 focus:border-[#1e3a8a]', (touched.post_detail && errors.post_detail) ? 'border-red-500' : '']" 
-              placeholder="รายละเอียด..."
-            ></textarea>
+            <div :class="['border rounded-lg overflow-hidden bg-slate-50', (touched.post_detail && errors.post_detail) ? 'border-red-500' : 'border-gray-300 focus-within:border-[#1e3a8a]']">
+              <!-- Toolbar -->
+              <!-- Toolbar -->
+              <div class="flex gap-1 p-2 bg-gray-100 border-b border-gray-200 flex-wrap items-center">
+
+                <select 
+                  @change="(e: Event) => applyFontSize((e.target as HTMLSelectElement).value)" 
+                  .value="activeFormats.fontSize"
+                  class="select select-bordered select-xs w-24 bg-white"
+                  title="ขนาดตัวอักษร"
+                >
+                  <option value="12">12 px</option>
+                  <option value="14">14 px</option>
+                  <option value="16">16 px</option>
+                  <option value="18">18 px</option>
+                  <option value="20">20 px</option>
+                  <option value="22">22 px</option>
+                  <option value="24">24 px</option>
+                  <option value="28">28 px</option>
+                  <option value="32">32 px</option>
+                  <option value="36">36 px</option>
+                </select>
+
+                <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('bold')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.bold ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="ตัวหนา"
+                >
+                  <Bold :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('italic')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.italic ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="ตัวเอียง"
+                >
+                  <Italic :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('underline')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.underline ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="ขีดเส้นใต้"
+                >
+                  <Underline :size="18" />
+                </button>
+                <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('insertUnorderedList')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.insertUnorderedList ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="รายการแบบจุด"
+                >
+                  <List :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('insertOrderedList')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.insertOrderedList ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="รายการแบบตัวเลข"
+                >
+                  <ListOrdered :size="18" />
+                </button>
+                <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+                
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('justifyLeft')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.justifyLeft ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="ชิดซ้าย"
+                >
+                  <AlignLeft :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('justifyCenter')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.justifyCenter ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="กึ่งกลาง"
+                >
+                  <AlignCenter :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('justifyRight')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.justifyRight ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="ชิดขวา"
+                >
+                  <AlignRight :size="18" />
+                </button>
+                <button 
+                  type="button" 
+                  @mousedown.prevent="applyFormat('justifyFull')" 
+                  :class="['p-1.5 rounded transition-colors', activeFormats.justifyFull ? 'bg-slate-300 text-slate-900' : 'hover:bg-gray-200 text-slate-700']" 
+                  title="กระจายแบบเต็ม"
+                >
+                  <AlignJustify :size="18" />
+                </button>
+
+                <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div>
+
+                <div class="flex items-center gap-1 p-1.5 hover:bg-gray-200 rounded cursor-pointer relative group" title="สีตัวอักษร">
+                  <Palette :size="18" class="text-slate-700"/>
+                  <input type="color" @input="(e: Event) => applyFormat('foreColor', (e.target as HTMLInputElement).value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                </div>
+              </div>
+              <!-- Editable Area -->
+              <div 
+                ref="editorRef"
+                contenteditable="true"
+                class="rich-text-content p-4 min-h-[400px] outline-none max-h-[600px] overflow-y-auto prose max-w-none"
+                @input="onEditorInput"
+                @keyup="updateToolbarState"
+                @mouseup="updateToolbarState"
+                @click="updateToolbarState"
+                @blur="touched.post_detail = true"
+              ></div>
+            </div>
             <p v-if="touched.post_detail && errors.post_detail" class="text-xs text-red-500 mt-1">{{ errors.post_detail }}</p>
           </div>
         </div>
@@ -192,3 +424,59 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.rich-text-content :deep(ul) {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 1em 0 !important;
+}
+
+.rich-text-content :deep(li) {
+  margin: 0.5em 0;
+  display: list-item !important; /* Force display list-item just in case */
+}
+
+/* Heading Styles */
+.rich-text-content :deep(h1) {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+.rich-text-content :deep(h2) {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.75em 0;
+}
+
+.rich-text-content :deep(h3) {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+.rich-text-content :deep(h4) {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 1.12em 0;
+}
+
+.rich-text-content :deep(h5) {
+  font-size: 0.83em;
+  font-weight: bold;
+  margin: 1.5em 0;
+}
+
+.rich-text-content :deep(h6) {
+  font-size: 0.67em;
+  font-weight: bold;
+  margin: 1.67em 0;
+}
+</style>

@@ -22,7 +22,7 @@ services:
     command: air
     volumes:
       - ./backend:/app
-      - ./backend_uploads:/app/uploads
+      - ./backend/uploads:/app/uploads
       - /app/tmp
     ports:
       - "8080:8080"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ScreeningDetailModal from './DetailScreening.vue';
 import { getAllScreenings, getScreeningById } from '@/services/api/screening';
 import type { ScreeningResponse } from '@/interfaces/screening';
@@ -23,6 +23,7 @@ const isLoading = ref(false);
 const errorMsg = ref('');
 const allItems = ref<DocumentItem[]>([]);
 const activeTab = ref<'pending' | 'history'>('pending');
+let pollingInterval: any = null;
 
 // Filter States
 const searchQuery = ref('');
@@ -58,8 +59,8 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const fetchData = async () => {
-  isLoading.value = true;
+const fetchData = async (background = false) => {
+  if (!background) isLoading.value = true;
   errorMsg.value = '';
   try {
     const response = await getAllScreenings();
@@ -154,7 +155,16 @@ watch(activeTab, () => {
   isFilterOpen.value = false; 
 });
 
-onMounted(() => { fetchData(); });
+onMounted(() => { 
+  fetchData(); 
+  pollingInterval = setInterval(() => {
+    fetchData(true);
+  }, 10000); // 10 seconds
+});
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval);
+});
 
 // ... (Computed Filtered Items เหมือนเดิม) ...
 const pendingItems = computed(() =>
@@ -185,6 +195,42 @@ const filteredItems = computed(() => {
   }
   return result;
 });
+
+const stats = computed(() => {
+    // Calculate stats from ALL items regardless of tab
+    //const pendingCount = allItems.value.filter(i => i.status === 'pending').length;
+    const approvedCount = allItems.value.filter(i => i.status === 'approved').length;
+    const rejectedCount = allItems.value.filter(i => i.status === 'rejected').length;
+    
+    // Optionally include 'request-change' in pending count or show separately?
+    // Based on user request: "รอจรวจสอบ", "ผ่าน", "ไม่ผ่าน" -> seems to map to pending, approved, rejected.
+    // If 'request-change' is considered pending action, maybe group it or just stick to requested 3 columns.
+    // Let's stick to the explicit request: "รอการคัดกรอง (pending)", "ผ่าน (approved)", "ไม่ผ่าน (rejected)"
+    
+    // If 'request-change' is important, we can add it to pending or keep it separate. 
+    // Usually 'request-change' is still in 'pending' tab workflow. 
+    // For now, let's map: 
+    // Col 1: รอการคัดกรอง (Pending + Request Change?) Or just Pending? 
+    // User said: "รอการคัดกรอง ผ่านการคัดกรอง ไม่ผ่านการคัดกรอง" (3 col)
+    
+    const totalPending = allItems.value.filter(i => i.status === 'pending' || i.status === 'request-change').length; // Grouping both as actionable
+
+    return {
+        title1: 'รอการคัดกรอง',
+        value1: totalPending,
+        desc1: 'รายการ',
+        
+        title2: 'ผ่านการคัดกรอง',
+        value2: approvedCount,
+        desc2: 'รายการ',
+        
+        title3: 'ไม่ผ่านการคัดกรอง',
+        value3: rejectedCount,
+        desc3: 'รายการ'
+    };
+});
+
+
 
 const handleCardClick = async (item: DocumentItem) => {
   if (!item.raw_data && !item.id) return;
@@ -221,6 +267,46 @@ const handleActionCompleted = () => {
 <template>
   <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800">
     
+    <h1 class="text-2xl font-bold text-slate-800 mb-10">คัดกรองผู้สมัคร</h1>
+    
+    <!-- Stats Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+        
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title1 }}</div>
+                <div class="text-blue-600 text-3xl font-bold">{{ stats.value1 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc1 }}</div>
+            </div>
+            <div class="text-blue-600 bg-blue-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title2 }}</div>
+                <div class="text-emerald-700 text-3xl font-bold">{{ stats.value2 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc2 }}</div>
+            </div>
+            <div class="text-emerald-700 bg-green-50 p-3 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+        </div>
+
+        <div class="p-4 flex flex-row items-center justify-between">
+            <div>
+                <div class="text-slate-500 text-sm mb-1">{{ stats.title3 }}</div>
+            <div class="text-3xl font-bold text-red-600">{{ stats.value3 }}</div>
+                <div class="text-xs text-gray-500 mt-1">{{ stats.desc3 }}</div>
+            </div>
+            <div class="p-3 rounded-full text-red-600 bg-red-50">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            </div>
+        </div>
+        
+    </div>
+
     <div class="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 mb-6 border-b border-gray-200">
       <div class="flex gap-8 -mb-[1px] w-full xl:w-auto overflow-x-auto hide-scrollbar">
         <a @click="activeTab = 'pending'" 

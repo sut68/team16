@@ -1,6 +1,6 @@
 import type { ScholarshipResponse } from "./scholarship";
 //import type { UserResponse } from "./user";
-
+import type { ApplicationScholarshipResponse } from "./application_scholarship";
 import type { AdminProfileResponse } from "./user";
 
 
@@ -59,6 +59,7 @@ export interface InterviewBooking {
     status: string;
     slot_id: number;
     application_scholarship_id: number;
+    application_scholarship?: ApplicationScholarshipResponse;
 }
 
 export interface Location {

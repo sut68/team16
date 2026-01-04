@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { makeApprovalDecision } from '@/services/api/approval';
+import { getMyProfile } from '@/services/api/user';
 import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
@@ -10,7 +11,7 @@ interface ApprovalTaskDisplay extends ApprovalTaskResponse {
 }
 
 interface TimelineEvent {
-id: number | string;
+    id: number | string;
     title: string;
     date: string;
     description: string;
@@ -34,11 +35,50 @@ const comment = ref('');
 const actionType = ref<'approve' | 'reject' | 'request-change' | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref<string | null>(null);
+const adminId = ref<number | null>(null);
+
+
+const fetchAdminProfile = async () => {
+    submissionError.value = null; 
+    try {
+        const profile = await getMyProfile();
+        
+        if (!profile) {
+            submissionError.value = 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้ (Profile is null)';
+            return;
+        }
+        if (!profile.data) {
+            submissionError.value = 'ข้อมูลโปรไฟล์ไม่สมบูรณ์ (Data is null)';
+            return;
+        }
+        if (!profile.role) {
+            submissionError.value = 'ไม่สามารถระบุสิทธิ์ผู้ใช้ได้ (Role is null)';
+            return;
+        }
+
+        const role = profile.role.toLowerCase();
+        if (!['admin', 'super_admin', 'staff'].includes(role)) {
+            submissionError.value = `สิทธิ์ผู้ใช้ของคุณ ("${profile.role}") ไม่ใช่ Admin`;
+            return;
+        }
+        
+        const id = (profile.data as any).ID || (profile.data as any).id;
+        if (!id && id !== 0) {
+            submissionError.value = 'ไม่พบ ID ของผู้ดูแลระบบในข้อมูลโปรไฟล์';
+            return;
+        }
+
+        adminId.value = id;
+    } catch (error) {
+        submissionError.value = 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์';
+    }
+};
+
 
 const semesterText = computed(() => {
-  const semaster = props.documentData?.semaster;
-  if (!semaster) return 'N/A';
-  return `ปีการศึกษา ${semaster.academic_year} เทอม ${semaster.term} รอบ ${semaster.round}`;
+    const semaster = props.documentData?.semaster;
+    if (!semaster) return 'N/A';
+    return `ปีการศึกษา ${semaster.academic_year} เทอม ${semaster.term} รอบ ${semaster.round}`;
 });
 
 const parseGoDate = (dateString: string | undefined): Date | null => {
@@ -113,7 +153,7 @@ const processedTimelineEvents = computed(() => {
     if (application?.student_profile) {
         studentName = `${application.student_profile.first_name_th} ${application.student_profile.last_name_th}`;
     }
-    const adminName = doc.admin_profile?.admin_firstname || 'เจ้าหน้าที่';
+    const defaultAdminName = 'เจ้าหน้าที่';
 
     if (appScholarship) {
         const applyDateRaw = appScholarship.CreatedAt;
@@ -197,6 +237,8 @@ const processedTimelineEvents = computed(() => {
             let status = '';
             let description = decision.comment || '';
             const type = decision.decision?.toLowerCase();
+            const adminName = decision.admin_profile?.admin_firstname || defaultAdminName;
+
 
             switch (type) {
                 case 'approve':
@@ -240,7 +282,7 @@ const processedTimelineEvents = computed(() => {
             title: 'รอตรวจสอบการแก้ไข',
             date: 'กำลังดำเนินการ',
             description: 'ผู้สมัครได้ส่งเอกสารแก้ไขเข้ามาใหม่แล้ว รอเจ้าหน้าที่ตรวจสอบ',
-            actor: adminName,
+            actor: defaultAdminName,
             status: 'current',
             type: 'task',
             timestamp: Date.now() + 10000,
@@ -254,7 +296,7 @@ const processedTimelineEvents = computed(() => {
                 title: 'เจ้าหน้าที่กำลังตรวจสอบ',
                 date: formatDate(doc.CreatedAt),
                 description: 'อยู่ในระหว่างการพิจารณาตรวจสอบความถูกต้อง',
-                actor: adminName,
+                actor: defaultAdminName,
                 status: 'current',
                 type: 'task',
                 timestamp: reviewingTs,
@@ -317,6 +359,7 @@ watch(() => props.isOpen, (newValue) => {
         actionType.value = null;
         isSubmitting.value = false;
         submissionError.value = null;
+        fetchAdminProfile();
     }
 });
 
@@ -328,9 +371,22 @@ const closeModal = () => {
 const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
     if (!props.documentData || !type) return;
 
-    if ((type === 'reject' || type === 'request-change') && !comment.value.trim()) {
-        submissionError.value = 'กรุณาระบุเหตุผลประกอบการพิจารณา';
+    if (!adminId.value) {
+        if (!submissionError.value) {
+            submissionError.value = 'ไม่สามารถยืนยันตัวตนผู้ดำเนินการได้ กรุณาลองใหม่อีกครั้ง';
+        }
         return;
+    }
+
+    if (type === 'reject' || type === 'request-change') {
+        if (!comment.value.trim()) {
+            submissionError.value = 'กรุณาระบุเหตุผลประกอบการพิจารณา';
+            return;
+        }
+        if (comment.value.trim().length < 5) {
+            submissionError.value = 'เหตุผลที่ระบุต้องมีความยาวอย่างน้อย 5 ตัวอักษร';
+            return;
+        }
     }
 
     isSubmitting.value = true;
@@ -340,12 +396,12 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
         await makeApprovalDecision({
             task_id: props.documentData.ID,
             decision: type,
-            comment: comment.value
+            comment: comment.value,
+            admin_id: adminId.value,
         });
         emit('action-completed');
         closeModal();
     } catch (error) {
-        console.error('Failed to submit action:', error);
         submissionError.value = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง';
     } finally {
         isSubmitting.value = false;
@@ -374,43 +430,50 @@ const openSpecificDocument = (path: string) => {
 
 <template>
     <div v-if="isOpen && documentData"
-        class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity">
+        class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity"
+        data-testid="approval-detail-modal">
         <div
             class="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
             <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
                 <div>
-                    <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2">
+                    <h2 class="text-xl font-bold text-[#1e3a8a] flex items-center gap-2" data-testid="scholarship-name">
                         {{ documentData.application_document.application_scholarship?.scholarship?.scholarship_name ||
                         'รายละเอียดทุนการศึกษา' }}
 
-                        <span class="badge badge-info text-white animate-pulse" v-if="isResubmitted">
+                        <span class="badge badge-info text-white animate-pulse" v-if="isResubmitted"
+                            data-testid="scholarship-status-badge">
                             มีการส่งแก้ไขใหม่ (รอตรวจสอบ)
                         </span>
                         <span class="badge badge-success text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'approved'">
+                            v-else-if="documentData.status?.toLowerCase() === 'approved'"
+                            data-testid="scholarship-status-badge">
                             อนุมัติแล้ว
                         </span>
                         <span class="badge badge-error text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'rejected'">
+                            v-else-if="documentData.status?.toLowerCase() === 'rejected'"
+                            data-testid="scholarship-status-badge">
                             ปฏิเสธ
                         </span>
                         <span class="badge badge-warning text-white"
-                            v-else-if="documentData.status?.toLowerCase() === 'request-change'">
+                            v-else-if="documentData.status?.toLowerCase() === 'request-change'"
+                            data-testid="scholarship-status-badge">
                             รอผู้สมัครแก้ไข
                         </span>
-                        <span class="badge badge-warning text-white" v-else>
+                        <span class="badge badge-warning text-white" v-else data-testid="scholarship-status-badge">
                             รอตรวจสอบ
                         </span>
                     </h2>
                     <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                        <span>Task ID: #{{ documentData.ID }}</span>
+                        <span data-testid="task-id">Task ID: #{{ documentData.ID }}</span>
                         <span>•</span>
-                        <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs">
+                        <span class="bg-blue-50 text-blue-700 px-2 rounded border border-blue-100 text-xs"
+                            data-testid="semester-text">
                             {{ semesterText }}
                         </span>
                     </div>
                 </div>
-                <button @click="closeModal" class="btn btn-circle btn-ghost btn-sm text-gray-500 hover:bg-gray-200">
+                <button @click="closeModal" class="btn btn-circle btn-ghost btn-sm text-gray-500 hover:bg-gray-200"
+                    data-testid="modal-close-button">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -423,14 +486,15 @@ const openSpecificDocument = (path: string) => {
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                     <div class="lg:col-span-2 space-y-6">
-                        <div class="card bg-white shadow-sm border border-gray-100">
+                        <div class="card bg-white shadow-sm border border-gray-100" data-testid="applicant-info-card">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อมูลผู้สมัคร</h3>
                                 <div v-if="documentData.application_document?.application_scholarship?.application?.student_profile"
                                     class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <span class="block text-gray-400">ชื่อ-นามสกุล</span>
-                                        <span class="font-semibold text-slate-800 text-lg">
+                                        <span class="font-semibold text-slate-800 text-lg"
+                                            data-testid="student-name-value">
                                             {{
                                                 documentData.application_document.application_scholarship.application.student_profile.first_name_th
                                             }}
@@ -441,7 +505,7 @@ const openSpecificDocument = (path: string) => {
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">รหัสนักศึกษา</span>
-                                        <span class="font-semibold text-slate-800">
+                                        <span class="font-semibold text-slate-800" data-testid="student-id-value">
                                             {{
                                                 documentData.application_document.application_scholarship.application.student_profile.student_id
                                             || '-' }}
@@ -449,7 +513,7 @@ const openSpecificDocument = (path: string) => {
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">สาขาวิชา</span>
-                                        <span class="font-semibold text-slate-800">
+                                        <span class="font-semibold text-slate-800" data-testid="student-major-value">
                                             {{
                                                 documentData.application_document.application_scholarship.application.student_profile.major?.major_name
                                             || 'N/A' }}
@@ -457,20 +521,21 @@ const openSpecificDocument = (path: string) => {
                                     </div>
                                     <div>
                                         <span class="block text-gray-400">เกรดเฉลี่ย (GPAX)</span>
-                                        <span class="font-semibold text-slate-800">
+                                        <span class="font-semibold text-slate-800" data-testid="student-gpax-value">
                                             {{
                                                 documentData.application_document.application_scholarship.application.student_profile.gpax
                                                     ?
                                                     documentData.application_document.application_scholarship.application.student_profile.gpax.toFixed(2)
-                                            : '-' }}
+                                                    : '-' }}
                                         </span>
                                     </div>
                                 </div>
-                                <div v-else class="text-center text-gray-400 py-4">ไม่พบข้อมูลผู้สมัคร</div>
+                                <div v-else class="text-center text-gray-400 py-4" data-testid="no-applicant-info">
+                                    ไม่พบข้อมูลผู้สมัคร</div>
                             </div>
                         </div>
 
-                        <div class="card bg-white shadow-sm border border-gray-100">
+                        <div class="card bg-white shadow-sm border border-gray-100" data-testid="attachment-info-card">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">
                                     เอกสารแนบ (ฉบับล่าสุด)
@@ -486,36 +551,40 @@ const openSpecificDocument = (path: string) => {
                                                 PDF
                                             </div>
                                             <div>
-                                                <p class="font-medium text-slate-700 truncate max-w-[300px]">
+                                                <p class="font-medium text-slate-700 truncate max-w-[300px]"
+                                                    data-testid="file-name">
                                                     {{ latestDocument.file_name }}
                                                 </p>
-                                                <p class="text-xs text-gray-400">
+                                                <p class="text-xs text-gray-400" data-testid="file-upload-date">
                                                     อัปโหลดเมื่อ {{ formatDate(latestDocument.CreatedAt) }}
                                                 </p>
                                             </div>
                                         </div>
                                         <button @click="openDocument"
-                                            class="btn btn-sm btn-ghost text-[#1e3a8a] hover:bg-blue-50">ดูไฟล์</button>
+                                            class="btn btn-sm btn-ghost text-[#1e3a8a] hover:bg-blue-50"
+                                            data-testid="view-file-button">ดูไฟล์</button>
                                     </div>
-                                    <div v-else class="text-center text-gray-400 py-4">ไม่พบเอกสารแนบ</div>
+                                    <div v-else class="text-center text-gray-400 py-4" data-testid="no-attachment">
+                                        ไม่พบเอกสารแนบ</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card bg-white shadow-sm border border-gray-100">
+                        <div class="card bg-white shadow-sm border border-gray-100" data-testid="requirements-card">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อกำหนดทั้งหมดของทุนนี้
                                 </h3>
                                 <div
                                     v-if="documentData.application_document?.application_scholarship?.scholarship?.approval_requirements?.length">
-                                    <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm">
+                                    <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm"
+                                        data-testid="requirement-list">
                                         <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements"
-                                            :key="req.ID">
+                                            :key="req.ID" :data-testid="`requirement-item-${req.ID}`">
                                             {{ req.requirement.name }}
                                         </li>
                                     </ul>
                                 </div>
-                                <div v-else class="text-center text-gray-400 py-4">
+                                <div v-else class="text-center text-gray-400 py-4" data-testid="no-requirements">
                                     ไม่พบข้อมูลข้อกำหนด
                                 </div>
                             </div>
@@ -525,28 +594,33 @@ const openSpecificDocument = (path: string) => {
                     <div class="lg:col-span-1 space-y-6">
 
                         <div v-if="canAction"
-                            class="card bg-white shadow-md border border-blue-100 ring-4 ring-blue-50/50">
+                            class="card bg-white shadow-md border border-blue-100 ring-4 ring-blue-50/50"
+                            data-testid="decision-card">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4">ผลการพิจารณา</h3>
                                 <div class="flex flex-col gap-2">
                                     <button @click="submitAction('approve')" :disabled="isSubmitting"
-                                        class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none">
+                                        class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none"
+                                        data-testid="approve-button">
                                         <span v-if="isSubmitting" class="loading loading-spinner loading-sm"></span>
                                         อนุมัติเอกสาร (Approve)
                                     </button>
                                     <div class="grid grid-cols-2 gap-2 mt-2">
                                         <button @click="actionType = 'request-change'" :disabled="isSubmitting"
-                                            class="btn btn-outline btn-warning btn-sm hover:text-white">
+                                            class="btn btn-outline btn-warning btn-sm hover:text-white"
+                                            data-testid="request-change-button">
                                             ขอแก้ไข
                                         </button>
                                         <button @click="actionType = 'reject'" :disabled="isSubmitting"
-                                            class="btn btn-outline btn-error btn-sm hover:text-white">
+                                            class="btn btn-outline btn-error btn-sm hover:text-white"
+                                            data-testid="reject-button">
                                             ปฏิเสธ
                                         </button>
                                     </div>
                                 </div>
 
-                                <div v-if="actionType" class="mt-4 pt-4 border-t animate-fade-in">
+                                <div v-if="actionType" class="mt-4 pt-4 border-t animate-fade-in"
+                                    data-testid="comment-section">
                                     <p class="text-sm font-bold mb-2 flex items-center gap-1"
                                         :class="actionType === 'reject' ? 'text-error' : 'text-warning'">
                                         {{ actionType === 'reject' ? 'ระบุเหตุผลการปฏิเสธ' : 'ระบุสิ่งที่ต้องแก้ไข' }}
@@ -561,12 +635,14 @@ const openSpecificDocument = (path: string) => {
                                     </div>
                                     <div class="flex justify-end gap-2 mt-3">
                                         <button @click="actionType = null"
-                                            class="btn btn-ghost btn-xs text-gray-500">ยกเลิก</button>
+                                            class="btn btn-ghost btn-xs text-gray-500"
+                                            data-testid="cancel-comment-button">ยกเลิก</button>
                                         <button @click="submitAction(actionType!)"
                                             class="btn btn-sm text-white border-none"
                                             :class="actionType === 'reject' ? 'btn-error' : 'btn-warning'"
-                                            :disabled="isSubmitting">
-                                            <span v-if="isSubmitting" class="loading loading-spinner loading-xs"></span>
+                                            :disabled="isSubmitting" data-testid="confirm-decision-button">
+                                            <span v-if="isSubmitting"
+                                                class="loading loading-spinner loading-xs"></span>
                                             ยืนยัน
                                         </button>
                                     </div>
@@ -574,22 +650,26 @@ const openSpecificDocument = (path: string) => {
                             </div>
                         </div>
 
-                        <div v-else class="card bg-white shadow-sm border border-gray-100">
+                        <div v-else class="card bg-white shadow-sm border border-gray-100"
+                            data-testid="decision-card-inactive">
                             <div class="card-body p-5 items-center text-center">
                                 <div class="badge badge-lg p-4 font-bold text-white mb-2"
-                                    :class="documentData.status?.toLowerCase() === 'approved' ? 'badge-success' : 'badge-error'">
+                                    :class="documentData.status?.toLowerCase() === 'approved' ? 'badge-success' : 'badge-error'"
+                                    data-testid="inactive-decision-badge">
                                     {{ documentData.status?.toLowerCase() === 'approved' ? 'อนุมัติเรียบร้อยแล้ว' :
                                     'สิ้นสุดการดำเนินการ' }}
                                 </div>
-                                <p class="text-xs text-gray-400">สถานะปัจจุบัน: {{ documentData.status }}</p>
+                                <p class="text-xs text-gray-400" data-testid="inactive-decision-status">สถานะปัจจุบัน: {{
+                                    documentData.status }}</p>
                             </div>
                         </div>
 
-                        <div class="card bg-white shadow-sm border border-gray-100">
+                        <div class="card bg-white shadow-sm border border-gray-100" data-testid="timeline-card">
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4">ประวัติการดำเนินการ</h3>
                                 <ul class="timeline timeline-vertical timeline-compact -ml-4">
-                                    <li v-for="(event, index) in processedTimelineEvents" :key="event.id">
+                                    <li v-for="(event, index) in processedTimelineEvents" :key="event.id"
+                                        :data-testid="`timeline-event-${index}`">
                                         <hr v-if="index > 0" class="bg-gray-200" />
                                         <div class="timeline-middle">
                                             <div v-if="event.status === 'current'"
@@ -635,14 +715,17 @@ const openSpecificDocument = (path: string) => {
                                         <div
                                             class="timeline-end timeline-box w-full border-none shadow-none p-0 pl-2 mb-6">
                                             <div class="font-bold text-slate-800 text-sm"
-                                                :class="{ 'text-[#1e3a8a]': event.status === 'current' }">{{ event.title
+                                                :class="{ 'text-[#1e3a8a]': event.status === 'current' }"
+                                                :data-testid="`timeline-event-title-${index}`">{{ event.title
                                                 }}</div>
-                                            <div class="text-xs text-gray-500 mb-1">{{ event.date }} • โดย {{
+                                            <div class="text-xs text-gray-500 mb-1"
+                                                :data-testid="`timeline-event-meta-${index}`">{{ event.date }} • โดย {{
                                                 event.actor }}</div>
 
                                             <div v-if="(event.status === 'past-rejected' || event.status === 'past-request-change') && event.description"
                                                 class="mt-2 p-2 rounded-lg text-xs border"
-                                                :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'">
+                                                :class="event.status === 'past-rejected' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'"
+                                                :data-testid="`timeline-event-description-${index}`">
                                                 {{ event.description }}
                                             </div>
 
@@ -660,16 +743,20 @@ const openSpecificDocument = (path: string) => {
                                                             </svg>
                                                         </div>
                                                         <div class="truncate text-xs font-medium text-slate-700"
-                                                            :title="event.fileName">{{ event.fileName }}</div>
+                                                            :title="event.fileName"
+                                                            :data-testid="`timeline-event-filename-${index}`">{{
+                                                            event.fileName }}</div>
                                                     </div>
                                                     <button @click.prevent="openSpecificDocument(event.filePath)"
-                                                        class="btn btn-xs btn-outline bg-white text-gray-600 hover:bg-gray-50 shrink-0 font-normal">
+                                                        class="btn btn-xs btn-outline bg-white text-gray-600 hover:bg-gray-50 shrink-0 font-normal"
+                                                        :data-testid="`timeline-event-view-file-button-${index}`">
                                                         {{ event.isOldFile ? 'ดูไฟล์เก่า' : 'ดูไฟล์' }}
                                                     </button>
                                                 </div>
                                             </div>
 
-                                            <div v-else class="text-xs text-gray-600 break-words mt-1">{{
+                                            <div v-else class="text-xs text-gray-600 break-words mt-1"
+                                                :data-testid="`timeline-event-description-${index}`">{{
                                                 event.description }}</div>
                                         </div>
                                         <hr v-if="index < processedTimelineEvents.length - 1" class="bg-gray-200" />

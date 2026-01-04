@@ -18,7 +18,7 @@
         <span v-show="isSidebarOpen" class="menu-text">แดชบอร์ด</span>
       </router-link>
 
-      <router-link to="/admin/news" class="menu-link" active-class="active" data-testid="sidebar-menu-news">
+      <router-link to="/admin/news" class="menu-link" :class="{ active: isMenuActive('/admin/news') }" data-testid="sidebar-menu-news">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -27,7 +27,7 @@
         <span v-show="isSidebarOpen" class="menu-text">ข่าวสาร</span>
       </router-link>
 
-      <router-link to="/admin/sponsors" class="menu-link" active-class="active" data-testid="sidebar-menu-sponsors">
+      <router-link to="/admin/sponsors" class="menu-link" :class="{ active: isMenuActive('/admin/sponsors') }" data-testid="sidebar-menu-sponsors">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -36,7 +36,7 @@
         <span v-show="isSidebarOpen" class="menu-text">บริษัทที่ให้ทุน</span>
       </router-link>
 
-      <router-link to="/admin/projects" class="menu-link" active-class="active" data-testid="sidebar-menu-projects">
+      <router-link to="/admin/projects" class="menu-link" :class="{ active: isMenuActive('/admin/projects') }" data-testid="sidebar-menu-projects">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -46,7 +46,7 @@
         <span v-show="isSidebarOpen" class="menu-text">โครงการทุน</span>
       </router-link>
 
-      <router-link to="/admin/screening" class="menu-link" active-class="active" data-testid="sidebar-menu-screening">
+      <router-link to="/admin/screening" class="menu-link" :class="{ active: isMenuActive('/admin/screening') }" data-testid="sidebar-menu-screening">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -56,7 +56,7 @@
         <span v-show="isSidebarOpen" class="menu-text">คัดกรอง</span>
       </router-link>
 
-      <router-link to="/admin/approval" class="menu-link" active-class="active" data-testid="sidebar-menu-approval">
+      <router-link to="/admin/approval" class="menu-link" :class="{ active: isMenuActive('/admin/approval') }" data-testid="sidebar-menu-approval">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -66,7 +66,7 @@
         <span v-show="isSidebarOpen" class="menu-text">อนุมัติเอกสาร</span>
       </router-link>
 
-      <router-link to="/admin/interview" class="menu-link" active-class="active" data-testid="sidebar-menu-interview">
+      <router-link to="/admin/interview" class="menu-link" :class="{ active: isMenuActive('/admin/interview') }" data-testid="sidebar-menu-interview">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -76,7 +76,7 @@
         <span v-show="isSidebarOpen" class="menu-text">จัดการการสัมภาษณ์</span>
       </router-link>
 
-      <router-link to="/admin/consider" class="menu-link" active-class="active" data-testid="sidebar-menu-consider">
+      <router-link to="/admin/evaluations" class="menu-link" :class="{ active: isMenuActive('/admin/evaluations') }" data-testid="sidebar-menu-consider">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -86,7 +86,7 @@
         <span v-show="isSidebarOpen" class="menu-text">พิจารณา</span>
       </router-link>
 
-      <router-link to="/admin/assistance" class="menu-link" active-class="active" data-testid="sidebar-menu-assistance">
+      <router-link to="/admin/assistance" class="menu-link" :class="{ active: isMenuActive('/admin/assistance') }" data-testid="sidebar-menu-assistance">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -96,7 +96,7 @@
         <span v-show="isSidebarOpen" class="menu-text">ติดต่อช่วยเหลือ</span>
       </router-link>
 
-      <router-link to="/admin/users" class="menu-link" active-class="active" data-testid="sidebar-menu-users">
+      <router-link to="/admin/users" class="menu-link" :class="{ active: isMenuActive('/admin/users') }" data-testid="sidebar-menu-users">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round"
@@ -107,7 +107,7 @@
         <span v-show="isSidebarOpen" class="menu-text">จัดการผู้ใช้</span>
       </router-link>
 
-      <router-link to="/admin/profileadmin" class="menu-link" active-class="active" data-testid="sidebar-menu-profile">
+      <router-link to="/admin/profileadmin" class="menu-link" :class="{ active: isMenuActive('/admin/profileadmin') }" data-testid="sidebar-menu-profile">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -156,6 +156,10 @@ export default defineComponent({
     const asideRef = ref<HTMLElement | null>(null);
     const route = useRoute();
     const router = useRouter();
+
+    const isMenuActive = (basePath: string): boolean => {
+      return route.path === basePath || route.path.startsWith(basePath + '/');
+    }
 
     const TRANSITION_DURATION = 300; // ms
 
@@ -246,6 +250,7 @@ export default defineComponent({
       toggleButtonTop,
       asideRef,
       handleLogout,
+      isMenuActive,
     };
   },
 });

@@ -1,198 +1,194 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue';
-import type { PropType } from 'vue';
-import type { ContactPayload, ContactResponse } from '../../../interfaces/sponsor';
-import { SponsorService } from '../../../services/sponsor/sponsor';
-import Swal from 'sweetalert2';
-import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap'; 
-import { validateContacts, buildContactsBatch } from '@/validators/sponsorValidator';
+  import { ref, watch, computed, nextTick } from 'vue';
+  import type { PropType } from 'vue';
+  import type { ContactPayload, ContactResponse } from '../../../interfaces/sponsor';
+  import { SponsorService } from '../../../services/sponsor/sponsor';
+  import Swal from 'sweetalert2';
+  import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap'; 
+  import { validateContacts, buildContactsBatch } from '@/validators/sponsor_validator';
 
-// Props + Emits
-const props = defineProps({
-  isOpen: { type: Boolean as PropType<boolean>, default: false },
-  sponsorId: { type: Number as PropType<number>, required: true },
-  initialContacts: { type: Array as PropType<ContactResponse[]>, default: () => [] },
-  disableBackdropClose: { type: Boolean as PropType<boolean>, default: false },
-});
+  // Props และ Events
+  const props = defineProps({
+    isOpen: { type: Boolean as PropType<boolean>, default: false },
+    sponsorId: { type: Number as PropType<number>, required: true },
+    sponsorName: { type: String as PropType<string>, default: '' },
+    initialContacts: { type: Array as PropType<ContactResponse[]>, default: () => [] },
+    disableBackdropClose: { type: Boolean as PropType<boolean>, default: false },
+  });
 
-const emit = defineEmits<{
-  (e: "update:isOpen", v: boolean): void;
-  (e: "saved", contacts: ContactResponse[]): void;
-  (e: "close"): void;
-}>();
+  const emit = defineEmits<{
+    (e: "update:isOpen", v: boolean): void;
+    (e: "saved", contacts: ContactResponse[]): void;
+    (e: "close"): void;
+  }>();
 
-// local state
-const localContacts = ref<ContactPayload[]>(
-  (props.initialContacts ?? []).map(c => ({
-    ID: c.ID,
-    name: c.name,
-    email: c.email,
-    phone: c.phone,
-    position: c.position ?? null,
-  }))
-);
+  // ข้อมูลภายใน Component (State)
+  const localContacts = ref<ContactPayload[]>(
+    (props.initialContacts ?? []).map(c => ({
+      ID: c.ID,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      position: c.position ?? null,
+    }))
+  );
 
-// removed unused `loading`
-const saving = ref(false);
-// make errors non-nullable for simpler usage
-const errors = ref<Record<number, Record<string, string>>>({});
+  // สถานะกำลังบันทึก
+  const saving = ref(false);
 
-// keep localContacts in sync when initialContacts changes (e.g. parent refetch)
-watch(() => props.initialContacts, (v) => {
-  localContacts.value = (v ?? []).map(c => ({
-    ID: c.ID,
-    name: c.name,
-    email: c.email,
-    phone: c.phone,
-    position: c.position ?? null,
-  }));
-});
+  // เก็บ error ของแต่ละ contact
+  const errors = ref<Record<number, Record<string, string>>>({});
 
-// useFocusTrap
-const isOpenRef = computed(() => props.isOpen);
-const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
-  onClose: () => {
+  // ref สำหรับ focus trap
+  const isOpenRef = computed(() => props.isOpen);
+  const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
+    onClose: () => {
+      emit('update:isOpen', false);
+      emit('close');
+    },
+    disableBackdropClose: props.disableBackdropClose,
+  });
+
+  // Sync localContacts เมื่อ parent ส่ง initialContacts ใหม่
+  watch(() => props.initialContacts, (v) => {
+    localContacts.value = (v ?? []).map(c => ({
+      ID: c.ID,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      position: c.position ?? null,
+    }));
+  });
+
+  // เมื่อเปิด modal ให้ focus ที่ input แรก
+  watch(isOpenRef, async (open) => {
+    if (open) {
+      await nextTick();
+      focusFirstElement();
+    }
+  });
+
+  // ทำความสะอาดข้อมูล contact (trim whitespace)
+  function normalizeContacts(list: ContactPayload[]) {
+    return list.map(c => ({
+      ...(c as any),
+      name: (c.name ?? '').toString().trim(),
+      email: (c.email ?? '').toString().trim(),
+      phone: (c.phone ?? '').toString().trim(),
+      position: (c.position ?? '') === null ? null : (c.position ?? '').toString().trim(),
+      ID: (c as any).ID ?? undefined,
+    }));
+  }
+
+  // เพิ่มผู้ติดต่อใหม่ (row ว่าง)
+  function addContact() {
+    if (saving.value) return;
+    localContacts.value.push({ name: '', email: '', phone: '', position: '' });
+    nextTick(() => focusFirstElement());
+  }
+
+  // ลบผู้ติดต่อ (ถ้ามี ID จะถาม confirm ก่อน)
+  async function removeContact(idx: number) {
+    if (saving.value) return;
+
+    const c = localContacts.value[idx] as any;
+    if (c?.ID != null) {
+      const answer = await Swal.fire({
+        title: 'ลบผู้ติดต่อ',
+        text: 'คุณต้องการลบผู้ติดต่อรายการนี้จริงหรือไม่?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ลบ',
+        cancelButtonText: 'ยกเลิก',
+      });
+      if (!answer.isConfirmed) return;
+    }
+    localContacts.value.splice(idx, 1);
+  }
+
+  // บันทึกผู้ติดต่อทั้งหมด (validate -> build batch -> API call)
+  async function saveContacts() {
+    // ล้าง error ก่อนหน้า
+    errors.value = {};
+
+    // ทำความสะอาดข้อมูล
+    const contacts = normalizeContacts(localContacts.value ?? []);
+
+    // ตรวจสอบความถูกต้อง
+    const { valid, errors: vErrors } = validateContacts(contacts);
+    if (!valid) {
+      errors.value = vErrors ?? {};
+      await Swal.fire({ icon: 'warning', title: 'โปรดตรวจสอบผู้ติดต่อ', text: 'มีข้อมูลบางรายการไม่ถูกต้อง' });
+      nextTick(() => focusFirstElement(true));
+      return;
+    }
+
+    // สร้าง batch สำหรับ API (upsert + delete)
+    const batch = buildContactsBatch(props.initialContacts ?? [], contacts);
+    if ((!batch.upsert || batch.upsert.length === 0) && (!batch.delete_ids || batch.delete_ids.length === 0)) {
+      await Swal.fire({ icon: 'info', title: 'ไม่มีการเปลี่ยนแปลง', text: 'ไม่พบการเปลี่ยนแปลงผู้ติดต่อ' });
+      return;
+    }
+
+    // เรียก API
+    saving.value = true;
+    try {
+      const res = await SponsorService.updateContacts(props.sponsorId, batch as any);
+      
+      if (res?.contacts) {
+        // แปลง response เป็น ContactResponse[]
+        const contactsResp: ContactResponse[] = (res.contacts as any[]).map((c) => ({
+          ID: Number(c.ID),
+          name: String(c.name ?? ''),
+          email: String(c.email ?? ''),
+          phone: String(c.phone ?? ''),
+          position: c.position ?? null,
+        }));
+
+        const validContacts = contactsResp.filter(c => Number.isFinite(c.ID));
+        emit('saved', validContacts.length > 0 ? validContacts : res.contacts as unknown as ContactResponse[]);
+        emit('update:isOpen', false);
+        await Swal.fire({ icon: 'success', title: 'บันทึกผู้ติดต่อเรียบร้อย' });
+      } else {
+        // กรณี response ไม่มี contacts (fallback)
+        emit('update:isOpen', false);
+        await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ' });
+        const fallback = contacts.map(c => ({
+          ID: (c as any).ID ?? undefined,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          position: c.position ?? null,
+        })) as ContactResponse[];
+        emit('saved', fallback);
+      }
+    } catch (err: any) {
+      console.error('updateContacts failed', err);
+      const resp = err?.response?.data;
+      
+      // แสดง error จาก backend (ถ้ามี)
+      if (resp?.errors && resp.errors.contacts) {
+        errors.value = resp.errors.contacts;
+        await Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ผ่านการตรวจสอบ', text: resp.message ?? 'โปรดตรวจสอบข้อผิดพลาด' });
+        nextTick(() => focusFirstElement(true));
+      } else {
+        await Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: resp?.message ?? err?.message ?? 'ไม่สามารถบันทึกได้' });
+      }
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  // ปิด Modal
+  function handleClose() {
     emit('update:isOpen', false);
     emit('close');
-  },
-  disableBackdropClose: props.disableBackdropClose,
-});
-
-// ----- helpers -----
-function addContact() {
-  if (saving.value) return;
-  localContacts.value.push({ name: '', email: '', phone: '', position: '' });
-  // focus next tick to the first focusable (new row)
-  nextTick(() => focusFirstElement());
-}
-
-async function removeContact(idx: number) {
-  if (saving.value) return;
-
-  const c = localContacts.value[idx] as any;
-  if (c?.ID != null) {
-    // use Swal for consistent UI
-    const answer = await Swal.fire({
-      title: 'ลบผู้ติดต่อ',
-      text: 'คุณต้องการลบผู้ติดต่อรายการนี้จริงหรือไม่?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'ลบ',
-      cancelButtonText: 'ยกเลิก',
-    });
-    if (!answer.isConfirmed) return;
   }
-  localContacts.value.splice(idx, 1);
-}
-
-// helper: normalize/trim contacts (so validation receives clean data)
-function normalizeContacts(list: ContactPayload[]) {
-  return list.map(c => ({
-    ...(c as any),
-    name: (c.name ?? '').toString().trim(),
-    email: (c.email ?? '').toString().trim(),
-    phone: (c.phone ?? '').toString().trim(),
-    position: (c.position ?? '') === null ? null : (c.position ?? '').toString().trim(),
-    // preserve ID if exists
-    ID: (c as any).ID ?? undefined,
-  }));
-}
-
-// submit contacts only
-async function saveContacts() {
-  // clear previous errors
-  errors.value = {};
-
-  // normalize first
-  const contacts = normalizeContacts(localContacts.value ?? []);
-
-  // local validation
-  const { valid, errors: vErrors } = validateContacts(contacts);
-  if (!valid) {
-    errors.value = vErrors ?? {};
-    await Swal.fire({ icon: 'warning', title: 'โปรดตรวจสอบผู้ติดต่อ', text: 'มีข้อมูลบางรายการไม่ถูกต้อง' });
-    // focus first error
-    nextTick(() => focusFirstElement(true));
-    return;
-  }
-
-  const batch = buildContactsBatch(props.initialContacts ?? [], contacts);
-  // buildContactsBatch should return shape { upsert?:..., delete_ids?:... }
-  if ((!batch.upsert || batch.upsert.length === 0) && (!batch.delete_ids || batch.delete_ids.length === 0)) {
-    await Swal.fire({ icon: 'info', title: 'ไม่มีการเปลี่ยนแปลง', text: 'ไม่พบการเปลี่ยนแปลงผู้ติดต่อ' });
-    return;
-  }
-
-  saving.value = true;
-  try {
-    const res = await SponsorService.updateContacts(props.sponsorId, batch as any);
-    // res expected { contacts: [...] }
-    if (res?.contacts) {
-      const contactsResp: ContactResponse[] = (res.contacts as any[]).map((c) => ({
-        ID: Number(c.ID), // coerce to number
-        name: String(c.name ?? ''),
-        email: String(c.email ?? ''),
-        phone: String(c.phone ?? ''),
-        position: c.position ?? null,
-      }))
-
-      const validContacts = contactsResp.filter(c => Number.isFinite(c.ID));
-      // emit saved with fresh contacts
-      if (validContacts.length === 0) {
-        // fallback: emit the raw contacts as best-effort (cast)
-        emit('saved', res.contacts as unknown as ContactResponse[]);
-      } else {
-        emit('saved', validContacts);
-      }
-      
-      emit('update:isOpen', false);
-      await Swal.fire({ icon: 'success', title: 'บันทึกผู้ติดต่อเรียบร้อย' });
-    } else {
-      // fallback: success without contacts list
-      emit('update:isOpen', false);
-      await Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ' });
-      // convert payload back to ContactResponse-ish for emit (best-effort)
-      const fallback = contacts.map(c => ({
-        ID: (c as any).ID ?? undefined,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        position: c.position ?? null,
-      })) as ContactResponse[];
-      emit('saved', fallback);
-    }
-  } catch (err: any) {
-    console.error('updateContacts failed', err);
-    const resp = err?.response?.data;
-    // backend might return errors mapping for contacts: { "0": { name: "..." } }
-    if (resp?.errors && resp.errors.contacts) {
-      errors.value = resp.errors.contacts;
-      await Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ผ่านการตรวจสอบ', text: resp.message ?? 'โปรดตรวจสอบข้อผิดพลาด' });
-      nextTick(() => focusFirstElement(true));
-    } else {
-      await Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: resp?.message ?? err?.message ?? 'ไม่สามารถบันทึกได้' });
-    }
-  } finally {
-    saving.value = false;
-  }
-}
-
-// watch open -> focus
-watch(isOpenRef, async (open) => {
-  if (open) {
-    await nextTick();
-    focusFirstElement();
-  }
-});
-
-function handleClose() {
-  emit('update:isOpen', false);
-  emit('close');
-}
 </script>
 
 <template>
-  <teleport to="body">
+  <div>
+    <teleport to="body">
     <div
       v-if="props.isOpen"
       class="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
@@ -206,16 +202,24 @@ function handleClose() {
         :aria-labelledby="`${dialogId}-title`"
         class="bg-white w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
-        <div class="px-4 py-3 border-b flex items-center justify-between bg-slate-50">
-          <h3 :id="`${dialogId}-title`" class="text-lg font-semibold">จัดการผู้ติดต่อ</h3>
-          <div class="flex items-center gap-2">
-            <button class="btn btn-ghost btn-sm" @click="handleClose" aria-label="ปิด">ปิด</button>
+        <!-- Header -->
+        <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
+          <div>
+            <h2 :id="`${dialogId}-title`" class="text-xl font-bold text-[#1e3a8a]">จัดการผู้ติดต่อ</h2>
           </div>
+
+          <button class="btn btn-circle btn-ghost btn-sm" @click="handleClose" aria-label="ปิด">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div class="p-4 overflow-y-auto flex-1">
           <div class="mb-3 flex items-center justify-between">
-            <div class="text-sm text-slate-600">Sponsor ID: <strong>{{ props.sponsorId }}</strong></div>
+            <div class="text-sm text-slate-600">Sponsor: <strong>{{ props.sponsorName }}</strong></div>
             <button class="btn btn-sm btn-outline" @click="addContact" :disabled="saving">เพิ่มผู้ติดต่อ</button>
           </div>
 
@@ -223,45 +227,88 @@ function handleClose() {
             <div class="text-sm">ยังไม่มีผู้ติดต่อ</div>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-4">
             <template v-for="(c, idx) in localContacts" :key="(c as any).ID ?? idx">
-              <div class="grid grid-cols-12 gap-2 items-start">
-                <input
-                  v-model="c.name"
-                  class="input input-sm input-bordered col-span-12 md:col-span-4"
-                  placeholder="ชื่อ"
-                  :aria-invalid="errors[idx] && errors[idx].name ? 'true' : 'false'"
-                />
-                <input
-                  v-model="c.email"
-                  class="input input-sm input-bordered col-span-12 md:col-span-3"
-                  placeholder="email"
-                  :aria-invalid="errors[idx] && errors[idx].email ? 'true' : 'false'"
-                />
-                <input
-                  v-model="c.phone"
-                  class="input input-sm input-bordered col-span-12 md:col-span-3"
-                  placeholder="โทร."
-                  :aria-invalid="errors[idx] && errors[idx].phone ? 'true' : 'false'"
-                />
-                <input
-                  v-model="c.position"
-                  class="input input-sm input-bordered col-span-9 md:col-span-1"
-                  placeholder="ตำแหน่ง"
-                  :aria-invalid="errors[idx] && errors[idx].position ? 'true' : 'false'"
-                />
-                <button
-                  class="btn btn-sm btn-error col-span-3 md:col-span-1"
-                  @click.prevent="removeContact(idx)"
-                  :disabled="saving"
-                  aria-label="ลบผู้ติดต่อ"
-                >
-                  ลบ
-                </button>
+              <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                <!-- Card Header -->
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">
+                    ผู้ติดต่อที่ {{ idx + 1 }}
+                  </span>
+                  <button
+                    class="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded text-sm transition-colors"
+                    @click.prevent="removeContact(idx)"
+                    :disabled="saving"
+                    aria-label="ลบผู้ติดต่อ"
+                  >
+                    ลบ
+                  </button>
+                </div>
 
-                <p v-if="errors[idx]" class="text-xs text-red-500 col-span-12">
-                  {{ Object.values(errors[idx])[0] }}
-                </p>
+                <!-- Form Fields -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- ชื่อ -->
+                  <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-600">
+                      ชื่อ <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="c.name"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      :class="{ 'border-red-500 bg-red-50': errors[idx]?.name }"
+                      placeholder="ชื่อผู้ติดต่อ"
+                      :aria-invalid="errors[idx]?.name ? 'true' : 'false'"
+                    />
+                    <p v-if="errors[idx]?.name" class="text-xs text-red-500">{{ errors[idx].name }}</p>
+                  </div>
+
+                  <!-- อีเมล -->
+                  <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-600">
+                      อีเมล <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="c.email"
+                      type="email"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      :class="{ 'border-red-500 bg-red-50': errors[idx]?.email }"
+                      placeholder="example@email.com"
+                      :aria-invalid="errors[idx]?.email ? 'true' : 'false'"
+                    />
+                    <p v-if="errors[idx]?.email" class="text-xs text-red-500">{{ errors[idx].email }}</p>
+                  </div>
+
+                  <!-- เบอร์โทร -->
+                  <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-600">
+                      เบอร์โทรศัพท์ <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="c.phone"
+                      type="tel"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      :class="{ 'border-red-500 bg-red-50': errors[idx]?.phone }"
+                      placeholder="0xx-xxx-xxxx"
+                      :aria-invalid="errors[idx]?.phone ? 'true' : 'false'"
+                    />
+                    <p v-if="errors[idx]?.phone" class="text-xs text-red-500">{{ errors[idx].phone }}</p>
+                  </div>
+
+                  <!-- ตำแหน่ง -->
+                  <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-600">
+                      ตำแหน่ง
+                    </label>
+                    <input
+                      v-model="c.position"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      :class="{ 'border-red-500 bg-red-50': errors[idx]?.position }"
+                      placeholder="เช่น ผู้จัดการ, HR"
+                      :aria-invalid="errors[idx]?.position ? 'true' : 'false'"
+                    />
+                    <p v-if="errors[idx]?.position" class="text-xs text-red-500">{{ errors[idx].position }}</p>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -276,7 +323,8 @@ function handleClose() {
         </div>
       </div>
     </div>
-  </teleport>
+    </teleport>
+  </div>
 </template>
 
 <style scoped>

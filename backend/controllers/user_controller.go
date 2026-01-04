@@ -1,14 +1,15 @@
 package controllers
 
 import (
-	"backend/config"
-	"backend/entity"
-	"backend/services"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"backend/config"
+	"backend/entity"
+	"backend/services"
 )
 
 // Helper: Get User ID from Token
@@ -123,7 +124,8 @@ func CreateUser(c *gin.Context) {
 	}
 
 	// 2. Create Profile based on Role
-	if targetRole.Name == "student" {
+	switch targetRole.Name {
+	case "student":
 		student := entity.StudentProfile{
 			UserID:      user.ID,
 			StudentID:   input.StudentID,
@@ -153,7 +155,7 @@ func CreateUser(c *gin.Context) {
 		family := entity.FamilyInfo{ProfileID: student.ID}
 		tx.Create(&family)
 
-	} else if targetRole.Name == "admin" {
+	case "admin":
 		admin := entity.AdminProfile{
 			UserID:         user.ID,
 			AdminFirstname: input.AdminFirstname,
@@ -180,24 +182,24 @@ func UpdateUser(c *gin.Context) {
 	var input struct {
 		Username string `json:"username"` // ✅ เพิ่มตรงนี้: รับค่า Username มาแก้ไข
 		Password string `json:"password"`
-		
+
 		// Student Official Data Only
-		StudentID 	string 	`json:"student_id"`
-		NationalID 	string 	`json:"national_id"`
-		FirstNameTH string 	`json:"first_name_th"`
-		LastNameTH 	string 	`json:"last_name_th"`
-		FirstNameEN string 	`json:"first_name_en"`
-		LastNameEN 	string 	`json:"last_name_en"`
-		CurrentYear int 	`json:"current_year"`
-		MajorID 	uint 	`json:"major_id"`
-		GPAX 		float64 `json:"gpax"`
-		AdvisorName string 	`json:"advisor_name"`
+		StudentID   string  `json:"student_id"`
+		NationalID  string  `json:"national_id"`
+		FirstNameTH string  `json:"first_name_th"`
+		LastNameTH  string  `json:"last_name_th"`
+		FirstNameEN string  `json:"first_name_en"`
+		LastNameEN  string  `json:"last_name_en"`
+		CurrentYear int     `json:"current_year"`
+		MajorID     uint    `json:"major_id"`
+		GPAX        float64 `json:"gpax"`
+		AdvisorName string  `json:"advisor_name"`
 		// Admin Data
 		AdminFirstname string `json:"admin_firstname"`
-		AdminLastname 	string `json:"admin_lastname"`
-		Position 	 	string `json:"position"`
-		Email 		 	string `json:"email"`
-		Phone 		 	string `json:"phone"`
+		AdminLastname  string `json:"admin_lastname"`
+		Position       string `json:"position"`
+		Email          string `json:"email"`
+		Phone          string `json:"phone"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -226,7 +228,7 @@ func UpdateUser(c *gin.Context) {
 	// -------------------------------------------------------------
 	// 1. Update User Account (Username & Password)
 	// -------------------------------------------------------------
-	
+
 	// Logic แก้ไข Username
 	if input.Username != "" && input.Username != user.Username {
 		// เช็คว่า Username ใหม่ซ้ำกับคนอื่นไหม
@@ -255,7 +257,8 @@ func UpdateUser(c *gin.Context) {
 	// -------------------------------------------------------------
 	// 2. Update Profile
 	// -------------------------------------------------------------
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var student entity.StudentProfile
 		if err := tx.Where("user_id = ?", user.ID).First(&student).Error; err == nil {
 			// Update Only Official Fields
@@ -272,7 +275,7 @@ func UpdateUser(c *gin.Context) {
 			// หมายเหตุ: ไม่ Update Email/Phone ที่นี่ เพื่อไม่ให้ทับข้อมูลที่นิสิตกรอกเอง
 			tx.Save(&student)
 		}
-	} else if user.Role.Name == "admin" {
+	case "admin":
 		var admin entity.AdminProfile
 		if err := tx.Where("user_id = ?", user.ID).First(&admin).Error; err == nil {
 			admin.AdminFirstname = input.AdminFirstname
@@ -326,20 +329,21 @@ func DeleteUser(c *gin.Context) {
 	// =================================================================
 
 	// A. กรณีเป็น STUDENT
-	if user.Role.Name == "student" {
+	switch user.Role.Name {
+	case "student":
 		var studentProfiles []entity.StudentProfile
 		// หา Profile ทั้งหมดของ User นี้
 		if err := tx.Unscoped().Where("user_id = ?", user.ID).Find(&studentProfiles).Error; err == nil {
-			
+
 			for _, sp := range studentProfiles {
-				
+
 				// -------------------------------------------------------------
 				// STEP 1: ลบ "เหลน" (Screenings) ** จุดที่เพิ่มใหม่ **
 				// -------------------------------------------------------------
 				// ต้องหา ID ของ Application ที่ผูกกับ Profile นี้ก่อน
 				var appIDs []uint
 				tx.Model(&entity.Application{}).Unscoped().Where("student_profile_id = ?", sp.ID).Pluck("id", &appIDs)
-				
+
 				if len(appIDs) > 0 {
 					// สั่งลบ screenings ที่ application_id อยู่ในลิสต์ที่เราหามา
 					if err := tx.Exec("DELETE FROM screenings WHERE application_id IN ?", appIDs).Error; err != nil {
@@ -352,7 +356,7 @@ func DeleteUser(c *gin.Context) {
 				// -------------------------------------------------------------
 				// STEP 2: ลบ "หลาน" (Applications & Family)
 				// -------------------------------------------------------------
-				
+
 				// 2.1 ลบ Applications (ใบสมัคร)
 				if err := tx.Unscoped().Where("student_profile_id = ?", sp.ID).Delete(&entity.Application{}).Error; err != nil {
 					tx.Rollback()
@@ -378,8 +382,8 @@ func DeleteUser(c *gin.Context) {
 			}
 		}
 
-	// B. กรณีเป็น ADMIN
-	} else if user.Role.Name == "admin" {
+		// B. กรณีเป็น ADMIN
+	case "admin":
 		if err := tx.Unscoped().Where("user_id = ?", user.ID).Delete(&entity.AdminProfile{}).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ลบ AdminProfile ไม่ผ่าน"})

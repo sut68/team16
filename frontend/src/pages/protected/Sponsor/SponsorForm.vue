@@ -4,7 +4,7 @@ import type { PropType } from 'vue';
 import type { IndustryResponse } from '@/interfaces/sponsor';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
 import { IndustryService } from '@/services/sponsor/industry';
-import { validateSponsorForm } from '@/validators/sponsorValidator';
+import { validateSponsorForm } from '@/validators/sponsor_validator';
 import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
 // ---------------- Props / Emits ----------------
@@ -125,7 +125,8 @@ function submit() {
 </script>
 
 <template>
-  <teleport to="body">
+  <div>
+    <teleport to="body">
     <div
       v-if="props.isOpen"
       class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
@@ -342,7 +343,8 @@ function submit() {
         </div>
       </div>
     </div>
-  </teleport>
+    </teleport>
+  </div>
 </template>
 
 <style scoped>
