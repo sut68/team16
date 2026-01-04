@@ -2,20 +2,16 @@ package entity
 
 import (
 	"gorm.io/gorm"
-	"gorm.io/datatypes"
 )
 
 type Assistance struct {
 	gorm.Model
-	Massage datatypes.JSON `gorm:"type:jsonb"`
+	Massage string `json:"massage"`
 	
-	AdminID uint `json:"admin_id"`
-	AdminProfile AdminProfile `gorm:"foreignKey:AdminID"`
+	ChatroomID uint `json:"chatroom_id"`
+	Chatroom Chatroom `gorm:"foreignKey:ChatroomID" json:"chatroom"`
 	
-
-	StudentID uint `json:"student_id"`
-	StudentProfile StudentProfile `gorm:"foreignKey:StudentID"`
-	
-
+	SenderID uint `json:"sender_id"`
+	Sender User	`gorm:"foreignKey:SenderID" json:"sender"`
 	
 }
