@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue';
 import * as UserAPI from '@/services/api/user';
 import Swal from 'sweetalert2';
+import StatsGrid from '@/components/ui/StatsGrid.vue';
+import type { StatItem } from '@/components/ui/StatsGrid.vue';
 
 // State
 const users = ref<any[]>([]);
@@ -44,6 +46,37 @@ onMounted(fetchData);
 const isStudentRole = computed(() => {
   const r = roles.value.find(role => role.ID === form.value.role_id);
   return r?.name?.toLowerCase() === 'student';
+});
+
+// User Statistics for StatsGrid
+const userStats = computed<StatItem[]>(() => {
+  const total = users.value.length;
+  const students = users.value.filter(u => u.role?.name?.toLowerCase() === 'student').length;
+  const admins = total - students;
+  
+  return [
+    {
+      title: 'ผู้ใช้งานทั้งหมด',
+      value: total,
+      description: 'Total Users',
+      icon: 'users',
+      color: 'blue'
+    },
+    {
+      title: 'นักศึกษา',
+      value: students,
+      description: 'Students',
+      icon: 'award',
+      color: 'green'
+    },
+    {
+      title: 'ผู้ดูแลระบบ',
+      value: admins,
+      description: 'Admins / Staff',
+      icon: 'building',
+      color: 'purple'
+    }
+  ];
 });
 
 // ฟังก์ชันคำนวณเลขบัตรประชาชน (สูตรมาตรฐาน)
@@ -237,6 +270,9 @@ const removeUser = async (id: number) => {
         <span class="font-medium">เพิ่มผู้ใช้งาน</span>
       </button>
     </div>
+
+    <!-- Stats Section -->
+    <StatsGrid :stats="userStats" class="mb-6" />
 
     <div class="flex-1 min-h-0 flex flex-col gap-4">
       <div class="table-scroll overflow-x-auto overflow-y-auto min-h-0 bg-white rounded flex-1">
