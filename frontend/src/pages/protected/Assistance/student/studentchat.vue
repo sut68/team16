@@ -86,57 +86,62 @@ onUnmounted(() => {
   chatService.disconnect()
 })
 </script>
-
 <template>
-  <div class="max-w-xl mx-auto bg-white rounded-xl shadow flex flex-col h-[600px]">
-
-    <!-- Header -->
-    <div class="px-6 py-4 border-b font-semibold text-gray-800">
-      📨 ติดต่อและขอความช่วยเหลือ
-    </div>
-
-    <!-- Messages -->
+  <!-- Container กลางจอ -->
+  <div class="min-h-screen flex items-center justify-center bg-gray-100">
+    <!-- Chat Box -->
     <div
-      ref="chatBox"
-      class="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-gray-50"
+      class="w-[70vw] h-[85vh] max-w-[900px]
+             bg-white rounded-2xl shadow-xl flex flex-col"
     >
+
+      <!-- Header -->
+      <div class="px-6 py-4 border-b font-semibold text-gray-800 text-lg">
+        📨 ติดต่อและขอความช่วยเหลือ
+      </div>
+
+      <!-- Messages -->
       <div
-        v-for="msg in messages"
-        :key="msg.ID"
-        class="flex"
-        :class="msg.sender_id === myId ? 'justify-end' : 'justify-start'"
+        ref="chatBox"
+        class="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-gray-50"
       >
         <div
-          class="max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow"
-          :class="msg.sender_id === myId
-            ? 'bg-blue-500 text-white rounded-br-none'
-            : 'bg-white text-gray-800 rounded-bl-none'"
+          v-for="msg in messages"
+          :key="msg.ID"
+          class="flex"
+          :class="msg.sender_id === myId ? 'justify-start' : 'justify-end'"
         >
-          <div class="text-xs opacity-70 mb-1">
-            {{ msg.sender.username }}
+          <div
+            class="max-w-[70%] px-4 py-3 rounded-2xl text-sm shadow"
+            :class="msg.sender_id === myId
+              ? 'bg-blue-500 text-white rounded-br-none'
+              : 'bg-white text-gray-800 rounded-bl-none'"
+          >
+            <div class="text-xs opacity-70 mb-1">
+              {{ msg.sender.username }}
+            </div>
+            {{ msg.massage }}
           </div>
-          {{ msg.massage }}
         </div>
       </div>
-    </div>
 
-    <!-- Input -->
-    <div class="p-4 border-t flex gap-2">
-      <input
-        v-model="input"
-        @keyup.enter="send"
-        placeholder="พิมพ์ข้อความ..."
-        class="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring focus:ring-blue-200"
-      />
-      <button
-        @click="send"
-        class="px-5 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
-      >
-        ส่ง
-      </button>
+      <!-- Input -->
+      <div class="p-4 border-t flex gap-2">
+        <input
+          v-model="input"
+          @keyup.enter="send"
+          placeholder="พิมพ์ข้อความ..."
+          class="flex-1 px-4 py-3 rounded-lg border
+                 focus:outline-none focus:ring focus:ring-blue-200"
+        />
+        <button
+          @click="send"
+          class="px-6 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+        >
+          ส่ง
+        </button>
+      </div>
+
     </div>
   </div>
 </template>
-
-
-
