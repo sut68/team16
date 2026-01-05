@@ -250,18 +250,58 @@ watch([saving, completing], ([s, c]) => {
                       </div>
 
                       <div class="flex items-center gap-3">
-                        <div class="flex flex-col items-end">
-                          <label class="text-xs text-gray-500 mb-1">คะแนน (ต้อง > 0)</label>
-                          <input
-                            :value="getScoreInput(criterion.evaluation_criterion_id).score"
-                            @input="setScore(criterion.evaluation_criterion_id, Number(($event.target as HTMLInputElement).value))"
-                            type="number"
-                            :min="0.01"
-                            :max="criterion.evaluation_criterion?.max_score || 100"
-                            step="0.1"
-                            class="w-24 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            :class="getScoreErrors(criterion.evaluation_criterion_id).score ? 'border-red-500' : 'border-gray-300'"
-                          />
+                        <!-- Pass/Fail Type - Toggle Buttons -->
+                        <div v-if="criterion.evaluation_criterion?.score_type === 'pass_fail'" class="flex flex-col items-end">
+                          <label class="text-xs text-gray-500 mb-1">ผลการประเมิน</label>
+                          <div class="flex rounded-lg overflow-hidden border border-gray-300">
+                            <button
+                              type="button"
+                              @click="setScore(criterion.evaluation_criterion_id, 1, 1)"
+                              class="px-4 py-2 text-sm font-medium transition-all"
+                              :class="getScoreInput(criterion.evaluation_criterion_id).score === 1 
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-white text-gray-600 hover:bg-gray-100'"
+                            >
+                              <span class="flex items-center gap-1">
+                                <CheckCircle class="w-4 h-4" />
+                                ผ่าน
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              @click="setScore(criterion.evaluation_criterion_id, 0, 1)"
+                              class="px-4 py-2 text-sm font-medium transition-all border-l"
+                              :class="getScoreInput(criterion.evaluation_criterion_id).score === 0 
+                                ? 'bg-red-500 text-white' 
+                                : 'bg-white text-gray-600 hover:bg-gray-100'"
+                            >
+                              <span class="flex items-center gap-1">
+                                <XCircle class="w-4 h-4" />
+                                ไม่ผ่าน
+                              </span>
+                            </button>
+                          </div>
+                          <p v-if="getScoreErrors(criterion.evaluation_criterion_id).score" class="mt-1 text-xs text-red-500">
+                            {{ getScoreErrors(criterion.evaluation_criterion_id).score }}
+                          </p>
+                        </div>
+
+                        <!-- Numeric Type - Input Number -->
+                        <div v-else class="flex flex-col items-end">
+                          <label class="text-xs text-gray-500 mb-1">คะแนน (0 - {{ criterion.evaluation_criterion?.max_score }})</label>
+                          <div class="flex items-center gap-2">
+                            <input
+                              :value="getScoreInput(criterion.evaluation_criterion_id).score"
+                              @input="setScore(criterion.evaluation_criterion_id, Number(($event.target as HTMLInputElement).value), criterion.evaluation_criterion?.max_score || 100)"
+                              type="number"
+                              :min="0"
+                              :max="criterion.evaluation_criterion?.max_score || 100"
+                              step="0.5"
+                              class="w-20 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              :class="getScoreErrors(criterion.evaluation_criterion_id).score ? 'border-red-500' : 'border-gray-300'"
+                            />
+                            <span class="text-gray-400 text-sm font-medium">/ {{ criterion.evaluation_criterion?.max_score }}</span>
+                          </div>
                           <p v-if="getScoreErrors(criterion.evaluation_criterion_id).score" class="mt-1 text-xs text-red-500">
                             {{ getScoreErrors(criterion.evaluation_criterion_id).score }}
                           </p>

@@ -3,6 +3,13 @@ import type { Ref } from 'vue'
 import type { EvaluationResponse, InterviewRoundCriterionResponse } from '@/interfaces/evaluation'
 import { EvaluationScoreService, EvaluationService } from '@/services/evaluation/evaluation'
 
+// Import Validators
+import {
+  SCORE_VALIDATION_RULES,
+  validateScore,
+  validateScoreComment,
+} from '@/validators/evaluation_validator'
+
 export interface ScoreInput {
   score: number
   comment: string
@@ -10,18 +17,12 @@ export interface ScoreInput {
 }
 
 // Hook สำหรับจัดการคะแนนการประเมิน
-// - จัดการ input คะแนนแต่ละเกณฑ์
-// - คำนวณคะแนนรวม
-// - บันทึกคะแนน
 export function useScoreManagement(
   evaluation: Ref<EvaluationResponse | null>,
   roundCriteria: Ref<InterviewRoundCriterionResponse[]>
 ) {
-  // Validation Rules (ตาม Backend)
-  const VALIDATION_RULES = {
-    scoreValue: { min: 0.01 }, // ต้อง > 0 (ประมาณ 0.01 เป็นค่าต่ำสุด)
-    comment: { maxLength: 500 },
-  }
+  // ใช้ Validation Rules จาก validator
+  const VALIDATION_RULES = SCORE_VALIDATION_RULES
 
   // State
   const scoreInputs = ref<Record<number, ScoreInput>>({})
@@ -97,20 +98,20 @@ export function useScoreManagement(
     return scoreInputs.value[criterionId] || { score: 0, comment: '' }
   }
 
-  function setScore(criterionId: number, value: number) {
+  function setScore(criterionId: number, value: number, maxScore: number = 100) {
     if (scoreInputs.value[criterionId]) {
       scoreInputs.value[criterionId].score = value
 
-      // Real-time validation สำหรับคะแนน
+      // Real-time validation ใช้ฟังก์ชันจาก validator
       if (!scoreErrors.value[criterionId]) {
         scoreErrors.value[criterionId] = {}
       }
 
-      if (value === null || value === undefined || isNaN(value) || value <= 0) {
-        scoreErrors.value[criterionId].score = 'คะแนนต้องมากกว่า 0'
+      const error = validateScore(value, maxScore)
+      if (error) {
+        scoreErrors.value[criterionId].score = error
       } else {
         delete scoreErrors.value[criterionId].score
-        // ลบ object ถ้าไม่มี error เหลือ
         if (Object.keys(scoreErrors.value[criterionId]).length === 0) {
           delete scoreErrors.value[criterionId]
         }
@@ -121,12 +122,14 @@ export function useScoreManagement(
   function setComment(criterionId: number, value: string) {
     if (scoreInputs.value[criterionId]) {
       scoreInputs.value[criterionId].comment = value
-      // Validate comment length
-      if (value.length > VALIDATION_RULES.comment.maxLength) {
+
+      // Real-time validation ใช้ฟังก์ชันจาก validator
+      const error = validateScoreComment(value)
+      if (error) {
         if (!scoreErrors.value[criterionId]) {
           scoreErrors.value[criterionId] = {}
         }
-        scoreErrors.value[criterionId].comment = `ความคิดเห็นต้องไม่เกิน ${VALIDATION_RULES.comment.maxLength} ตัวอักษร`
+        scoreErrors.value[criterionId].comment = error
       } else {
         if (scoreErrors.value[criterionId]) {
           delete scoreErrors.value[criterionId].comment
@@ -144,17 +147,19 @@ export function useScoreManagement(
       const input = scoreInputs.value[criterion.evaluation_criterion_id]
       if (!input) continue
 
+      const maxScore = criterion.evaluation_criterion?.max_score || 100
       const errors: { score?: string; comment?: string } = {}
 
-      // Score validation: ต้อง > 0
-      if (!input.score || input.score <= 0) {
-        errors.score = 'คะแนนต้องมากกว่า 0'
+      // ใช้ validator functions
+      const scoreError = validateScore(input.score, maxScore)
+      if (scoreError) {
+        errors.score = scoreError
         isValid = false
       }
 
-      // Comment validation: max 500
-      if (input.comment && input.comment.length > VALIDATION_RULES.comment.maxLength) {
-        errors.comment = `ความคิดเห็นต้องไม่เกิน ${VALIDATION_RULES.comment.maxLength} ตัวอักษร`
+      const commentError = validateScoreComment(input.comment)
+      if (commentError) {
+        errors.comment = commentError
         isValid = false
       }
 

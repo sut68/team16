@@ -18,7 +18,7 @@ func GetAllEvaluations(ctx *gin.Context) {
 
 	query := config.DB.
 		Preload("InterviewRound").
-		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationScholarship.Scholarship").
 		Preload("AdminProfile").
 		Preload("EvaluationScores.EvaluationCriterion")
@@ -61,7 +61,7 @@ func GetEvaluationByID(ctx *gin.Context) {
 	// SELECT FIRST ROW
 	if err := config.DB.
 		Preload("InterviewRound").
-		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Application.StudentProfile.Major").
 		Preload("ApplicationScholarship.Scholarship").
 		Preload("AdminProfile").
 		Preload("EvaluationScores.EvaluationCriterion").

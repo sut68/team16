@@ -1,9 +1,11 @@
 <script setup lang="ts">
   import { ref, computed, onMounted } from 'vue'
-  import type { EvaluationCriterionResponse, EvaluationCriterionPayload } from '@/interfaces/evaluation'
+  import type { EvaluationCriterionResponse } from '@/interfaces/evaluation'
   import { EvaluationCriteriaService } from '@/services/evaluation/evaluation'
   import Swal from 'sweetalert2'
-  import StatCard from '@/components/ui/StatCard.vue'
+  import StatsGrid from '@/components/ui/StatsGrid.vue'
+  import type { StatItem } from '@/components/ui/StatsGrid.vue'
+  import CriteriaFormModal from './CriteriaFormModal.vue'
 
   // Icons
   import { Plus, Pencil, Trash2, Search, X, Filter, CheckCircle, XCircle } from 'lucide-vue-next'
@@ -15,36 +17,8 @@
   const searchQuery = ref('')
 
   // Modal State
-  const isFormOpen = ref(false)
-  const isEditing = ref(false)
-  const formLoading = ref(false)
-  const currentCriterion = ref<EvaluationCriterionResponse | null>(null)
-
-  // Form Data
-  const formData = ref<EvaluationCriterionPayload>({
-    name: '',
-    description: '',
-    score_type: 'numeric',
-    max_score: 100,
-    weight: 1.0,
-    is_active: true,
-  })
-
-  // Validation Errors
-  const formErrors = ref<{
-    name?: string
-    description?: string
-    max_score?: string
-    weight?: string
-  }>({})
-
-  // ========== Validation Rules (ตาม Backend) ==========
-  const VALIDATION_RULES = {
-    name: { minLength: 2, maxLength: 100 },
-    description: { maxLength: 500 },
-    max_score: { min: 0, max: 1000 },
-    weight: { min: 0, max: 10 },
-  }
+  const isFormModalOpen = ref(false)
+  const selectedCriterion = ref<EvaluationCriterionResponse | null>(null)
 
   // ========== Computed ==========
   const filteredCriteria = computed(() => {
@@ -60,6 +34,31 @@
   const activeCriteria = computed(() => criteria.value.filter(c => c.is_active).length)
   const inactiveCriteria = computed(() => criteria.value.filter(c => !c.is_active).length)
 
+  // Computed stats for StatsGrid
+  const criteriaStats = computed<StatItem[]>(() => [
+    { 
+      title: 'เกณฑ์ทั้งหมด', 
+      value: totalCriteria.value, 
+      description: 'รายการ',
+      icon: 'clipboard', 
+      color: 'blue' 
+    },
+    { 
+      title: 'ใช้งานอยู่', 
+      value: activeCriteria.value, 
+      description: 'เปิดใช้งาน',
+      icon: 'check', 
+      color: 'green' 
+    },
+    { 
+      title: 'ปิดใช้งาน', 
+      value: inactiveCriteria.value, 
+      description: 'ไม่ได้ใช้',
+      icon: 'clock', 
+      color: 'slate' 
+    },
+  ])
+
   // ========== Methods ==========
   async function fetchCriteria() {
     loading.value = true
@@ -74,174 +73,23 @@
     }
   }
 
-  function openCreateForm() {
-    isEditing.value = false
-    currentCriterion.value = null
-    formData.value = {
-      name: '',
-      description: '',
-      score_type: 'numeric',
-      max_score: 100,
-      weight: 1.0,
-      is_active: true,
-    }
-    formErrors.value = {}
-    isFormOpen.value = true
+  function openCreateModal() {
+    selectedCriterion.value = null
+    isFormModalOpen.value = true
   }
 
-  function openEditForm(criterion: EvaluationCriterionResponse) {
-    isEditing.value = true
-    currentCriterion.value = criterion
-    formData.value = {
-      name: criterion.name,
-      description: criterion.description,
-      score_type: criterion.score_type,
-      max_score: criterion.max_score,
-      weight: criterion.weight,
-      is_active: criterion.is_active,
-    }
-    formErrors.value = {}
-    isFormOpen.value = true
+  function openEditModal(criterion: EvaluationCriterionResponse) {
+    selectedCriterion.value = criterion
+    isFormModalOpen.value = true
   }
 
-  function closeForm() {
-    isFormOpen.value = false
-    currentCriterion.value = null
-    formErrors.value = {}
+  function closeFormModal() {
+    isFormModalOpen.value = false
+    selectedCriterion.value = null
   }
 
-  // ========== Form Validation ==========
-  function validateForm(): boolean {
-    formErrors.value = {}
-    let isValid = true
-
-    // Name validation: required, min 2, max 100
-    const name = formData.value.name?.trim() || ''
-    if (!name) {
-      formErrors.value.name = 'กรุณากรอกชื่อเกณฑ์'
-      isValid = false
-    } else if (name.length < VALIDATION_RULES.name.minLength) {
-      formErrors.value.name = `ชื่อเกณฑ์ต้องมีอย่างน้อย ${VALIDATION_RULES.name.minLength} ตัวอักษร`
-      isValid = false
-    } else if (name.length > VALIDATION_RULES.name.maxLength) {
-      formErrors.value.name = `ชื่อเกณฑ์ต้องไม่เกิน ${VALIDATION_RULES.name.maxLength} ตัวอักษร`
-      isValid = false
-    }
-
-    // Description validation: max 500
-    const description = formData.value.description || ''
-    if (description.length > VALIDATION_RULES.description.maxLength) {
-      formErrors.value.description = `รายละเอียดต้องไม่เกิน ${VALIDATION_RULES.description.maxLength} ตัวอักษร`
-      isValid = false
-    }
-
-    // MaxScore validation: 0-1000
-    const maxScore = formData.value.max_score ?? 0
-    if (maxScore < VALIDATION_RULES.max_score.min || maxScore > VALIDATION_RULES.max_score.max) {
-      formErrors.value.max_score = `คะแนนเต็มต้องอยู่ระหว่าง ${VALIDATION_RULES.max_score.min} - ${VALIDATION_RULES.max_score.max}`
-      isValid = false
-    }
-
-    // Weight validation: 0-10
-    const weight = formData.value.weight ?? 0
-    if (weight < VALIDATION_RULES.weight.min || weight > VALIDATION_RULES.weight.max) {
-      formErrors.value.weight = `น้ำหนักต้องอยู่ระหว่าง ${VALIDATION_RULES.weight.min} - ${VALIDATION_RULES.weight.max}`
-      isValid = false
-    }
-
-    return isValid
-  }
-
-  // ========== Real-time Validation Functions ==========
-  function validateNameRealtime() {
-    const name = formData.value.name?.trim() || ''
-    if (!name) {
-      formErrors.value.name = 'กรุณากรอกชื่อเกณฑ์'
-    } else if (name.length < VALIDATION_RULES.name.minLength) {
-      formErrors.value.name = `ชื่อเกณฑ์ต้องมีอย่างน้อย ${VALIDATION_RULES.name.minLength} ตัวอักษร`
-    } else if (name.length > VALIDATION_RULES.name.maxLength) {
-      formErrors.value.name = `ชื่อเกณฑ์ต้องไม่เกิน ${VALIDATION_RULES.name.maxLength} ตัวอักษร`
-    } else {
-      delete formErrors.value.name
-    }
-  }
-
-  function validateDescriptionRealtime() {
-    const description = formData.value.description || ''
-    if (description.length > VALIDATION_RULES.description.maxLength) {
-      formErrors.value.description = `รายละเอียดต้องไม่เกิน ${VALIDATION_RULES.description.maxLength} ตัวอักษร`
-    } else {
-      delete formErrors.value.description
-    }
-  }
-
-  function validateMaxScoreRealtime() {
-    const maxScore = formData.value.max_score
-    if (maxScore === null || maxScore === undefined || isNaN(maxScore)) {
-      formErrors.value.max_score = 'กรุณากรอกคะแนนเต็ม'
-    } else if (maxScore < VALIDATION_RULES.max_score.min || maxScore > VALIDATION_RULES.max_score.max) {
-      formErrors.value.max_score = `คะแนนเต็มต้องอยู่ระหว่าง ${VALIDATION_RULES.max_score.min} - ${VALIDATION_RULES.max_score.max}`
-    } else {
-      delete formErrors.value.max_score
-    }
-  }
-
-  function validateWeightRealtime() {
-    const weight = formData.value.weight
-    if (weight === null || weight === undefined || isNaN(weight)) {
-      formErrors.value.weight = 'กรุณากรอกน้ำหนัก'
-    } else if (weight < VALIDATION_RULES.weight.min || weight > VALIDATION_RULES.weight.max) {
-      formErrors.value.weight = `น้ำหนักต้องอยู่ระหว่าง ${VALIDATION_RULES.weight.min} - ${VALIDATION_RULES.weight.max}`
-    } else {
-      delete formErrors.value.weight
-    }
-  }
-
-  const isFormValid = computed(() => {
-    const name = formData.value.name?.trim() || ''
-    const description = formData.value.description || ''
-    const maxScore = formData.value.max_score ?? 0
-    const weight = formData.value.weight ?? 0
-
-    return (
-      name.length >= VALIDATION_RULES.name.minLength &&
-      name.length <= VALIDATION_RULES.name.maxLength &&
-      description.length <= VALIDATION_RULES.description.maxLength &&
-      maxScore >= VALIDATION_RULES.max_score.min &&
-      maxScore <= VALIDATION_RULES.max_score.max &&
-      weight >= VALIDATION_RULES.weight.min &&
-      weight <= VALIDATION_RULES.weight.max
-    )
-  })
-
-  async function handleSubmit() {
-    // Validate before submit
-    if (!validateForm()) {
-      return
-    }
-
-    formLoading.value = true
-    try {
-      if (isEditing.value && currentCriterion.value) {
-        await EvaluationCriteriaService.update(currentCriterion.value.ID, formData.value)
-        await Swal.fire({ icon: 'success', title: 'อัปเดตเกณฑ์สำเร็จ', timer: 1500, showConfirmButton: false })
-      } else {
-        await EvaluationCriteriaService.create(formData.value)
-        await Swal.fire({ icon: 'success', title: 'สร้างเกณฑ์สำเร็จ', timer: 1500, showConfirmButton: false })
-      }
-      closeForm()
-      await fetchCriteria()
-    } catch (err: any) {
-      console.error('Submit error:', err)
-      const resp = err?.response?.data
-      Swal.fire({
-        icon: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        text: resp?.error || resp?.message || 'กรุณาลองใหม่อีกครั้ง',
-      })
-    } finally {
-      formLoading.value = false
-    }
+  async function onFormSaved() {
+    await fetchCriteria()
   }
 
   async function handleDelete(criterion: EvaluationCriterionResponse) {
@@ -333,8 +181,8 @@
 
         <!-- Add Button -->
         <button 
-          @click="openCreateForm" 
-          class="btn-primary"
+          @click="openCreateModal" 
+          class="btn-ghost-rounded"
         >
           <Plus class="w-4 h-4" />
           <span class="hidden sm:inline">เพิ่มเกณฑ์</span>
@@ -343,26 +191,11 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-      <StatCard
-        label="เกณฑ์ทั้งหมด"
-        :value="totalCriteria"
-        icon="total"
-        color="blue"
-      />
-      <StatCard
-        label="ใช้งานอยู่"
-        :value="activeCriteria"
-        icon="active"
-        color="green"
-      />
-      <StatCard
-        label="ปิดใช้งาน"
-        :value="inactiveCriteria"
-        icon="default"
-        color="slate"
-      />
-    </div>
+    <StatsGrid 
+      :stats="criteriaStats" 
+      :columns="3"
+      class="mb-6"
+    />
 
     <!-- Loading State -->
     <div v-if="loading" class="p-6 w-full">
@@ -451,7 +284,7 @@
               <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-2">
                   <button 
-                    @click="openEditForm(c)"
+                    @click="openEditModal(c)"
                     class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="แก้ไข"
                   >
@@ -479,7 +312,7 @@
                   <p v-else class="text-gray-500">ยังไม่มีเกณฑ์ในระบบ</p>
                   <button 
                     v-if="!searchQuery"
-                    @click="openCreateForm" 
+                    @click="openCreateModal" 
                     class="btn-primary mt-4"
                   >
                     <Plus class="w-4 h-4" />
@@ -493,167 +326,44 @@
       </div>
     </div>
 
-    <!-- Modal Form -->
-    <Teleport to="body">
-      <div 
-        v-if="isFormOpen" 
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="closeForm"
-      >
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-          <!-- Header -->
-          <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
-            <h2 class="text-xl font-bold text-white">
-              {{ isEditing ? 'แก้ไขเกณฑ์' : 'เพิ่มเกณฑ์ใหม่' }}
-            </h2>
-          </div>
-
-          <!-- Form -->
-          <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
-            <!-- Name -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-sm font-medium text-gray-700">ชื่อเกณฑ์ *</label>
-                <span class="text-xs" :class="(formData.name?.length || 0) > 100 ? 'text-red-500' : 'text-gray-400'">
-                  {{ formData.name?.length || 0 }}/100
-                </span>
-              </div>
-              <input
-                v-model="formData.name"
-                @input="validateNameRealtime"
-                type="text"
-                required
-                minlength="2"
-                maxlength="100"
-                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :class="formErrors.name ? 'border-red-500' : 'border-gray-300'"
-                placeholder="เช่น ผลการเรียน, ทักษะการสื่อสาร"
-              />
-              <p v-if="formErrors.name" class="mt-1 text-xs text-red-500">{{ formErrors.name }}</p>
-            </div>
-
-            <!-- Description -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-sm font-medium text-gray-700">รายละเอียด</label>
-                <span class="text-xs" :class="(formData.description?.length || 0) > 500 ? 'text-red-500' : 'text-gray-400'">
-                  {{ formData.description?.length || 0 }}/500
-                </span>
-              </div>
-              <textarea
-                v-model="formData.description"
-                @input="validateDescriptionRealtime"
-                rows="2"
-                maxlength="500"
-                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :class="formErrors.description ? 'border-red-500' : 'border-gray-300'"
-                placeholder="อธิบายเกณฑ์การประเมิน..."
-              ></textarea>
-              <p v-if="formErrors.description" class="mt-1 text-xs text-red-500">{{ formErrors.description }}</p>
-            </div>
-
-            <!-- Score Type -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทคะแนน</label>
-              <select
-                v-model="formData.score_type"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="numeric">คะแนนตัวเลข</option>
-                <option value="grade">เกรด (A-F)</option>
-                <option value="pass_fail">ผ่าน/ไม่ผ่าน</option>
-              </select>
-            </div>
-
-            <!-- Max Score & Weight -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">คะแนนเต็ม (0-1000)</label>
-                <input
-                  v-model.number="formData.max_score"
-                  @input="validateMaxScoreRealtime"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  :class="formErrors.max_score ? 'border-red-500' : 'border-gray-300'"
-                />
-                <p v-if="formErrors.max_score" class="mt-1 text-xs text-red-500">{{ formErrors.max_score }}</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">น้ำหนัก (0-10)</label>
-                <input
-                  v-model.number="formData.weight"
-                  @input="validateWeightRealtime"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  :class="formErrors.weight ? 'border-red-500' : 'border-gray-300'"
-                />
-                <p v-if="formErrors.weight" class="mt-1 text-xs text-red-500">{{ formErrors.weight }}</p>
-              </div>
-            </div>
-
-            <!-- Is Active -->
-            <div class="flex items-center gap-3">
-              <input
-                v-model="formData.is_active"
-                type="checkbox"
-                id="is_active"
-                class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <label for="is_active" class="text-sm text-gray-700">เปิดใช้งาน</label>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex justify-end gap-3 pt-4 border-t">
-              <button 
-                type="button"
-                @click="closeForm"
-                class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                ยกเลิก
-              </button>
-              <button 
-                type="submit"
-                :disabled="formLoading || !isFormValid"
-                class="px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <span v-if="formLoading">กำลังบันทึก...</span>
-                <span v-else>{{ isEditing ? 'อัปเดต' : 'สร้าง' }}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Teleport>
+    <!-- Criteria Form Modal -->
+    <CriteriaFormModal
+      :is-open="isFormModalOpen"
+      :criterion="selectedCriterion"
+      @close="closeFormModal"
+      @saved="onFormSaved"
+    />
   </div>
 </template>
 
 <style scoped>
-.btn-primary {
+.btn-ghost-rounded {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  height: 2.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: white;
-  background: linear-gradient(135deg, #3b82f6, #1e40af);
+  color: #374151;
+  background-color: white;
+  border: 1px solid #d1d5db;
   border-radius: 9999px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition: all 150ms ease;
   cursor: pointer;
-  border: none;
 }
 
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+.btn-ghost-rounded:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn-ghost-rounded:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 table {
