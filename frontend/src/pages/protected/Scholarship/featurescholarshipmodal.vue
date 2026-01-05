@@ -3,26 +3,34 @@ import { ref, watch } from 'vue';
 import { TypefeatureAPI } from '@/services/api/typefeature';
 import type { TypeFeatureResponse, TypeFeatureCreate } from '@/interfaces';
 
+/* ---------------- props / emits ---------------- */
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>();
 
-// State
+/* ---------------- state ---------------- */
 const typeFeatures = ref<TypeFeatureResponse[]>([]);
-const form = ref<{ type_feature_name: string }>({ type_feature_name: '' });
+const form = ref<{ type_feature_name: string }>({
+  type_feature_name: ''
+});
 const editingFeature = ref<TypeFeatureResponse | null>(null);
 
-// Fetch all type features
+/* ---------------- fetch ---------------- */
 const fetchTypeFeatures = async () => {
-  typeFeatures.value = await TypefeatureAPI.getAll();
+  try {
+    typeFeatures.value = await TypefeatureAPI.getAll();
+  } catch (e) {
+    console.error(e);
+    alert('โหลดรายการประเภทคุณสมบัติไม่สำเร็จ');
+  }
 };
 
-// Reset form
+/* ---------------- reset ---------------- */
 const resetForm = () => {
   form.value = { type_feature_name: '' };
   editingFeature.value = null;
 };
 
-// Watch modal open
+/* ---------------- watch modal ---------------- */
 watch(
   () => props.isOpen,
   (open) => {
@@ -34,42 +42,66 @@ watch(
   { immediate: true }
 );
 
-// Save (add / update)
+/* ---------------- save (add / edit) ---------------- */
 const handleSave = async () => {
   if (!form.value.type_feature_name.trim()) {
     alert('กรุณากรอกชื่อประเภทคุณสมบัติ');
     return;
   }
 
-  if (editingFeature.value) {
-    await TypefeatureAPI.update(editingFeature.value.ID, {
-      ID: editingFeature.value.ID,
-      type_feature_name: form.value.type_feature_name
-    });
-  } else {
-    const createData: TypeFeatureCreate = {
-      type_feature_name: form.value.type_feature_name
-    };
-    await TypefeatureAPI.create(createData);
-  }
+  try {
+    if (editingFeature.value) {
+      // แก้ไข
+      await TypefeatureAPI.update(editingFeature.value.ID, {
+        ID: editingFeature.value.ID,
+        type_feature_name: form.value.type_feature_name
+      });
 
-  await fetchTypeFeatures();
-  resetForm();
-  emit('saved');
+      alert('แก้ไขประเภทคุณสมบัติเรียบร้อยแล้ว ✅');
+    } else {
+      // เพิ่มใหม่
+      const createData: TypeFeatureCreate = {
+        type_feature_name: form.value.type_feature_name
+      };
+
+      await TypefeatureAPI.create(createData);
+
+      alert('เพิ่มประเภทคุณสมบัติเรียบร้อยแล้ว ✅');
+    }
+
+    await fetchTypeFeatures();
+    resetForm();
+
+    // ❌ ไม่ปิด modal
+    emit('saved');
+  } catch (e) {
+    console.error(e);
+    alert('บันทึกข้อมูลไม่สำเร็จ');
+  }
 };
 
-// Edit
+/* ---------------- edit ---------------- */
 const handleEdit = (f: TypeFeatureResponse) => {
   editingFeature.value = f;
   form.value.type_feature_name = f.type_feature_name;
 };
 
-// Delete
+/* ---------------- delete ---------------- */
 const handleDelete = async (f: TypeFeatureResponse) => {
-  if (confirm('ต้องการลบประเภทคุณสมบัตินี้?')) {
+  if (!confirm('ต้องการลบประเภทคุณสมบัตินี้?')) return;
+
+  try {
     await TypefeatureAPI.delete(f.ID);
     await fetchTypeFeatures();
-    if (editingFeature.value?.ID === f.ID) resetForm();
+
+    if (editingFeature.value?.ID === f.ID) {
+      resetForm();
+    }
+
+    alert('ลบประเภทคุณสมบัติเรียบร้อยแล้ว');
+  } catch (e) {
+    console.error(e);
+    alert('ลบข้อมูลไม่สำเร็จ');
   }
 };
 </script>
@@ -81,6 +113,7 @@ const handleDelete = async (f: TypeFeatureResponse) => {
         {{ editingFeature ? 'แก้ไขประเภทคุณสมบัติ' : 'เพิ่มประเภทคุณสมบัติ' }}
       </h3>
 
+      <!-- Form -->
       <div class="space-y-3">
         <input
           v-model="form.type_feature_name"
@@ -89,9 +122,13 @@ const handleDelete = async (f: TypeFeatureResponse) => {
         />
 
         <div class="flex gap-2">
-          <button @click="handleSave" class="btn btn-primary flex-1">
+          <button
+            @click="handleSave"
+            class="btn btn-primary flex-1"
+          >
             {{ editingFeature ? 'บันทึกการแก้ไข' : 'เพิ่มประเภท' }}
           </button>
+
           <button
             v-if="editingFeature"
             @click="resetForm"
@@ -102,8 +139,10 @@ const handleDelete = async (f: TypeFeatureResponse) => {
         </div>
       </div>
 
+      <!-- List -->
       <div class="mt-4 border-t pt-2">
         <h4 class="font-bold mb-2">รายการประเภทคุณสมบัติ</h4>
+
         <ul>
           <li
             v-for="f in typeFeatures"
@@ -112,22 +151,33 @@ const handleDelete = async (f: TypeFeatureResponse) => {
           >
             <div>{{ f.type_feature_name }}</div>
             <div class="flex gap-1">
-              <button @click="handleEdit(f)" class="btn btn-xs bg-yellow-400 text-white">
+              <button
+                @click="handleEdit(f)"
+                class="btn btn-xs bg-yellow-400 text-white"
+              >
                 แก้ไข
               </button>
-              <button @click="handleDelete(f)" class="btn btn-xs bg-red-500 text-white">
+              <button
+                @click="handleDelete(f)"
+                class="btn btn-xs bg-red-500 text-white"
+              >
                 ลบ
               </button>
             </div>
           </li>
-          <li v-if="typeFeatures.length === 0" class="text-gray-400 text-sm py-2">
+
+          <li
+            v-if="typeFeatures.length === 0"
+            class="text-gray-400 text-sm py-2"
+          >
             ยังไม่มีประเภท
           </li>
         </ul>
       </div>
 
+      <!-- Footer -->
       <div class="modal-action">
-        <button class="btn" @click="$emit('close')">ปิด</button>
+        <button class="btn" @click="emit('close')">ปิด</button>
       </div>
     </div>
   </div>

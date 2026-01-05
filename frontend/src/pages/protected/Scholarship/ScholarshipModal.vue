@@ -9,7 +9,7 @@ import type {
   SponsorResponse,
   TypeFeatureResponse,
   FeatureScholarshipResponse,
-  FeatureScholarshipCreate,
+  // FeatureScholarshipCreate,
   SemasterResponse,
 } from '@/interfaces';
 
@@ -48,12 +48,8 @@ const form = ref<ScholarshipCreate>({
 });
 
 /* ---------------- feature form ---------------- */
-const featureForm = ref<{
-  typefeature_id: number | null;
-  operator: string;
-  value: string;
-}>({
-  typefeature_id: null,
+const featureForm = ref({
+  typefeature_id: null as number | null,
   operator: '',
   value: '',
 });
@@ -86,12 +82,9 @@ const loadDropdownData = async () => {
     sponsorOptions.value = sponsorsRes ?? [];
     typeFeatureOptions.value = typeFeaturesRes ?? [];
 
-    /* ดึง semaster จาก scholarship (ไม่ซ้ำ) */
     const semasterMap = new Map<number, SemasterResponse>();
     (scholarshipsRes as ScholarshipResponse[]).forEach(s => {
-      if (s.semaster) {
-        semasterMap.set(s.semaster.ID, s.semaster);
-      }
+      if (s.semaster) semasterMap.set(s.semaster.ID, s.semaster);
     });
     semasterOptions.value = Array.from(semasterMap.values());
 
@@ -111,16 +104,6 @@ const loadDropdownData = async () => {
         f => f.scholarship_id === props.scholarship!.ID
       );
     } else {
-      form.value = {
-        scholarship_name: '',
-        description: '',
-        open_date: '',
-        close_date: '',
-        statusscholarship_id: statusOptions.value[0]?.ID ?? 0,
-        typescholarship_id: typeOptions.value[0]?.ID ?? 0,
-        sponsor_id: sponsorOptions.value[0]?.ID ?? 0,
-        semaster_id: semasterOptions.value[0]?.ID ?? 0,
-      };
       featureList.value = [];
     }
   } catch (e) {
@@ -131,7 +114,7 @@ const loadDropdownData = async () => {
 
 watch(
   () => props.isOpen,
-  (open) => {
+  open => {
     if (open) loadDropdownData();
   },
   { immediate: true }
@@ -140,59 +123,41 @@ watch(
 /* ---------------- submit ---------------- */
 const handleSubmit = async () => {
   try {
-    if (!form.value.scholarship_name) {
-      return alert('กรุณากรอกชื่อทุน');
-    }
-    if (!form.value.description){
-      return alert('กรุณากรอกรายละเอียด');
-    }
-    if (form.value.description.length < 5){
-      return alert('กรุณากรอกรายละเอียดอย่างน้อย 5 ตัวอักษร')
-    }
-    if (!form.value.open_date){
-      return alert('กรุณาเลือกวันเริ่มต้น')
-    }
-    if (!form.value.semaster_id) {
-      return alert('กรุณาเลือกภาคการศึกษา');
-    }
+    if (!form.value.scholarship_name) return alert('กรุณากรอกชื่อทุน');
+    if (!form.value.description || form.value.description.length < 5)
+      return alert('กรุณากรอกรายละเอียดอย่างน้อย 5 ตัวอักษร');
+    if (!form.value.open_date) return alert('กรุณาเลือกวันเริ่มต้น');
+    if (!form.value.semaster_id) return alert('กรุณาเลือกภาคการศึกษา');
 
-    let scholarshipId: number | undefined = props.scholarship?.ID;
+    let scholarshipId = props.scholarship?.ID;
 
     if (props.scholarship) {
       await ScholarshipAPI.update(
         props.scholarship.ID,
         form.value as ScholarshipUpdate
       );
-      scholarshipId = props.scholarship.ID;
     } else {
-      const created = await ScholarshipAPI.create(
-        form.value as ScholarshipCreate
-      );
+      const created = await ScholarshipAPI.create(form.value);
       scholarshipId = (created as ScholarshipResponse).ID;
     }
 
-    if (!scholarshipId) throw new Error('Missing scholarship ID');
+    if (!scholarshipId) throw new Error('Missing ID');
 
     if (props.scholarship) {
-      const allFeatures =
-        (await FeatureScholarshipAPI.getAll()) as FeatureScholarshipResponse[];
-      const toDelete = allFeatures.filter(
-        f => f.scholarship_id === scholarshipId
-      );
-      for (const f of toDelete) {
+      const all = (await FeatureScholarshipAPI.getAll()) as FeatureScholarshipResponse[];
+      for (const f of all.filter(i => i.scholarship_id === scholarshipId)) {
         await FeatureScholarshipAPI.delete(f.ID);
       }
     }
 
     for (const f of featureList.value) {
       if (!f.typefeature_id || !f.operator) continue;
-      const payload: FeatureScholarshipCreate = {
+      await FeatureScholarshipAPI.create({
         scholarship_id: scholarshipId,
         typefeature_id: f.typefeature_id,
         operator: f.operator,
         value: f.value,
-      };
-      await FeatureScholarshipAPI.create(payload);
+      });
     }
 
     emit('saved');
@@ -204,17 +169,12 @@ const handleSubmit = async () => {
 
 /* ---------------- feature actions ---------------- */
 const addFeature = () => {
-  if (!featureForm.value.typefeature_id) {
-    return alert('เลือกประเภทคุณสมบัติ');
-  }
-  if (!featureForm.value.operator || !featureForm.value.value) {
+  if (!featureForm.value.typefeature_id || !featureForm.value.operator || !featureForm.value.value)
     return alert('กรอกข้อมูลให้ครบ');
-  }
 
-  const tf =
-    typeFeatureOptions.value.find(
-      t => t.ID === featureForm.value.typefeature_id
-    ) || null;
+  const tf = typeFeatureOptions.value.find(
+    t => t.ID === featureForm.value.typefeature_id
+  );
 
   featureList.value.push({
     ID: 0,
@@ -239,100 +199,74 @@ const deleteFeature = (f: LocalFeature) => {
 
 <template>
   <div v-if="isOpen" class="modal modal-open">
-    <div class="modal-box max-w-xl">
-      <h2 class="font-bold text-lg mb-3">
+    <div class="modal-box w-full max-w-3xl overflow-x-hidden">
+      <h2 class="font-bold text-lg mb-4">
         {{ scholarship ? 'แก้ไขทุน' : 'เพิ่มทุนใหม่' }}
       </h2>
 
       <div class="space-y-3">
-        <input
-          v-model="form.scholarship_name"
-          class="input input-bordered w-full"
-          placeholder="ชื่อทุน"
-        />
+        <input v-model="form.scholarship_name" class="input input-bordered w-full" placeholder="ชื่อทุน" />
+        <textarea v-model="form.description" class="textarea textarea-bordered w-full" rows="3" placeholder="รายละเอียดทุน" />
 
-        <textarea
-          v-model="form.description"
-          class="textarea textarea-bordered w-full"
-          rows="3"
-          placeholder="รายละเอียดทุน"
-        />
-
-        <!-- เลือกภาคการศึกษา -->
         <select v-model.number="form.semaster_id" class="select select-bordered w-full">
-          <option :value="0" disabled>-- เลือกภาคการศึกษา --</option>
-          <option
-            v-for="s in semasterOptions"
-            :key="s.ID"
-            :value="s.ID"
-          >
+          <option disabled value="0">-- เลือกภาคการศึกษา --</option>
+          <option v-for="s in semasterOptions" :key="s.ID" :value="s.ID">
             ปี {{ s.academic_year }} / เทอม {{ s.term }} / รอบ {{ s.round }}
           </option>
         </select>
 
-        <select v-model.number="form.typescholarship_id" class="select select-bordered w-full">
-          <option :value="0" disabled>-- เลือกประเภททุน --</option>
-          <option v-for="t in typeOptions" :key="t.ID" :value="t.ID">
-            {{ t.type_name }}
-          </option>
-        </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <select v-model.number="form.typescholarship_id" class="select select-bordered w-full">
+            <option disabled value="0">-- ประเภททุน --</option>
+            <option v-for="t in typeOptions" :key="t.ID" :value="t.ID">{{ t.type_name }}</option>
+          </select>
 
-        <select v-model.number="form.statusscholarship_id" class="select select-bordered w-full">
-          <option :value="0" disabled>-- เลือกสถานะทุน --</option>
-          <option v-for="s in statusOptions" :key="s.ID" :value="s.ID">
-            {{ s.status_name }}
-          </option>
-        </select>
+          <select v-model.number="form.statusscholarship_id" class="select select-bordered w-full">
+            <option disabled value="0">-- สถานะทุน --</option>
+            <option v-for="s in statusOptions" :key="s.ID" :value="s.ID">{{ s.status_name }}</option>
+          </select>
+        </div>
 
         <select v-model.number="form.sponsor_id" class="select select-bordered w-full">
-          <option :value="0" disabled>-- เลือกผู้สนับสนุน --</option>
-          <option v-for="sp in sponsorOptions" :key="sp.ID" :value="sp.ID">
-            {{ sp.company_name }}
-          </option>
+          <option disabled value="0">-- ผู้สนับสนุน --</option>
+          <option v-for="sp in sponsorOptions" :key="sp.ID" :value="sp.ID">{{ sp.company_name }}</option>
         </select>
 
-        <div class="grid grid-cols-2 gap-2">
-          <input v-model="form.open_date" type="date" class="input input-bordered w-full" />
-          <input v-model="form.close_date" type="date" class="input input-bordered w-full" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <input type="date" v-model="form.open_date" class="input input-bordered w-full" />
+          <input type="date" v-model="form.close_date" class="input input-bordered w-full" />
         </div>
 
         <!-- Feature -->
         <div class="border-t pt-3">
           <h3 class="font-bold mb-2">คุณสมบัติทุน</h3>
 
-          <div class="flex gap-2 mb-2">
-            <select v-model.number="featureForm.typefeature_id" class="select select-bordered flex-1">
-              <option :value="null" disabled>-- ประเภท --</option>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+            <select v-model.number="featureForm.typefeature_id" class="select select-bordered w-full md:col-span-2">
+              <option disabled :value="null">-- ประเภท --</option>
               <option v-for="f in typeFeatureOptions" :key="f.ID" :value="f.ID">
                 {{ f.type_feature_name }}
               </option>
             </select>
 
-            <input v-model="featureForm.operator" class="input input-bordered w-24" placeholder="Op" />
-            <input v-model="featureForm.value" class="input input-bordered flex-1" placeholder="ค่า" />
-            <button class="btn btn-primary" @click="addFeature">เพิ่ม</button>
+            <input v-model="featureForm.operator" class="input input-bordered w-full" placeholder="Op" />
+            <input v-model="featureForm.value" class="input input-bordered w-full" placeholder="ค่า" />
           </div>
+
+          <button class="btn btn-primary btn-sm mb-2" @click="addFeature">เพิ่มคุณสมบัติ</button>
 
           <ul>
             <li
               v-for="f in featureList"
-              :key="f.ID > 0 ? f.ID : f.tempId"
+              :key="f.ID || f.tempId"
               class="flex justify-between items-center border-b py-1"
             >
-              <span>
-                {{ f.Typefeature?.type_feature_name }}
-                {{ f.operator }}
-                {{ f.value }}
-                <span v-if="f.ID === 0" class="text-xs text-gray-400 ml-1">
-                  (ยังไม่บันทึก)
-                </span>
+              <span class="break-all">
+                {{ f.Typefeature?.type_feature_name }} {{ f.operator }} {{ f.value }}
               </span>
-              <button class="btn btn-xs btn-error" @click="deleteFeature(f)">
-                ลบ
-              </button>
+              <button class="btn btn-xs btn-error" @click="deleteFeature(f)">ลบ</button>
             </li>
-
-            <li v-if="featureList.length === 0" class="text-gray-400 text-sm">
+            <li v-if="featureList.length === 0" class="text-sm text-gray-400">
               ยังไม่มีคุณสมบัติ
             </li>
           </ul>
