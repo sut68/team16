@@ -517,12 +517,13 @@ const handleFileChange = async (e: Event) => {
                       v-if="getStepStatus(3) === 'action-needed'"
                       class="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-2"
                     >
+                      <!-- Success Message -->
                       <p
-                        class="text-sm text-blue-800 mb-3 font-medium flex items-center gap-2"
+                        class="text-sm text-blue-800 mb-4 font-medium flex items-center gap-2"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          class="h-4 w-4"
+                          class="h-5 w-5 text-green-600"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -531,15 +532,84 @@ const handleFileChange = async (e: Event) => {
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
-                        คุณสมบัติผ่านเกณฑ์แล้ว
+                        คุณสมบัติผ่านเกณฑ์แล้ว กรุณาอัปโหลดเอกสาร
                       </p>
+
+                      <!-- Download Template Section -->
+                      <div class="bg-white rounded-lg p-4 mb-4 border border-blue-100">
+                        <p class="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          ดาวน์โหลดแบบฟอร์มใบสมัคร
+                        </p>
+                        <a
+                          href="/application_form/application_form.pdf"
+                          download
+                          class="btn btn-sm btn-outline border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          ดาวน์โหลดฟอร์ม
+                        </a>
+                      </div>
+
+                      <!-- Required Documents Checklist -->
+                      <div class="bg-white rounded-lg p-4 mb-4 border border-blue-100">
+                        <p class="text-sm font-semibold text-slate-700 mb-2">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                        <ul class="text-sm text-slate-600 space-y-1.5">
+                          <li class="flex items-center gap-2">
+                            <span class="text-green-500">○</span>
+                            <span>ใบสมัครทุน (กรอกข้อมูลเรียบร้อยแล้ว)</span>
+                          </li>
+                          <li class="flex items-center gap-2">
+                            <span class="text-green-500">○</span>
+                            <span>ใบ Transcript</span>
+                          </li>
+                          <li class="flex items-center gap-2">
+                            <span class="text-gray-400">○</span>
+                            <span class="text-gray-500">ใบคะแนนภาษา (ถ้ามี)</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <!-- PDF Merge Links -->
+                      <div class="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200">
+                        <p class="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          เว็ปไซต์รวมไฟล์ PDF เป็นไฟล์เดียว
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                          <a
+                            href="https://www.ilovepdf.com/merge_pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none"
+                          >
+                            🔗 iLovePDF
+                          </a>
+                          <a
+                            href="https://smallpdf.com/merge-pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-xs bg-blue-500 hover:bg-blue-600 text-white border-none"
+                          >
+                            🔗 SmallPDF
+                          </a>
+                        </div>
+                      </div>
+
+                      <!-- Upload Button -->
                       <button
                         @click="triggerUpload"
                         :disabled="isUploading"
-                        class="btn bg-[#1e3a8a] hover:bg-blue-800 text-white btn-sm border-none w-full sm:w-auto"
+                        class="btn bg-[#1e3a8a] hover:bg-blue-800 text-white btn-sm border-none w-full"
                       >
                         <span
                           v-if="isUploading"
@@ -569,45 +639,112 @@ const handleFileChange = async (e: Event) => {
                       v-if="getStepStatus(3) === 'request-change'"
                       class="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-3 animate-fade-in"
                     >
-                      <div class="flex items-start gap-3 mb-3">
-                        <div class="bg-orange-100 p-2 rounded-full shrink-0">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-5 w-5 text-orange-600"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                            />
-                          </svg>
-                        </div>
-                        <div class="w-full">
-                          <p class="text-sm font-bold text-orange-900">
-                            เอกสารต้องได้รับการแก้ไข
-                          </p>
-                          <div
-                            class="mt-2 bg-white p-3 rounded border border-orange-100 text-sm text-slate-700 shadow-sm"
-                          >
-                            <span
-                              class="font-semibold text-orange-800 text-xs block mb-1"
-                              >สิ่งที่ต้องแก้ไข:</span
+                      <!-- Warning Message -->
+                      <div class="bg-white rounded-lg p-4 mb-4 border border-orange-200">
+                        <div class="flex items-start gap-3">
+                          <div class="bg-orange-100 p-1.5 rounded-full shrink-0">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-4 w-4 text-orange-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
                             >
-                            "{{
-                              processState.message ||
-                              "กรุณาตรวจสอบความถูกต้องของเอกสารแล้วอัปโหลดใหม่อีกครั้ง"
-                            }}"
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                              />
+                            </svg>
+                          </div>
+                          <div class="flex-1">
+                            <p class="text-sm font-bold text-orange-900">
+                              เอกสารต้องได้รับการแก้ไข
+                            </p>
+                            <div class="mt-2 text-sm text-slate-700">
+                              <span class="font-semibold text-orange-800 text-xs block mb-1">สิ่งที่ต้องแก้ไข:</span>
+                              "{{
+                                processState.message ||
+                                "กรุณาตรวจสอบความถูกต้องของเอกสารแล้วอัปโหลดใหม่อีกครั้ง"
+                              }}"
+                            </div>
                           </div>
                         </div>
                       </div>
+
+                      <!-- Download Template Section -->
+                      <div class="bg-white rounded-lg p-4 mb-4 border border-orange-100">
+                        <p class="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          ดาวน์โหลดแบบฟอร์มใบสมัคร
+                        </p>
+                        <a
+                          href="/templates/application_form.pdf"
+                          download
+                          class="btn btn-sm btn-outline border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          ดาวน์โหลดฟอร์ม
+                        </a>
+                      </div>
+
+                      <!-- Required Documents Checklist -->
+                      <div class="bg-white rounded-lg p-4 mb-4 border border-orange-100">
+                        <p class="text-sm font-semibold text-slate-700 mb-2">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                        <ul class="text-sm text-slate-600 space-y-1.5">
+                          <li class="flex items-center gap-2">
+                            <span class="text-orange-500">○</span>
+                            <span>ใบสมัครทุน (กรอกข้อมูลเรียบร้อยแล้ว)</span>
+                          </li>
+                          <li class="flex items-center gap-2">
+                            <span class="text-orange-500">○</span>
+                            <span>ใบ Transcript</span>
+                          </li>
+                          <li class="flex items-center gap-2">
+                            <span class="text-gray-400">○</span>
+                            <span class="text-gray-500">ใบคะแนนภาษา (ถ้ามี)</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <!-- PDF Merge Links -->
+                      <div class="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200">
+                        <p class="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          เว็บไซต์รวมไฟล์ PDF เป็นไฟล์เดียว
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                          <a
+                            href="https://www.ilovepdf.com/merge_pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-xs bg-red-500 hover:bg-red-600 text-white border-none"
+                          >
+                            🔗 iLovePDF
+                          </a>
+                          <a
+                            href="https://smallpdf.com/merge-pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-xs bg-blue-500 hover:bg-blue-600 text-white border-none"
+                          >
+                            🔗 SmallPDF
+                          </a>
+                        </div>
+                      </div>
+
+                      <!-- Upload Button -->
                       <button
                         @click="triggerUpload"
                         :disabled="isUploading"
-                        class="btn bg-orange-500 hover:bg-orange-600 text-white btn-sm border-none w-full sm:w-auto shadow-md"
+                        class="btn bg-orange-500 hover:bg-orange-600 text-white btn-sm border-none w-full"
                       >
                         <span
                           v-if="isUploading"
