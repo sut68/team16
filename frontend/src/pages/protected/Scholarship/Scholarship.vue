@@ -33,7 +33,7 @@ const filterType = ref('all');
 const isModalOpen = ref(false);
 const selectedScholarship = ref<ScholarshipResponse | null>(null);
 
-// ดูรายละเอียดทุน ⭐
+// ดูรายละเอียดทุน
 const isDetailModalOpen = ref(false);
 const detailScholarship = ref<ScholarshipResponse | null>(null);
 
@@ -128,7 +128,6 @@ const openEditModal = (item: ScholarshipResponse) => {
   isModalOpen.value = true;
 };
 
-// ⭐ เปิดดูรายละเอียดทุน
 const openDetailModal = (item: ScholarshipResponse) => {
   detailScholarship.value = item;
   isDetailModalOpen.value = true;
@@ -160,104 +159,112 @@ const handleFeatureSaved = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f0f2f5] p-6 text-slate-800">
-    <!-- Header -->
-    <div class="flex flex-col xl:flex-row justify-between items-center gap-4 mb-6">
-      <div class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-        <input
-          v-model="searchQuery"
-          placeholder="ค้นหาทุน..."
-          class="input input-sm input-bordered rounded-full pl-4 w-64"
-        />
+  <!-- PAGE ROOT -->
+  <div class="h-screen bg-[#f0f2f5] p-6 text-slate-800 flex flex-col">
 
-        <select v-model="sortOrder" class="select select-sm select-bordered rounded-full">
-          <option value="newest">ใหม่ล่าสุด</option>
-          <option value="oldest">เก่าสุด</option>
-        </select>
+    <!-- ================= HEADER / FILTER ================= -->
+    <div class="shrink-0 mb-6">
+      <div class="flex flex-col xl:flex-row justify-between items-center gap-4">
+        <div class="flex gap-2 overflow-x-auto pb-2">
+          <input
+            v-model="searchQuery"
+            placeholder="ค้นหาทุน..."
+            class="input input-sm input-bordered rounded-full pl-4 w-64"
+          />
 
-        <select v-model="filterStatus" class="select select-sm select-bordered rounded-full">
-          <option value="all">สถานะทั้งหมด</option>
-          <option v-for="st in statuses" :key="st.ID" :value="st.status_name">
-            {{ st.status_name }}
-          </option>
-        </select>
+          <select v-model="sortOrder" class="select select-sm select-bordered rounded-full">
+            <option value="newest">ใหม่ล่าสุด</option>
+            <option value="oldest">เก่าสุด</option>
+          </select>
 
-        <select v-model="filterType" class="select select-sm select-bordered rounded-full">
-          <option value="all">ทุกประเภท</option>
-          <option v-for="tp in types" :key="tp.ID" :value="tp.type_name">
-            {{ tp.type_name }}
-          </option>
-        </select>
-      </div>
+          <select v-model="filterStatus" class="select select-sm select-bordered rounded-full">
+            <option value="all">สถานะทั้งหมด</option>
+            <option v-for="st in statuses" :key="st.ID" :value="st.status_name">
+              {{ st.status_name }}
+            </option>
+          </select>
 
-      <div class="flex gap-2">
-        <button
-          @click="openAddModal"
-          class="btn btn-sm rounded-full bg-blue-600 text-white px-5 shadow"
-        >
-          ➕ เพิ่มทุนใหม่
-        </button>
-        <button
-          @click="openAddFeatureModal(null)"
-          class="btn btn-sm rounded-full bg-green-500 text-white px-5 shadow"
-        >
-          ➕ เพิ่มคุณสมบัติทุน
-        </button>
+          <select v-model="filterType" class="select select-sm select-bordered rounded-full">
+            <option value="all">ทุกประเภท</option>
+            <option v-for="tp in types" :key="tp.ID" :value="tp.type_name">
+              {{ tp.type_name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            @click="openAddModal"
+            class="btn btn-sm rounded-full bg-blue-600 text-white px-5 shadow"
+          >
+            ➕ เพิ่มทุนใหม่
+          </button>
+          <button
+            @click="openAddFeatureModal(null)"
+            class="btn btn-sm rounded-full bg-green-500 text-white px-5 shadow"
+          >
+            ➕ เพิ่มคุณสมบัติทุน
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- List -->
-    <transition-group name="fade" tag="div" class="space-y-4 pb-10">
-      <div
-        v-for="item in filteredScholarships"
-        :key="item.ID"
-        @click="openDetailModal(item)"
-        class="card bg-white shadow-sm border hover:border-blue-300 rounded-2xl p-4 cursor-pointer"
-      >
-        <div class="flex justify-between items-start">
-          <div>
-            <h3 class="font-bold text-blue-800 text-lg">
-              {{ item.scholarship_name }}
-            </h3>
-            <p class="text-gray-500 text-sm mt-1 line-clamp-2">
-              {{ item.description }}
-            </p>
-            <div class="mt-2 text-xs text-gray-400">
-              ประเภท: {{ item.typescholarship?.type_name }} |
-              สถานะ: {{ item.statusscholarship?.status_name }} |
-              บริษัท: {{ item.sponsor?.company_name }}
-            </div>
-            <div class="mt-1 text-xs text-gray-400">
-              เปิดรับ: {{ item.open_date }} – ปิดรับ: {{ item.close_date }}
-            </div>
-          </div>
+    <!-- ================= LIST (SCROLLABLE) ================= -->
+    <div class="flex-1 overflow-y-auto pr-2">
+      <transition-group name="fade" tag="div" class="space-y-4 pb-10">
 
-          <div class="flex gap-2 flex-col">
-            <button
-              @click.stop="openEditModal(item)"
-              class="btn btn-xs rounded-full bg-yellow-400 text-white"
-            >
-              แก้ไข
-            </button>
-            <button
-              @click.stop="handleDelete(item)"
-              class="btn btn-xs rounded-full bg-red-500 text-white"
-            >
-              ลบ
-            </button>
+        <div
+          v-for="item in filteredScholarships"
+          :key="item.ID"
+          @click="openDetailModal(item)"
+          class="card bg-white shadow-sm border hover:border-blue-300 rounded-2xl p-4 cursor-pointer"
+        >
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="font-bold text-blue-800 text-lg">
+                {{ item.scholarship_name }}
+              </h3>
+              <p class="text-gray-500 text-sm mt-1 line-clamp-2">
+                {{ item.description }}
+              </p>
+              <div class="mt-2 text-xs text-gray-400">
+                ประเภท: {{ item.typescholarship?.type_name }} |
+                สถานะ: {{ item.statusscholarship?.status_name }} |
+                บริษัท: {{ item.sponsor?.company_name }}
+              </div>
+              <div class="mt-1 text-xs text-gray-400">
+                เปิดรับ: {{ item.open_date }} – ปิดรับ: {{ item.close_date }}
+              </div>
+            </div>
+
+            <div class="flex gap-2 flex-col">
+              <button
+                @click.stop="openEditModal(item)"
+                class="btn btn-xs rounded-full bg-yellow-400 text-white"
+              >
+                แก้ไข
+              </button>
+              <button
+                @click.stop="handleDelete(item)"
+                class="btn btn-xs rounded-full bg-red-500 text-white"
+              >
+                ลบ
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div
-        v-if="filteredScholarships.length === 0"
-        class="text-center text-gray-400 py-16"
-      >
-        ไม่พบข้อมูลทุน
-      </div>
-    </transition-group>
+        <div
+          v-if="filteredScholarships.length === 0"
+          class="text-center text-gray-400 py-16"
+        >
+          ไม่พบข้อมูลทุน
+        </div>
 
-    <!-- Modals -->
+      </transition-group>
+    </div>
+
+    <!-- ================= MODALS ================= -->
     <ScholarshipModal
       v-if="isModalOpen"
       :isOpen="isModalOpen"
@@ -274,11 +281,11 @@ const handleFeatureSaved = () => {
       @saved="handleFeatureSaved"
     />
 
-    <!-- ⭐ Modal ดูรายละเอียดทุน -->
     <ScholarshipDetailModal
       :isOpen="isDetailModalOpen"
       :scholarship="detailScholarship"
       @close="isDetailModalOpen = false"
     />
+
   </div>
 </template>
