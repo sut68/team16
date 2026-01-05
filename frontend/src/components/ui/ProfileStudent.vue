@@ -51,7 +51,7 @@ watch(() => props.initialData, (newVal) => {
       }
     }
 
-    // 🔥 Check Address Consistency on Load
+    // Check Address Consistency on Load
     // ถ้ามีข้อมูลและข้อมูลเหมือนกัน ให้ติ๊กถูกอัตโนมัติ
     if (form.value.permanent_address &&
       form.value.permanent_address === form.value.current_address) {
@@ -105,7 +105,7 @@ function onGuardianTypeChange() {
 }
 
 
-// 🟢 STRICT VALIDATION FUNCTION (Checks EVERY field)
+// STRICT VALIDATION FUNCTION (Checks EVERY field)
 const validateForm = (): string | null => {
   const f = form.value;
   const fam = f.family_info || {};
@@ -212,7 +212,7 @@ const save = async () => {
 
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b gap-4">
       <div>
-        <h2 class="text-xl font-bold text-[#1e3a8a]">ข้อมูลส่วนตัวนิสิต</h2>
+        <h2 class="text-xl font-bold text-[#1e3a8a]">ข้อมูลส่วนตัวนักศึกษา</h2>
         <p class="text-xs text-gray-500 mt-1">จัดการข้อมูลประวัติส่วนตัวและครอบครัว</p>
       </div>
       <div>
@@ -444,7 +444,7 @@ const save = async () => {
         
         <!-- Guardian Type Selector -->
         <div class="form-control mb-4">
-          <label class="label text-xs font-semibold text-gray-700">ผู้ปกครองของคุณคือใคร? <span v-if="isEditing" class="text-red-500">*</span></label>
+          <label class="label text-xs font-semibold text-gray-700">ผู้ปกครองของนักศึกษา <span v-if="isEditing" class="text-red-500">*</span></label>
           <select 
             v-model="form.family_info.guardian_is_parent" 
             :disabled="!isEditing"
@@ -465,8 +465,7 @@ const save = async () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>
-            ระบบจะใช้ข้อมูลจาก<strong>{{ form.family_info.guardian_is_parent === 'father' ? 'บิดา' : 'มารดา' }}</strong>เป็นผู้ปกครอง 
-            และจะไม่นับรายได้ซ้ำเมื่อคำนวณรายได้รวมครอบครัว
+            ระบบจะใช้ข้อมูลจาก<strong>{{ form.family_info.guardian_is_parent === 'father' ? 'บิดา' : 'มารดา' }}</strong>เป็นผู้ปกครอง
           </span>
         </div>
 

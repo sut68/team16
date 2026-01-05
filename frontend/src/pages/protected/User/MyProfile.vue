@@ -66,7 +66,7 @@ onMounted(loadProfile);
           </svg>
         </div>
         <div class="flex-1">
-          <h3 class="font-bold text-lg text-amber-800 mb-2">⚠️ กรุณากรอกข้อมูลให้ครบถ้วน</h3>
+          <h3 class="font-bold text-lg text-amber-800 mb-2">กรุณากรอกข้อมูลให้ครบถ้วน</h3>
           <p class="text-sm text-amber-700 mb-3">
             คุณต้องกรอกข้อมูลโปรไฟล์ให้ครบถ้วนก่อนจึงจะสามารถสมัครทุนการศึกษาได้
           </p>
@@ -110,7 +110,7 @@ onMounted(loadProfile);
           </svg>
         </div>
         <div class="flex-1">
-          <h3 class="font-bold text-lg text-green-800">✅ ข้อมูลโปรไฟล์ครบถ้วนแล้ว!</h3>
+          <h3 class="font-bold text-lg text-green-800">ข้อมูลโปรไฟล์ครบถ้วนแล้ว</h3>
           <p class="text-sm text-green-700">คุณสามารถไปสมัครทุนการศึกษาได้แล้ว</p>
         </div>
         <router-link to="/dashboard/apply-scholarship" 
