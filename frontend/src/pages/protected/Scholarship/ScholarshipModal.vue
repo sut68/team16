@@ -9,7 +9,7 @@ import type {
   SponsorResponse,
   TypeFeatureResponse,
   FeatureScholarshipResponse,
-  FeatureScholarshipCreate,
+  // FeatureScholarshipCreate,
   SemasterResponse,
 } from '@/interfaces';
 
