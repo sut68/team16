@@ -53,6 +53,12 @@ func SeedMajors(db *gorm.DB) error {
 			{
 				MajorName: "Geological Engineering",
 			},
+			{
+				MajorName: "Electronics Engineering",
+			},
+			{
+				MajorName: "Design Technology",
+			},
 		}
 		if err := db.Create(&majors).Error; err != nil {
 			return err
