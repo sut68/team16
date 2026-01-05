@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import type { PropType } from 'vue';
-import type { SponsorResponse, SponsorPayload } from '@/interfaces/sponsor';
-import type { IndustryResponse } from '@/interfaces/sponsor'; // <-- ปรับ path ตามจริง
+import type { SponsorResponse, SponsorPayload, IndustryResponse } from '@/interfaces/sponsor';
 import { SponsorService } from '@/services/sponsor/sponsor';
-import { IndustryService } from '@/services/sponsor/industry'; // <-- ตรวจสอบ path ให้ตรง
 import { validateSponsorForm } from '@/validators/sponsor_validator';
 import Swal from 'sweetalert2';
-import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
+
+// Hooks
+import { useModalFocusTrap } from '@/hooks/sponsor/useFocusTrap';
+import { useIndustries } from '@/hooks/sponsor/useIndustries';
 
 // Props & emits
 const props = defineProps({
   isOpen: { type: Boolean as PropType<boolean>, default: false },
   loading: { type: Boolean as PropType<boolean>, default: false },
   initialData: { type: Object as PropType<SponsorResponse | null>, default: null },
-  industries: { type: Array as PropType<IndustryResponse[] | null>, default: null }, // optional pre-loaded list
+  industries: { type: Array as PropType<IndustryResponse[] | null>, default: null },
 });
 
 const emit = defineEmits<{
@@ -23,7 +24,7 @@ const emit = defineEmits<{
   (e: 'updated', sponsor: SponsorResponse): void;
 }>();
 
-// Local state
+// Form State
 const form = ref<Partial<SponsorPayload>>({
   company_name: '',
   website: null,
@@ -34,21 +35,21 @@ const form = ref<Partial<SponsorPayload>>({
 const saving = ref(false);
 const errors = ref<Record<string, any>>({});
 
-// industries state (if parent didn't pass, we'll load)
-const industries = ref<IndustryResponse[]>([]);
-const industryLoading = ref<boolean>(false);
-const industryError = ref<string | null>(null);
-
-// focus trap
-const isOpenRef = computed(() => props.isOpen);
-const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
-  onClose: () => {
-    emit('update:isOpen', false);
-    emit('close');
-  },
+// Use Hooks
+const { 
+  industries, 
+  loading: industryLoading, 
+  error: industryError,
+  setIndustries,
+  load: loadIndustries 
+} = useIndustries({ 
+  autoLoad: false,
+  initialIndustries: props.industries 
 });
 
-// sync initialData -> form when opens or initialData changes
+const { dialogId, focusFirstElement, onBackdropClick, close } = useModalFocusTrap(props, emit);
+
+// Sync initialData -> form
 watch(
   () => props.initialData,
   (v) => {
@@ -64,60 +65,22 @@ watch(
   { immediate: true }
 );
 
-// loadIndustries function (uses IndustryService.getAll() which returns res.data)
-async function loadIndustries() {
-  // if parent already provided industries, don't load
-  if (props.industries && props.industries.length > 0) {
-    industries.value = props.industries;
-    return;
-  }
-
-  // avoid duplicate loads
-  if (industryLoading.value || industries.value.length > 0) return;
-
-  industryLoading.value = true;
-  industryError.value = null;
-
-  try {
-    const res = await IndustryService.getAll();
-    // per your note, IndustryService.getAll() returns res.data directly
-    industries.value = res ?? [];
-  } catch (err: any) {
-    console.error('โหลดอุตสาหกรรมผิดพลาด:', err);
-    industryError.value = err?.message ?? 'โหลดอุตสาหกรรมไม่สำเร็จ';
-    industries.value = [];
-  } finally {
-    industryLoading.value = false;
-  }
-}
-
-// When modal opens, load industries if needed and focus
+// When modal opens, load industries if needed
 watch(
   () => props.isOpen,
   (open) => {
     if (open) {
       nextTick(() => focusFirstElement());
-      // Load if parent didn't pass industries
-      if (!props.industries) {
-        loadIndustries();
+      if (props.industries && props.industries.length > 0) {
+        setIndustries(props.industries);
       } else {
-        industries.value = props.industries;
+        loadIndustries();
       }
     }
   }
 );
 
-// Also load on mount if desirable (optional)
-onMounted(() => {
-  // only load if parent didn't pass industries and nothing loaded yet
-  if (!props.industries && industries.value.length === 0) {
-    loadIndustries();
-  } else if (props.industries) {
-    industries.value = props.industries;
-  }
-});
-
-// helper: build partial diff (only include changed fields)
+// Helper: build partial diff (only include changed fields)
 function buildPartialPayload(initial: SponsorResponse | null, current: Partial<SponsorPayload>) {
   const payload: Partial<SponsorPayload> = {};
   if (!initial) {
@@ -200,11 +163,6 @@ async function submit() {
   } finally {
     saving.value = false;
   }
-}
-
-function close() {
-  emit('update:isOpen', false);
-  emit('close');
 }
 </script>
 
@@ -291,9 +249,23 @@ function close() {
         </div>
 
         <!-- footer -->
-        <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-end gap-2">
-          <button class="btn btn-ghost" @click="close" type="button">ยกเลิก</button>
-          <button class="btn btn-primary" :disabled="saving" @click="submit" type="button">
+        <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-end gap-3">
+          <button 
+            class="btn btn-ghost hover:bg-gray-200 transition-all duration-200" 
+            @click="close" 
+            type="button"
+          >
+            ยกเลิก
+          </button>
+          <button 
+            class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white border-none
+                   shadow-md hover:shadow-lg hover:-translate-y-0.5 
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                   transition-all duration-200" 
+            :disabled="saving" 
+            @click="submit" 
+            type="button"
+          >
             <span v-if="saving" class="loading loading-spinner" aria-hidden="true"></span>
             <span v-else>บันทึกการเปลี่ยนแปลง</span>
           </button>

@@ -1,24 +1,26 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import type { PropType } from 'vue';
-import type { IndustryResponse } from '@/interfaces/sponsor';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
-import { IndustryService } from '@/services/sponsor/industry';
 import { validateSponsorForm } from '@/validators/sponsor_validator';
-import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap';
 
-// ---------------- Props / Emits ----------------
+// Hooks
+import { useModalFocusTrap } from '@/hooks/sponsor/useFocusTrap';
+import { useIndustries } from '@/hooks/sponsor/useIndustries';
+
+// Props / Emits
 const props = defineProps({
   isOpen: { type: Boolean as PropType<boolean>, default: false },
   loading: { type: Boolean as PropType<boolean>, default: false },
   initialData: { type: Object as PropType<Record<string, any> | null>, default: null },
 });
-const emit = defineEmits(['update:isOpen', 'close', 'create']);
+const emit = defineEmits<{
+  (e: 'update:isOpen', v: boolean): void;
+  (e: 'close'): void;
+  (e: 'create', payload: SponsorPayload): void;
+}>();
 
-// ---------------- Local state ----------------
-const industries = ref<IndustryResponse[]>([]);
-const industryLoading = ref<boolean>(true);
-
+// Form State
 const form = ref<SponsorPayload>({
   company_name: '',
   website: null,
@@ -27,52 +29,28 @@ const form = ref<SponsorPayload>({
   description: null,
   contacts: [] as ContactPayload[],
 });
-
 const errors = ref<Record<string, any>>({});
 
-// ---------------- useFocusTrap ----------------
-const isOpenRef = computed(() => props.isOpen);
-const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
-  onClose: () => {
-    emit('update:isOpen', false);
-    emit('close');
-  },
-});
+// Use Hooks
+const { industries, loading: industryLoading } = useIndustries({ autoLoad: true });
+const { dialogId, focusFirstElement, onBackdropClick, close } = useModalFocusTrap(props, emit);
 
-// ---------------- Fetch industries ----------------
-onMounted(async () => {
-  industryLoading.value = true;
-  try {
-    const res = await IndustryService.getAll();
-    industries.value = res ?? [];
-  } catch (err) {
-    console.error('โหลดอุตสาหกรรมผิดพลาด:', err);
-    industries.value = [];
-  } finally {
-    industryLoading.value = false;
-  }
-});
-
-// ---------------- Watch isOpen (reset form when opened) ----------------
+// Watch isOpen (reset form when opened)
 watch(
   () => props.isOpen,
   (open) => {
     if (open) {
       resetForm();
-      // composable handles focus & body scroll
       nextTick(() => {
-        // ถ้ามี error จาก server หรือ validation ก่อนหน้า ให้โฟกัส field แรกที่มี error
         if (Object.keys(errors.value || {}).length > 0) {
           focusFirstElement(true);
         }
       });
-    } else {
-      // closed -> nothing extra here
     }
   }
 );
 
-// ---------------- Helpers ----------------
+// Helpers
 function resetForm() {
   form.value = {
     company_name: props.initialData?.company_name ?? '',
@@ -83,11 +61,6 @@ function resetForm() {
     contacts: (props.initialData?.contacts ?? []) as ContactPayload[],
   };
   errors.value = {};
-}
-
-function close() {
-  emit('update:isOpen', false);
-  emit('close');
 }
 
 function addContact() {
@@ -315,13 +288,9 @@ function submit() {
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t bg-slate-50 flex items-center justify-end gap-2">
+        <div class="px-6 py-4 border-t bg-slate-50 flex items-center justify-end gap-3">
           <button 
-            class="btn btn-sm btn-ghost text-gray-700
-                hover:bg-red-100 hover:border-red-400 hover:text-red-700
-                flex items-center justify-center gap-2
-                rounded-full px-5 h-10 w-full md:w-auto
-                transition-all duration-150" 
+            class="btn btn-ghost hover:bg-gray-200 transition-all duration-200" 
             @click="close" 
             type="button"
           >
@@ -329,13 +298,13 @@ function submit() {
           </button>
 
           <button 
-            class="btn btn-sm bg-white border border-blue-300 text-gray-700
-                hover:bg-blue-100 hover:border-blue-400 hover:text-blue-700
-                flex items-center justify-center gap-2
-                rounded-full px-5 h-10 w-full md:w-auto shadow-sm
-                transition-all duration-150" 
+            class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white border-none
+                   shadow-md hover:shadow-lg hover:-translate-y-0.5 
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                   transition-all duration-200" 
             @click="submit" 
             :disabled="props.loading"
+            type="button"
           >
             <span v-if="props.loading" class="loading loading-spinner" aria-hidden="true"></span>
             <span v-else>สร้างบริษัท</span>
