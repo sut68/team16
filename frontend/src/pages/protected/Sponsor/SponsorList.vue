@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, computed } from 'vue'
 import type { SponsorPayload } from '@/interfaces/sponsor'
 import { SponsorService } from '@/services/sponsor/sponsor'
 
@@ -14,7 +14,8 @@ import SponsorForm from './SponsorForm.vue'
 import SponsorEdit from './SponsorEdit.vue'
 import SponsorContact from './SponsorContact.vue'
 import SponsorActionMenu from '@/components/ui/SponsorActionMenu.vue'
-import StatCard from '@/components/ui/StatCard.vue'
+import StatsGrid from '@/components/ui/StatsGrid.vue'
+import type { StatItem } from '@/components/ui/StatsGrid.vue'
 import SearchBar from '@/components/ui/SearchBar.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 
@@ -75,6 +76,31 @@ const {
 
 // Reset page when search changes
 watch(q, () => resetPage())
+
+// Computed stats for StatsGrid
+const sponsorStats = computed<StatItem[]>(() => [
+  { 
+    title: 'Total Sponsors', 
+    value: totalSponsors.value, 
+    description: 'บริษัททั้งหมด',
+    icon: 'building', 
+    color: 'blue' 
+  },
+  { 
+    title: 'Active Sponsors', 
+    value: activeSponsors.value, 
+    description: 'กำลังดำเนินการ',
+    icon: 'check', 
+    color: 'green' 
+  },
+  { 
+    title: 'Total Contacts', 
+    value: totalContacts.value, 
+    description: 'ผู้ติดต่อทั้งหมด',
+    icon: 'users', 
+    color: 'orange' 
+  },
+])
 
 // ========== Event Handlers ==========
 function handleGotoPage(p: number) {
@@ -192,7 +218,7 @@ onMounted(fetchSponsors)
 
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6" data-testid="sponsor-list-header">
-      <h1 class="text-2xl font-bold text-[#1e3a8a]" data-testid="sponsor-list-title">บริษัทที่ให้ทุน</h1>
+      <h1 class="text-2xl font-bold text-gray-900" data-testid="sponsor-list-title">บริษัทที่ให้ทุน</h1>
 
       <div class="flex items-center gap-3 w-full md:w-auto">
         <!-- Search Bar -->
@@ -215,29 +241,12 @@ onMounted(fetchSponsors)
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" data-testid="sponsor-stats-container">
-      <StatCard 
-        label="Total Sponsors" 
-        :value="totalSponsors"
-        icon="sponsors"
-        color="purple"
-        data-testid="sponsor-stat-total"
-      />
-      <StatCard 
-        label="Active Sponsors" 
-        :value="activeSponsors"
-        icon="active"
-        color="green"
-        data-testid="sponsor-stat-active"
-      />
-      <StatCard 
-        label="Total Contacts" 
-        :value="totalContacts"
-        icon="contacts"
-        color="blue"
-        data-testid="sponsor-stat-contacts"
-      />
-    </div>
+    <StatsGrid 
+      :stats="sponsorStats" 
+      :columns="3"
+      class="mb-6"
+      data-testid="sponsor-stats-container"
+    />
 
     <!-- Loading State -->
     <div v-if="loading" class="p-6 w-full" data-testid="sponsor-loading-state">

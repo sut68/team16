@@ -1,13 +1,13 @@
 <script setup lang="ts">
-  import { ref, watch, computed, nextTick } from 'vue';
+  import { ref, watch, nextTick } from 'vue';
   import type { PropType } from 'vue';
-  import type { ContactPayload, ContactResponse } from '../../../interfaces/sponsor';
-  import { SponsorService } from '../../../services/sponsor/sponsor';
+  import type { ContactPayload, ContactResponse } from '@/interfaces/sponsor';
+  import { SponsorService } from '@/services/sponsor/sponsor';
   import Swal from 'sweetalert2';
-  import { useFocusTrap } from '../../../hooks/sponsor/useFocusTrap'; 
+  import { useModalFocusTrap } from '@/hooks/sponsor/useFocusTrap';
   import { validateContacts, buildContactsBatch } from '@/validators/sponsor_validator';
 
-  // Props และ Events
+  // Props
   const props = defineProps({
     isOpen: { type: Boolean as PropType<boolean>, default: false },
     sponsorId: { type: Number as PropType<number>, required: true },
@@ -22,7 +22,7 @@
     (e: "close"): void;
   }>();
 
-  // ข้อมูลภายใน Component (State)
+  // State
   const localContacts = ref<ContactPayload[]>(
     (props.initialContacts ?? []).map(c => ({
       ID: c.ID,
@@ -32,22 +32,15 @@
       position: c.position ?? null,
     }))
   );
-
-  // สถานะกำลังบันทึก
   const saving = ref(false);
-
-  // เก็บ error ของแต่ละ contact
   const errors = ref<Record<number, Record<string, string>>>({});
 
-  // ref สำหรับ focus trap
-  const isOpenRef = computed(() => props.isOpen);
-  const { dialogId, focusFirstElement, onBackdropClick } = useFocusTrap(isOpenRef, {
-    onClose: () => {
-      emit('update:isOpen', false);
-      emit('close');
-    },
-    disableBackdropClose: props.disableBackdropClose,
-  });
+  // Use Modal Focus Trap Hook
+  const { dialogId, focusFirstElement, onBackdropClick, close: handleClose } = useModalFocusTrap(
+    props, 
+    emit, 
+    { disableBackdropClose: props.disableBackdropClose }
+  );
 
   // Sync localContacts เมื่อ parent ส่ง initialContacts ใหม่
   watch(() => props.initialContacts, (v) => {
@@ -58,14 +51,6 @@
       phone: c.phone,
       position: c.position ?? null,
     }));
-  });
-
-  // เมื่อเปิด modal ให้ focus ที่ input แรก
-  watch(isOpenRef, async (open) => {
-    if (open) {
-      await nextTick();
-      focusFirstElement();
-    }
   });
 
   // ทำความสะอาดข้อมูล contact (trim whitespace)
@@ -179,11 +164,6 @@
     }
   }
 
-  // ปิด Modal
-  function handleClose() {
-    emit('update:isOpen', false);
-    emit('close');
-  }
 </script>
 
 <template>
@@ -220,7 +200,21 @@
         <div class="p-4 overflow-y-auto flex-1">
           <div class="mb-3 flex items-center justify-between">
             <div class="text-sm text-slate-600">Sponsor: <strong>{{ props.sponsorName }}</strong></div>
-            <button class="btn btn-sm btn-outline" @click="addContact" :disabled="saving">เพิ่มผู้ติดต่อ</button>
+            <button 
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+                    text-blue-600 bg-blue-50 border border-blue-200 rounded-lg 
+                    hover:bg-blue-100 hover:border-blue-300
+                    focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    transition-all duration-200" 
+              @click="addContact" 
+              :disabled="saving"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              เพิ่มผู้ติดต่อ
+            </button>
           </div>
 
           <div v-if="localContacts.length === 0" class="flex flex-col items-center gap-2 py-8 text-slate-500">
@@ -236,12 +230,17 @@
                     ผู้ติดต่อที่ {{ idx + 1 }}
                   </span>
                   <button
-                    class="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded text-sm transition-colors"
+                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg 
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-all duration-200"
                     @click.prevent="removeContact(idx)"
                     :disabled="saving"
                     aria-label="ลบผู้ติดต่อ"
+                    title="ลบผู้ติดต่อ"
                   >
-                    ลบ
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
 
@@ -314,9 +313,23 @@
           </div>
         </div>
 
-        <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-end gap-2">
-          <button class="btn btn-ghost" @click="handleClose" type="button">ยกเลิก</button>
-          <button class="btn btn-primary" :disabled="saving" @click="saveContacts" type="button">
+        <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-end gap-3">
+          <button 
+            class="btn btn-ghost hover:bg-gray-200 transition-all duration-200" 
+            @click="handleClose" 
+            type="button"
+          >
+            ยกเลิก
+          </button>
+          <button 
+            class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white border-none
+                   shadow-md hover:shadow-lg hover:-translate-y-0.5 
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                   transition-all duration-200" 
+            :disabled="saving" 
+            @click="saveContacts" 
+            type="button"
+          >
             <span v-if="saving" class="loading loading-spinner" aria-hidden="true"></span>
             <span v-else>บันทึกผู้ติดต่อ</span>
           </button>
