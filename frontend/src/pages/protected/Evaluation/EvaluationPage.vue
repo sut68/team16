@@ -1,19 +1,20 @@
 <script setup lang="ts">
   import { ref } from 'vue'
-  import { ClipboardList, Settings2, ListChecks } from 'lucide-vue-next'
+  import { ClipboardList, Settings2, Layers } from 'lucide-vue-next'
 
   // Tab Components
   import EvaluationList from './EvaluationList.vue'
   import EvaluationCriteriaList from './EvaluationCriteriaList.vue'
+  import RoundCriteriaManager from './RoundCriteriaManager.vue'
 
   // Tab State
-  type TabType = 'evaluations' | 'criteria'
+  type TabType = 'evaluations' | 'criteria' | 'roundCriteria'
   const activeTab = ref<TabType>('evaluations')
 
   const tabs = [
     { 
       id: 'evaluations', 
-      label: 'รายการประเมิน', 
+      label: 'การประเมิน', 
       icon: ClipboardList,
       description: 'ประเมินและตัดสินผู้สมัครทุน'
     },
@@ -23,52 +24,42 @@
       icon: Settings2,
       description: 'จัดการเกณฑ์และน้ำหนักคะแนน'
     },
+    { 
+      id: 'roundCriteria', 
+      label: 'เกณฑ์ประจำรอบ', 
+      icon: Layers,
+      description: 'กำหนดเกณฑ์สำหรับแต่ละรอบสัมภาษณ์'
+    },
   ] as const
 </script>
 
 <template>
   <div class="flex flex-col h-full bg-white rounded-tl-[30px] shadow overflow-hidden">
     <!-- Page Header with Tabs -->
-    <div class="bg-white border-b border-gray-200 shadow-sm rounded-tl-[30px]">
-      <div class="px-6 pt-6">
-        <!-- Title -->
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-            <ListChecks class="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 class="text-2xl font-bold text-gray-900">ระบบพิจารณาผู้รับทุน</h1>
-            <p class="text-sm text-gray-500">ประเมินและคัดเลือกผู้ได้รับทุนการศึกษา</p>
-          </div>
-        </div>
+    <div class="px-6 pt-6">
+      <!-- Title -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">พิจารณาผู้รับทุน</h1>
+      </div>
 
-        <!-- Tab Navigation -->
-        <nav class="flex gap-1" aria-label="Tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="activeTab = tab.id"
-            class="group relative px-5 py-3 rounded-t-xl font-medium text-sm transition-all duration-200 flex items-center gap-2"
-            :class="[
-              activeTab === tab.id
-                ? 'bg-white text-indigo-600 shadow-sm border border-b-0 border-gray-200'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            ]"
-          >
-            <component 
-              :is="tab.icon" 
-              class="w-4 h-4 transition-colors"
-              :class="activeTab === tab.id ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'"
-            />
-            {{ tab.label }}
-            
-            <!-- Active Indicator -->
-            <span
-              v-if="activeTab === tab.id"
-              class="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-t"
-            ></span>
-          </button>
-        </nav>
+      <!-- Tab Navigation (InterviewRoundManager style) -->
+      <div class="flex gap-8 border-b border-gray-200">
+        <a
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          class="pb-3 px-1 text-base font-medium cursor-pointer transition-all border-b-[3px] -mb-[1px] flex items-center gap-2"
+          :class="activeTab === tab.id 
+            ? 'text-[#1e3a8a] border-[#1e3a8a]' 
+            : 'text-slate-500 border-transparent hover:text-slate-700'"
+        >
+          <component 
+            :is="tab.icon" 
+            class="w-4 h-4"
+            :class="activeTab === tab.id ? 'text-[#1e3a8a]' : 'text-slate-400'"
+          />
+          {{ tab.label }}
+        </a>
       </div>
     </div>
 
@@ -76,10 +67,9 @@
     <div class="flex-1 min-h-0 overflow-hidden">
       <Transition name="fade" mode="out-in">
         <KeepAlive>
-          <component 
-            :is="activeTab === 'evaluations' ? EvaluationList : EvaluationCriteriaList"
-            :key="activeTab"
-          />
+          <EvaluationList v-if="activeTab === 'evaluations'" :key="'evaluations'" />
+          <EvaluationCriteriaList v-else-if="activeTab === 'criteria'" :key="'criteria'" />
+          <RoundCriteriaManager v-else :key="'roundCriteria'" />
         </KeepAlive>
       </Transition>
     </div>

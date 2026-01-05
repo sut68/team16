@@ -21,17 +21,21 @@ export function useEvaluationData(evaluationId: Ref<number | null>) {
     if (!evaluation.value?.application_scholarship?.application?.student_profile) return null
     const profile = evaluation.value.application_scholarship.application.student_profile
     return {
-      name: `${profile.firstname || ''} ${profile.lastname || ''}`.trim(),
+      name: `${profile.first_name_th || ''} ${profile.last_name_th || ''}`.trim() || '-',
       studentId: profile.student_id || '-',
-      major: profile.major?.name || '-',
-      gpa: profile.gpa || '-',
+      major: profile.major?.major_name || '-',
+      gpa: profile.gpax ?? '-',
     }
   })
 
   // Computed - Scholarship Info
   const scholarshipInfo = computed(() => {
     if (!evaluation.value?.application_scholarship?.scholarship) return null
-    return evaluation.value.application_scholarship.scholarship
+    const scholarship = evaluation.value.application_scholarship.scholarship
+    return {
+      name: scholarship.scholarship_name || '-',
+      description: scholarship.description || '',
+    }
   })
 
   // Computed - Interview Round Info
