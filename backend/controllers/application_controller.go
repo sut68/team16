@@ -23,6 +23,33 @@ func GetApplications(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, applications)
 }
 
+// GET /application-scholarships
+// สามารถ filter ด้วย status ได้ เช่น ?status=qualified
+func GetAllApplicationScholarships(ctx *gin.Context) {
+	var appScholarships []entity.ApplicationScholarship
+
+	query := config.DB.
+		Preload("Application.StudentProfile.Major").
+		Preload("Scholarship.Statusscholarship").
+		Preload("Scholarship.Typescholarship").
+		Preload("ApplicationDocuments.ApprovalTasks.ApprovalDecisions").
+		Preload("Screening.StatusScreening").
+		Preload("IntervieweBookings.Slot").
+		Preload("Evaluations")
+
+	// Filter by status
+	if status := ctx.Query("status"); status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if err := query.Find(&appScholarships).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, appScholarships)
+}
+
 // GET /applications/:id
 func GetApplicationByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
