@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import type { EvaluationResponse } from '@/interfaces/evaluation'
+import type { ApplicationScholarshipResponse } from '@/interfaces'
 import { EvaluationService } from '@/services/evaluation/evaluation'
+import { getAllApplicationScholarships } from '@/services/api/application'
 import Swal from 'sweetalert2'
 import EvaluationFormModal from './EvaluationFormModal.vue'
 import EvaluationDetailModal from './EvaluationDetailModal.vue'
@@ -11,14 +13,17 @@ import type { StatItem } from '@/components/ui/StatsGrid.vue'
 // Icons
 import { 
   Search, X, RefreshCw, Eye, FileEdit, 
-  Users, CheckCircle, XCircle, Clock, Award, ChevronDown
+  Users, CheckCircle, XCircle, Clock, Award, ChevronDown, Plus, UserPlus
 } from 'lucide-vue-next'
 
 // ========== State ==========
 const evaluations = ref<EvaluationResponse[]>([])
+const qualifiedApplicants = ref<ApplicationScholarshipResponse[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const searchQuery = ref('')
+const activeTab = ref<'evaluations' | 'qualified'>('evaluations')
+const creatingEvaluation = ref(false)
 
 // Filter State
 const selectedScholarshipId = ref<number | null>(null)
@@ -159,6 +164,85 @@ async function fetchEvaluations() {
   }
 }
 
+// Fetch qualified applicants (พร้อมประเมิน)
+async function fetchQualifiedApplicants() {
+  try {
+    const allQualified = await getAllApplicationScholarships('qualified')
+    // Filter out those who already have evaluations
+    const evaluatedIds = new Set(evaluations.value.map(e => e.application_scholarship_id))
+    qualifiedApplicants.value = allQualified.filter(app => !evaluatedIds.has(app.ID))
+  } catch (err: any) {
+    console.error('Failed to fetch qualified applicants:', err)
+  }
+}
+
+// Create evaluation for a qualified applicant
+async function createEvaluationForApplicant(app: ApplicationScholarshipResponse) {
+  if (creatingEvaluation.value) return
+  
+  // Get interview_round_id from the applicant's booking
+  let interviewRoundId: number | null = null
+  if (app.interviewe_bookings && app.interviewe_bookings.length > 0) {
+    // Get from the latest booking's slot -> interview_round
+    const latestBooking = app.interviewe_bookings[app.interviewe_bookings.length - 1]
+    if (latestBooking?.slot?.interview_round_id) {
+      interviewRoundId = latestBooking.slot.interview_round_id
+    }
+  }
+  
+  // If no booking found, use default or ask user
+  if (!interviewRoundId) {
+    // Use first available interview round from existing evaluations
+    const firstRound = interviewRounds.value[0]
+    if (firstRound) {
+      interviewRoundId = firstRound.id
+    } else {
+      interviewRoundId = 1 // Fallback to 1
+    }
+  }
+  
+  const result = await Swal.fire({
+    title: 'สร้างการประเมิน',
+    text: `ต้องการสร้างการประเมินสำหรับ ${app.application?.student_profile?.first_name_th || 'ผู้สมัคร'} หรือไม่?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'สร้าง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#1e3a8a'
+  })
+  
+  if (!result.isConfirmed) return
+  
+  creatingEvaluation.value = true
+  try {
+    await EvaluationService.create({
+      application_scholarship_id: app.ID,
+      interview_round_id: interviewRoundId,
+      admin_id: 1 // TODO: Should be current admin ID from auth
+    })
+    
+    await Swal.fire({
+      icon: 'success',
+      title: 'สร้างการประเมินสำเร็จ',
+      timer: 1500,
+      showConfirmButton: false
+    })
+    
+    // Refresh data
+    await fetchEvaluations()
+    await fetchQualifiedApplicants()
+    activeTab.value = 'evaluations'
+  } catch (err: any) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไม่สามารถสร้างการประเมินได้',
+      text: err?.response?.data?.error || 'เกิดข้อผิดพลาด'
+    })
+  } finally {
+    creatingEvaluation.value = false
+  }
+}
+
 function getStudentName(e: EvaluationResponse): string {
   const profile = e.application_scholarship?.application?.student_profile
   if (!profile) return '-'
@@ -261,7 +345,10 @@ watch(selectedScholarshipId, () => {
 })
 
 // ========== Lifecycle ==========
-onMounted(fetchEvaluations)
+onMounted(async () => {
+  await fetchEvaluations()
+  await fetchQualifiedApplicants()
+})
 </script>
 
 <template>
@@ -344,13 +431,45 @@ onMounted(fetchEvaluations)
       </div>
     </div>
 
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 mb-6">
+      <button
+        @click="activeTab = 'evaluations'"
+        class="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+        :class="activeTab === 'evaluations' 
+          ? 'bg-[#1e3a8a] text-white' 
+          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <Award class="w-4 h-4 inline-block mr-1" />
+        การประเมิน ({{ filteredEvaluations.length }})
+      </button>
+      <button
+        @click="activeTab = 'qualified'"
+        class="px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 relative"
+        :class="activeTab === 'qualified' 
+          ? 'bg-emerald-600 text-white' 
+          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+      >
+        <UserPlus class="w-4 h-4" />
+        ผู้สมัครพร้อมประเมิน
+        <!-- Badge -->
+        <span 
+          v-if="qualifiedApplicants.length > 0 && activeTab !== 'qualified'"
+          class="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse"
+        >
+          {{ qualifiedApplicants.length }}
+        </span>
+        <span v-else class="text-xs opacity-70">({{ qualifiedApplicants.length }})</span>
+      </button>
+    </div>
+
     <!-- Stats Cards -->
     <StatsGrid 
+      v-if="activeTab === 'evaluations'"
       :stats="evaluationStats" 
       :columns="4"
       class="mb-6"
     />
-
 
     <!-- Loading State -->
     <div v-if="loading" class="flex-1 flex items-center justify-center">
@@ -365,8 +484,72 @@ onMounted(fetchEvaluations)
       <div class="p-4 bg-red-100 text-red-700 rounded-lg">{{ error }}</div>
     </div>
 
-    <!-- Content -->
-    <div v-if="!loading && !error" class="flex-1 min-h-0 flex flex-col gap-4">
+    <!-- Qualified Applicants Table -->
+    <div v-else-if="activeTab === 'qualified'" class="flex-1 min-h-0 flex flex-col gap-4">
+      <div class="overflow-x-auto overflow-y-auto flex-1 min-h-[400px] rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table class="table table-sm w-full" data-theme="light">
+          <thead>
+            <tr class="bg-emerald-50 border-b border-emerald-200">
+              <th class="py-4 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 text-left">#</th>
+              <th class="py-4 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 text-left">ชื่อนักศึกษา</th>
+              <th class="py-4 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 text-left hidden md:table-cell">ทุนการศึกษา</th>
+              <th class="py-4 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 text-center">สถานะ</th>
+              <th class="py-4 px-4 text-xs font-semibold uppercase tracking-wider text-emerald-700 text-center">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr 
+              v-for="(app, index) in qualifiedApplicants" 
+              :key="app.ID"
+              class="hover:bg-emerald-50/50 transition-colors"
+            >
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 text-sm font-bold">
+                  {{ index + 1 }}
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <p class="font-semibold text-gray-900">
+                  {{ app.application?.student_profile?.first_name_th || '' }} {{ app.application?.student_profile?.last_name_th || '' }}
+                </p>
+                <p class="text-sm text-gray-500">{{ app.application?.student_profile?.student_id || '-' }}</p>
+              </td>
+              <td class="py-3 px-4 text-sm text-gray-600 hidden md:table-cell">
+                {{ app.scholarship?.scholarship_name || '-' }}
+              </td>
+              <td class="py-3 px-4 text-center">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
+                  <CheckCircle class="w-3.5 h-3.5" />
+                  พร้อมประเมิน
+                </span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button
+                  @click="createEvaluationForApplicant(app)"
+                  :disabled="creatingEvaluation"
+                  class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Plus class="w-4 h-4" />
+                  สร้างการประเมิน
+                </button>
+              </td>
+            </tr>
+            <tr v-if="qualifiedApplicants.length === 0">
+              <td colspan="5" class="h-[300px] text-center align-middle">
+                <div class="flex flex-col items-center justify-center text-gray-400">
+                  <CheckCircle class="w-12 h-12 mb-3 opacity-50" />
+                  <p class="text-gray-500">ไม่มีผู้สมัครที่พร้อมประเมิน</p>
+                  <p class="text-sm text-gray-400">ผู้สมัครทุกคนได้รับการประเมินแล้ว</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Evaluations Content -->
+    <div v-else-if="!loading && !error && activeTab === 'evaluations'" class="flex-1 min-h-0 flex flex-col gap-4">
       <!-- Table -->
       <div class="overflow-x-auto overflow-y-auto flex-1 min-h-[400px] rounded-xl border border-slate-200 bg-white shadow-sm">
         <table class="table table-sm w-full" data-theme="light">

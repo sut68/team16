@@ -58,6 +58,7 @@ export interface InterviewBooking {
     ID: number;
     status: string;
     slot_id: number;
+    slot?: Slot;
     application_scholarship_id: number;
     application_scholarship?: ApplicationScholarshipResponse;
 }

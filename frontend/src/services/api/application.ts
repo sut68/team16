@@ -12,6 +12,20 @@ export const getStudentApplications = async (studentProfileId: number): Promise<
 };
 
 /**
+ * Fetches all application scholarships, optionally filtered by status.
+ * @param status Optional status filter (e.g., 'qualified', 'pending')
+ * @returns A promise that resolves to an array of application scholarships.
+ */
+export const getAllApplicationScholarships = async (status?: string): Promise<ApplicationScholarshipResponse[]> => {
+  let url = '/application-scholarships';
+  if (status) {
+    url += `?status=${status}`;
+  }
+  const response = await Get(url);
+  return response as ApplicationScholarshipResponse[];
+};
+
+/**
  * Uploads a document for a specific scholarship application.
  * @param applicationScholarshipId The ID of the scholarship application link.
  * @param file The file to upload.
