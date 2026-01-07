@@ -165,12 +165,19 @@ async function fetchEvaluations() {
 }
 
 // Fetch qualified applicants (พร้อมประเมิน)
+// ดึงทั้ง 'qualified' (รอจอง) และ 'interview_scheduled' (จองแล้ว รอประเมิน)
 async function fetchQualifiedApplicants() {
   try {
-    const allQualified = await getAllApplicationScholarships('qualified')
+    // Fetch both statuses
+    const [qualified, scheduled] = await Promise.all([
+      getAllApplicationScholarships('qualified'),
+      getAllApplicationScholarships('interview_scheduled')
+    ])
+    const allApplicants = [...qualified, ...scheduled]
+    
     // Filter out those who already have evaluations
     const evaluatedIds = new Set(evaluations.value.map(e => e.application_scholarship_id))
-    qualifiedApplicants.value = allQualified.filter(app => !evaluatedIds.has(app.ID))
+    qualifiedApplicants.value = allApplicants.filter(app => !evaluatedIds.has(app.ID))
   } catch (err: any) {
     console.error('Failed to fetch qualified applicants:', err)
   }

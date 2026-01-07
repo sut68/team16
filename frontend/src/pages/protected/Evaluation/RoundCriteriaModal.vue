@@ -173,21 +173,21 @@
     <div class="bg-white w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
       
       <!-- Header -->
-      <div class="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-[#1e3a8a] to-[#3b5998]">
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-slate-50">
         <div>
-          <h2 class="text-xl font-bold text-white flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
+          <h2 class="text-xl font-bold text-[#1e3a8a]">
             จัดการเกณฑ์การประเมิน
           </h2>
-          <p class="text-white/70 text-sm mt-1">{{ roundName }}</p>
+          <p class="text-gray-500 text-sm mt-1">{{ roundName }}</p>
         </div>
         <button 
           @click="closeModal"
-          class="btn btn-circle btn-ghost btn-sm text-white hover:bg-white/20"
+          class="btn btn-circle btn-ghost btn-sm"
+          aria-label="ปิด"
         >
-          ✕
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
 

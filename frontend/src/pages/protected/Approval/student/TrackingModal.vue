@@ -41,8 +41,13 @@ const stages = [
   { id: 5, title: "จองคิวสัมภาษณ์", description: "เลือกเวลาเพื่อเข้าสัมภาษณ์" },
   {
     id: 6,
-    title: "ผลการสัมภาษณ์",
-    description: "ประกาศผลการคัดเลือกและสัมภาษณ์",
+    title: "รอการประเมิน",
+    description: "รอผลการสัมภาษณ์และประเมินจากกรรมการ",
+  },
+  {
+    id: 7,
+    title: "ผลการพิจารณา",
+    description: "ประกาศผลการคัดเลือกขั้นสุดท้าย",
   },
 ];
 
@@ -184,6 +189,7 @@ const processState = computed(() => {
   // Check for 'qualified' status - this means all documents are approved
   // and student can proceed to interview booking
   if (mainStatus === "qualified") {
+    // No booking yet - need to book interview
     return {
       currentStep: 5,
       status: "action",
@@ -191,8 +197,46 @@ const processState = computed(() => {
     };
   }
 
+  // Check for 'interview_scheduled' status - student has booked interview
+  if (mainStatus === "interview_scheduled") {
+    // Check final_decision for evaluation results
+    const finalDecision = data.final_decision;
+    
+    // Has final decision - go to step 7
+    if (finalDecision === 'approved') {
+      return {
+        currentStep: 7,
+        status: "completed",
+        message: "ยินดีด้วย! คุณได้รับทุนการศึกษาแล้ว",
+      };
+    }
+    
+    if (finalDecision === 'rejected') {
+      return {
+        currentStep: 7,
+        status: "error",
+        message: "ขออภัย คุณไม่ผ่านการคัดเลือก",
+      };
+    }
+    
+    if (finalDecision === 'waitlist') {
+      return {
+        currentStep: 7,
+        status: "process",
+        message: "อยู่ในรายชื่อสำรอง รอการพิจารณาเพิ่มเติม",
+      };
+    }
+    
+    // Has booking but no final decision yet - step 6: waiting for evaluation
+    return {
+      currentStep: 6,
+      status: "process",
+      message: "รอผลการสัมภาษณ์และประเมินจากกรรมการ",
+    };
+  }
+
   if (["approve", "approved"].includes(latestDecisionType)) {
-    if (!["completed", "final-approved"].includes(mainStatus || "")) {
+    if (!["completed", "final-approved", "interview_scheduled"].includes(mainStatus || "")) {
       return {
         currentStep: 5,
         status: "action",
@@ -216,7 +260,7 @@ const processState = computed(() => {
   }
 
   if (["completed", "final-approved"].includes(mainStatus || "")) {
-    return { currentStep: 6, status: "completed", message: "" };
+    return { currentStep: 7, status: "completed", message: "" };
   }
 
   if (["rejected", "reject"].includes(mainStatus || "")) {
@@ -813,6 +857,78 @@ const handleFileChange = async (e: Event) => {
                     >
                       จองคิวสัมภาษณ์ทันที
                     </button>
+                  </div>
+
+                  <!-- Step 7: Final Result Display -->
+                  <div
+                    v-if="stage.id === 7 && processState.currentStep === 7"
+                    class="mt-3"
+                  >
+                    <!-- Approved Result -->
+                    <div
+                      v-if="applicationData?.final_decision === 'approved'"
+                      class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5"
+                    >
+                      <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="text-xl font-bold text-green-800 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/>
+                              <circle cx="12" cy="8" r="6"/>
+                            </svg>
+                            ยินดีด้วย! คุณได้รับทุนการศึกษา
+                          </p>
+                          <p class="text-sm text-green-600 mt-1">กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการรับทุนต่อไป</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Rejected Result -->
+                    <div
+                      v-else-if="applicationData?.final_decision === 'rejected'"
+                      class="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-5"
+                    >
+                      <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="text-xl font-bold text-red-800">ขออภัย คุณไม่ผ่านการคัดเลือก</p>
+                          <p class="text-sm text-red-600 mt-1">ขอบคุณที่สนใจสมัครทุนการศึกษา</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Waitlist Result -->
+                    <div
+                      v-else-if="applicationData?.final_decision === 'waitlist'"
+                      class="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-5"
+                    >
+                      <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p class="text-xl font-bold text-amber-800 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="10"/>
+                              <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            อยู่ระหว่างพิจารณาเพิ่มเติม
+                          </p>
+                          <p class="text-sm text-amber-600 mt-1">หากมีข้อสงสัย กรุณารอการติดต่อจากเจ้าหน้าที่</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div

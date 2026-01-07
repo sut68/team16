@@ -66,14 +66,14 @@ const userStats = computed<StatItem[]>(() => {
       title: 'นักศึกษา',
       value: students,
       description: 'Students',
-      icon: 'award',
+      icon: 'user-round-check',
       color: 'green'
     },
     {
       title: 'ผู้ดูแลระบบ',
       value: admins,
       description: 'Admins / Staff',
-      icon: 'building',
+      icon: 'user-round-cog',
       color: 'purple'
     }
   ];
@@ -292,7 +292,12 @@ const removeUser = async (id: number) => {
               <td class="px-4 py-3 text-sm text-gray-600">{{ u.ID }}</td>
               <td class="px-4 py-3 text-sm font-bold text-[#1e3a8a]">{{ u.username }}</td>
               <td class="px-4 py-3">
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 uppercase">
+                <span 
+                  class="px-2 py-1 text-xs font-medium rounded-full uppercase"
+                  :class="u.role?.name?.toLowerCase() === 'student' 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-purple-100 text-purple-700'"
+                >
                   {{ u.role?.name }}
                 </span>
               </td>

@@ -209,7 +209,8 @@ func GetStudentApplications(ctx *gin.Context) {
 
 		// If status is already determined (qualified, rejected, approved, etc.), keep it
 		if existingStatus == "qualified" || existingStatus == "rejected" ||
-			existingStatus == "approved" || existingStatus == "completed" {
+			existingStatus == "approved" || existingStatus == "completed" ||
+			existingStatus == "interview_scheduled" {
 			continue // Use the status from database
 		}
 
