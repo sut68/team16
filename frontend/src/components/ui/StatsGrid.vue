@@ -11,7 +11,7 @@
   }
 
   export type ColorType = 'blue' | 'green' | 'orange' | 'purple' | 'slate' | 'amber' | 'red'
-  export type IconType = 'box' | 'users' | 'clock' | 'check' | 'chart' | 'calendar' | 'building' | 'clipboard' | 'star' | 'award'
+  export type IconType = 'box' | 'users' | 'clock' | 'check' | 'chart' | 'calendar' | 'building' | 'clipboard' | 'star' | 'award' | 'user-round-check' | 'user-round-cog'
 
   // --- Props ---
   const props = withDefaults(defineProps<{
@@ -190,6 +190,30 @@
           class="inline-block w-8 h-8 stroke-current" :class="getColor(stat.color).iconBg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
             d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+        </svg>
+
+        <!-- User Round Check Icon (Lucide) -->
+        <svg v-else-if="stat.icon === 'user-round-check'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" 
+          class="inline-block w-8 h-8 stroke-current" :class="getColor(stat.color).iconBg" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 21a8 8 0 0 1 13.292-6"/>
+          <circle cx="10" cy="8" r="5"/>
+          <path d="m16 19 2 2 4-4"/>
+        </svg>
+
+        <!-- User Round Cog Icon (Lucide) -->
+        <svg v-else-if="stat.icon === 'user-round-cog'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" 
+          class="inline-block w-8 h-8 stroke-current" :class="getColor(stat.color).iconBg" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 21a8 8 0 0 1 10.434-7.62"/>
+          <circle cx="10" cy="8" r="5"/>
+          <circle cx="18" cy="18" r="3"/>
+          <path d="m19.5 14.3-.4.9"/>
+          <path d="m16.9 20.8-.4.9"/>
+          <path d="m21.7 19.5-.9-.4"/>
+          <path d="m15.2 16.9-.9-.4"/>
+          <path d="m21.7 16.5-.9.4"/>
+          <path d="m15.2 19.1-.9.4"/>
+          <path d="m19.5 21.7-.4-.9"/>
+          <path d="m16.9 15.2-.4-.9"/>
         </svg>
 
         <!-- Default Icon (Chart) -->

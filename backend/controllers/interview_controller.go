@@ -76,7 +76,7 @@ func CreateInterviewRound(c *gin.Context) {
 	var slots []entity.Slot
 
 	for currentTime := startTime; currentTime.Add(duration).Before(endTime) || currentTime.Add(duration).Equal(endTime); currentTime = currentTime.Add(duration) {
-		
+
 		slot := entity.Slot{
 			InterviewRoundID: round.ID,
 			StartTime:        currentTime,
@@ -87,7 +87,7 @@ func CreateInterviewRound(c *gin.Context) {
 		}
 		slots = append(slots, slot)
 	}
-	
+
 	if len(slots) > 0 {
 		if err := tx.Create(&slots).Error; err != nil {
 			tx.Rollback()
@@ -128,8 +128,8 @@ func CreateInterviewRound(c *gin.Context) {
 		Preload("AdminProfile").
 		Preload("Slots.InterviewerSlots.Interviewer").
 		First(&createdRound, round.ID).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch created round: " + err.Error()})
-			return
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch created round: " + err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusCreated, createdRound)
@@ -240,6 +240,15 @@ func CreateInterviewBooking(c *gin.Context) {
 		return
 	}
 
+	// 4. Update ApplicationScholarship status to 'interview_scheduled'
+	if err := tx.Model(&entity.ApplicationScholarship{}).
+		Where("id = ?", booking.ApplicationScholarshipID).
+		Update("status", "interview_scheduled").Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
+		return
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
@@ -251,22 +260,22 @@ func CreateInterviewBooking(c *gin.Context) {
 
 // GetStudentBookings godoc
 func GetStudentBookings(c *gin.Context) {
-    studentProfileID := c.Param("student_profile_id")
-    var bookings []entity.IntervieweBooking
+	studentProfileID := c.Param("student_profile_id")
+	var bookings []entity.IntervieweBooking
 
-    // This query is a bit complex. It joins through ApplicationScholarship and Application
-    // to find bookings related to a student profile.
-    if err := config.DB.
-        Joins("JOIN application_scholarships ON application_scholarships.id = interviewe_bookings.application_scholarship_id").
-        Joins("JOIN applications ON applications.id = application_scholarships.application_id").
-        Where("applications.student_profile_id = ?", studentProfileID).
+	// This query is a bit complex. It joins through ApplicationScholarship and Application
+	// to find bookings related to a student profile.
+	if err := config.DB.
+		Joins("JOIN application_scholarships ON application_scholarships.id = interviewe_bookings.application_scholarship_id").
+		Joins("JOIN applications ON applications.id = application_scholarships.application_id").
+		Where("applications.student_profile_id = ?", studentProfileID).
 		Preload("Slot").
-        Find(&bookings).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+		Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusOK, bookings)
+	c.JSON(http.StatusOK, bookings)
 }
 
 // DeleteInterviewBooking godoc

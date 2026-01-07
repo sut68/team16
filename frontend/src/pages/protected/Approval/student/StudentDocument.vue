@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, type Ref } from "vue";
+import { ref, onMounted, onActivated, computed, type Ref } from "vue";
 import TrackingModal from "./TrackingModal.vue";
 import {
   getStudentApplications,
@@ -46,6 +46,9 @@ const fetchStudentApplications = async () => {
 };
 
 onMounted(fetchStudentApplications);
+
+// Refetch when navigating back to this page (if using keep-alive)
+onActivated(fetchStudentApplications);
 
 const isModalOpen = ref(false);
 const selectedApp = ref<ApplicationScholarshipResponse | null>(null);
@@ -159,6 +162,37 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
     
     // Screening passed (ID: 2)
     if (screeningStatusId === 2) {
+      // Check for interview_scheduled status first
+      if (status === "interview_scheduled") {
+        // Check final_decision for evaluation results
+        const finalDecision = app.final_decision;
+        
+        if (finalDecision === "approved") {
+          return {
+            text: "ได้รับทุน!",
+            class: "badge-success text-white",
+          };
+        }
+        if (finalDecision === "rejected") {
+          return {
+            text: "ไม่ผ่านการคัดเลือก",
+            class: "badge-error text-white",
+          };
+        }
+        if (finalDecision === "waitlist") {
+          return {
+            text: "รอพิจารณาเพิ่มเติม",
+            class: "badge-warning bg-amber-100 text-amber-800 border-none",
+          };
+        }
+        
+        // No final decision yet - waiting for interview/evaluation
+        return {
+          text: "รอสัมภาษณ์/ประเมิน",
+          class: "badge-info bg-purple-100 text-purple-800 border-none",
+        };
+      }
+      
       // Check for qualified status
       if (status === "qualified") {
         return {
@@ -234,6 +268,10 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
     qualified: {
       text: "พร้อมนัดสัมภาษณ์",
       class: "badge-success bg-green-100 text-green-800 border-none",
+    },
+    interview_scheduled: {
+      text: "รอสัมภาษณ์",
+      class: "badge-info bg-purple-100 text-purple-800 border-none",
     },
     approved: { text: "อนุมัติแล้ว", class: "badge-success text-white" },
     rejected: { text: "ไม่ผ่านการพิจารณา", class: "badge-error text-white" },
