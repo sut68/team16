@@ -42,6 +42,7 @@ export interface Slot {
     start_time: string;
     end_time: string;
     is_booked: boolean;
+    status: string;
     interview_round_id: number;
     interviewer_slots: InterviewerSlot[];
     interviewe_bookings: InterviewBooking[];

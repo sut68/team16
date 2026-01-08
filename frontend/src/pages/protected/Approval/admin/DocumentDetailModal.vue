@@ -574,18 +574,19 @@ const openSpecificDocument = (path: string) => {
                             <div class="card-body p-5">
                                 <h3 class="font-bold text-lg text-slate-700 mb-4 border-b pb-2">ข้อกำหนดทั้งหมดของทุนนี้
                                 </h3>
-                                <div
-                                    v-if="documentData.application_document?.application_scholarship?.scholarship?.approval_requirements?.length">
-                                    <ul class="space-y-3 list-disc list-inside text-slate-600 text-sm"
+                                <div>
+                                    <ul class="space-y-3 list-none list-inside text-slate-600 text-sm"
                                         data-testid="requirement-list">
-                                        <li v-for="req in documentData.application_document.application_scholarship.scholarship.approval_requirements"
-                                            :key="req.ID" :data-testid="`requirement-item-${req.ID}`">
-                                            {{ req.requirement.name }}
+                                        <li>
+                                            ○ ใบสมัครทุน (กรอกข้อมูลเรียบร้อยแล้ว)
+                                        </li>
+                                        <li>
+                                            ○ ใบ Transcript
+                                        </li>
+                                        <li>
+                                            ○ ใบคะแนนภาษา (ถ้ามี)
                                         </li>
                                     </ul>
-                                </div>
-                                <div v-else class="text-center text-gray-400 py-4" data-testid="no-requirements">
-                                    ไม่พบข้อมูลข้อกำหนด
                                 </div>
                             </div>
                         </div>

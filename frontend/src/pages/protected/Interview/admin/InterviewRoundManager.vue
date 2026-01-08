@@ -58,6 +58,9 @@ const interviewModes = ref<InterviewMode[]>([]);
 const selectedRoundDetails = ref<InterviewRound | null>(null);
 const selectedStudent = ref<StudentProfile | null>(null);
 
+// Slot States
+const editingSlotStates = ref<Slot[]>([]);
+
 
 // Filter & Sort State
 const searchQuery = ref('');
@@ -264,7 +267,7 @@ const filteredRounds = computed(() => {
 });
 
 const previewSlots = computed(() => {
-    const slots: { time: string }[] = [];
+    const slots: { start: Date, end: Date }[] = [];
     if (!formData.date || !formData.end_date || !formData.start_time || !formData.end_time || formData.slot_duration <= 0) return slots;
 
     const startDateTime = new Date(`${formData.date}T${formData.start_time}`);
@@ -272,15 +275,33 @@ const previewSlots = computed(() => {
 
     let current = startDateTime.getTime();
     const end = endDateTime.getTime();
+    const durationMillis = formData.slot_duration * 60 * 1000;
 
     while (current < end) {
-        const d = new Date(current);
-        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        slots.push({ time: timeStr });
-        current += formData.slot_duration * 60 * 1000;
+        const slotStart = new Date(current);
+        const slotEnd = new Date(current + durationMillis);
+        if (slotEnd.getTime() > end) {
+            break;
+        }
+        slots.push({ start: slotStart, end: slotEnd });
+        current += durationMillis;
     }
     return slots;
 });
+
+// State for the UI to mutate
+const previewSlotStates = ref<{ start: Date, end: Date, is_active: boolean }[]>([]);
+
+watch(previewSlots, (newSlots) => {
+    previewSlotStates.value = newSlots.map(slot => ({
+        ...slot,
+        is_active: true
+    }));
+}, { deep: true });
+
+
+const totalPreviewSlots = computed(() => previewSlotStates.value.length);
+const activePreviewSlots = computed(() => previewSlotStates.value.filter(s => s.is_active).length);
 
 const getInitials = (interviewer: Interviewer) => {
     if (!interviewer) return '';
@@ -394,9 +415,8 @@ const openEditModal = async (round: InterviewRound) => {
 
     try {
         const details = await InterviewAPI.getRoundById(round.ID);
-        selectedRoundDetails.value = details;
-
-        // 1. ใส่ข้อมูลลง Form
+selectedRoundDetails.value = details;
+        editingSlotStates.value = JSON.parse(JSON.stringify(details.slots || []));
         populateFormWithRoundDetails(details);
         
         // 2. รอให้ Vue อัปเดต state ของ formData แป๊บนึง แล้วค่อยเซ็ตค่าเริ่มต้นสำหรับเปรียบเทียบ
@@ -443,13 +463,25 @@ const handleDelete = async (id: number) => {
 const handleUpdate = async () => {
     if (!editingRoundId.value) return;
 
-    if (!formData.scholarship_id || !formData.date || !formData.start_time || !formData.end_time || !formData.end_date || !formData.interview_mode_id) {
+    if (isSlotConfigDirty.value) {
+        Swal.fire('ยังไม่รองรับ', 'การแก้ไขโครงสร้างเวลา (วัน, เวลา, หรือระยะเวลา) ยังไม่ถูกรองรับในเวอร์ชันนี้', 'info');
+        return;
+    }
+
+    if (!formData.scholarship_id || !formData.interview_mode_id) {
         Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'warning');
         return;
     }
 
     const startDateTime = new Date(`${formData.date}T${formData.start_time}`).toISOString();
     const endDateTime = new Date(`${formData.end_date}T${formData.end_time}`).toISOString();
+
+    const changedSlots = editingSlotStates.value
+        .filter((editedSlot, index) => {
+            const originalSlot = selectedRoundDetails.value?.slots[index];
+            return originalSlot && originalSlot.status !== editedSlot.status;
+        })
+        .map(slot => ({ id: slot.ID, status: slot.status }));
     
     const payload: InterviewRoundUpdate = {
         name: formData.name,
@@ -462,6 +494,7 @@ const handleUpdate = async () => {
         meeting_link: formData.meeting_link,
         interviewer_ids: formData.interviewer_ids,
         slot_duration: formData.slot_duration,
+        slots: changedSlots.length > 0 ? changedSlots : undefined,
     };
 
     isLoading.value = true;
@@ -509,19 +542,41 @@ const saveRound = async () => {
         return;
     }
 
+    if (activePreviewSlots.value === 0 && totalPreviewSlots.value > 0) {
+        const result = await Swal.fire({
+            title: 'คุณแน่ใจหรือไม่?',
+            text: "คุณกำลังสร้างรอบที่ทุก Slot 'ปิด' อยู่ จะไม่มีใครสามารถจองได้",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'ใช่, สร้างเลย!',
+            cancelButtonText: 'ยกเลิก'
+        });
+        if (!result.isConfirmed) {
+            return;
+        }
+    }
+
     const startDateTime = new Date(`${formData.date}T${formData.start_time}`).toISOString();
     const endDateTime = new Date(`${formData.end_date}T${formData.end_time}`).toISOString();
     const adminProfileId = 1;
 
     const payload: InterviewRoundCreate = {
-        name: formData.name, description: formData.description,
-        start_date_time: startDateTime, end_date_time: endDateTime,
+        name: formData.name, 
+        description: formData.description,
+        start_date_time: startDateTime, 
+        end_date_time: endDateTime,
         slot_duration: formData.slot_duration, 
         scholarship_id: formData.scholarship_id as number,
-        admin_profile_id: adminProfileId, interviewer_ids: formData.interviewer_ids,
+        admin_profile_id: adminProfileId, 
+        interviewer_ids: formData.interviewer_ids,
         interview_mode_id: formData.interview_mode_id as number,
         location_id: formData.location_id ? Number(formData.location_id) : null,
-        meeting_link: formData.meeting_link
+        meeting_link: formData.meeting_link,
+        slots: previewSlotStates.value.map(slot => ({
+            status: slot.is_active ? 'Available' : 'Disabled'
+        }))
     };
 
     isLoading.value = true;
@@ -991,7 +1046,7 @@ const saveNewInterviewer = async () => {
                                         {{ (modalMode === 'create' || isSlotConfigDirty) ? 'พรีวิวตารางเวลาที่จะถูกสร้างใหม่' : 'ตารางการจองปัจจุบัน' }}
                                     </h3>
                                     <div class="text-xs text-gray-500">
-                                        ทั้งหมด: {{ (modalMode === 'create' || isSlotConfigDirty) ? previewSlots.length : selectedRoundDetails?.slots?.length || 0 }} สล็อต
+                                         ทั้งหมด: {{ (modalMode === 'create' || isSlotConfigDirty) ? activePreviewSlots : selectedRoundDetails?.slots?.length || 0 }} / {{ (modalMode === 'create' || isSlotConfigDirty) ? totalPreviewSlots : selectedRoundDetails?.slots?.length || 0 }} สล็อต
                                     </div>
                                 </div>
 
@@ -999,11 +1054,18 @@ const saveNewInterviewer = async () => {
                                     <div v-if="isSlotConfigDirty" class="p-3 bg-amber-50 text-amber-800 text-xs rounded-lg mb-4 border border-amber-200">
                                         ⚠️ <strong>คำเตือน:</strong> คุณกำลังแก้ไขข้อมูลเวลา/วันที่ ระบบจะลบ Slots เดิมทั้งหมด และสร้างใหม่ตามพรีวิวด้านล่างนี้เมื่อกดบันทึก
                                     </div>
-                                    <div v-if="previewSlots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                        <div v-for="(slot, idx) in previewSlots" :key="idx" class="p-3 rounded-xl border text-center bg-white border-green-200">
-                                            <span class="font-bold text-lg text-slate-700">{{ slot.time }}</span>
-                                            <div class="badge badge-success badge-xs text-white block mx-auto mt-1">ว่าง</div>
-                                        </div>
+                                    <div v-if="previewSlotStates.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        <button v-for="(slot, idx) in previewSlotStates" :key="idx" @click="slot.is_active = !slot.is_active" class="p-3 rounded-xl border text-center transition-all h-full flex flex-col items-center justify-center" :class="{
+                                                'bg-white border-green-200 hover:bg-green-50': slot.is_active,
+                                                'bg-gray-100 border-gray-300 text-gray-400 cursor-pointer hover:bg-gray-200': !slot.is_active
+                                            }">
+                                            <span class="font-bold text-lg" :class="{ 'text-slate-700': slot.is_active, 'line-through': !slot.is_active }">
+                                                {{ formatTime(slot.start).replace(' น.', '') }}
+                                            </span>
+                                            <div class="badge badge-xs text-white block mx-auto mt-1" :class="{ 'badge-success': slot.is_active, 'badge-ghost text-gray-500 border-gray-300': !slot.is_active }">
+                                                {{ slot.is_active ? 'ว่าง' : 'ปิด' }}
+                                            </div>
+                                        </button>
                                     </div>
                                     <div v-else class="flex flex-col items-center justify-center h-40 text-gray-400 border-2 border-dashed rounded-xl">
                                         <p>ระบุวันและเวลา เพื่อดูพรีวิวตาราง</p>
@@ -1011,16 +1073,21 @@ const saveNewInterviewer = async () => {
                                 </div>
 
                                 <div v-else>
-                                    <div v-if="selectedRoundDetails?.slots && selectedRoundDetails.slots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                        <div v-for="slot in selectedRoundDetails.slots" :key="slot.ID">
-                                            <button @click="openStudentDetailModal(slot)" 
-                                                :disabled="!slot.is_booked"
+                                    <!-- EDIT MODE: Interactive slots -->
+                                    <div v-if="modalMode === 'edit'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        <div v-for="slot in editingSlotStates" :key="slot.ID">
+                                            <button @click="() => { if (!slot.is_booked) slot.status = slot.status === 'Available' ? 'Disabled' : 'Available' }" 
+                                                :disabled="slot.is_booked"
                                                 class="w-full p-3 rounded-xl border text-center flex flex-col items-center justify-center transition-all h-full"
                                                 :class="{
-                                                    'bg-blue-50 border-blue-300 cursor-pointer hover:bg-blue-100 hover:border-blue-400': slot.is_booked,
-                                                    'bg-white border-green-200 cursor-not-allowed': !slot.is_booked
+                                                    'bg-blue-50 border-blue-300 cursor-not-allowed': slot.is_booked,
+                                                    'bg-gray-100 border-gray-200 text-gray-400 cursor-pointer hover:bg-gray-200': !slot.is_booked && slot.status === 'Disabled',
+                                                    'bg-white border-green-200 cursor-pointer hover:bg-green-50': !slot.is_booked && slot.status !== 'Disabled'
                                                 }">
-                                                <span class="font-bold text-lg" :class="slot.is_booked ? 'text-slate-700' : 'text-slate-700'">
+                                                <span class="font-bold text-lg" :class="{
+                                                    'text-slate-700': slot.is_booked || slot.status !== 'Disabled',
+                                                    'text-gray-400 line-through': !slot.is_booked && slot.status === 'Disabled'
+                                                }">
                                                     {{ formatTime(slot.start_time) }}
                                                 </span>
                                                 
@@ -1028,8 +1095,45 @@ const saveNewInterviewer = async () => {
                                                      class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
                                                     {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
                                                 </div>
-                                                <div v-else class="badge badge-xs mt-1" :class="slot.is_booked ? 'badge-ghost text-gray-400' : 'badge-success text-white'">
-                                                    {{ slot.is_booked ? 'จองแล้ว' : 'ว่าง' }}
+                                                <div v-else class="badge badge-xs mt-1" :class="{
+                                                    'badge-ghost text-gray-400': slot.is_booked,
+                                                    'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
+                                                    'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+                                                }">
+                                                    {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- VIEW MODE: Static slots -->
+                                    <div v-else-if="selectedRoundDetails?.slots && selectedRoundDetails.slots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        <div v-for="slot in selectedRoundDetails.slots" :key="slot.ID">
+                                            <button @click="openStudentDetailModal(slot)" 
+                                                :disabled="!slot.is_booked"
+                                                class="w-full p-3 rounded-xl border text-center flex flex-col items-center justify-center transition-all h-full"
+                                                :class="{
+                                                    'bg-blue-50 border-blue-300 cursor-pointer hover:bg-blue-100 hover:border-blue-400': slot.is_booked,
+                                                    'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed': !slot.is_booked && slot.status === 'Disabled',
+                                                    'bg-white border-green-200 cursor-not-allowed': !slot.is_booked && slot.status !== 'Disabled'
+                                                }">
+                                                <span class="font-bold text-lg" :class="{
+                                                    'text-slate-700': slot.is_booked || slot.status !== 'Disabled',
+                                                    'text-gray-400 line-through': !slot.is_booked && slot.status === 'Disabled'
+                                                }">
+                                                    {{ formatTime(slot.start_time) }}
+                                                </span>
+                                                
+                                                <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
+                                                     class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
+                                                    {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
+                                                </div>
+                                                <div v-else class="badge badge-xs mt-1" :class="{
+                                                    'badge-ghost text-gray-400': slot.is_booked,
+                                                    'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
+                                                    'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+                                                }">
+                                                    {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
                                                 </div>
                                             </button>
                                         </div>
