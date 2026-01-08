@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, nextTick } from 'vue'
+import { ref, onUnmounted, nextTick } from 'vue'
 import { MoreVertical, Eye, Pencil, Settings2, Trash2 } from 'lucide-vue-next'
 
 // Props
