@@ -89,11 +89,11 @@ function handleCardClick() {
   emit('view', props.scholarship)
 }
 
-function handleView(id: number) {
+function handleView(_id: number) {
   emit('view', props.scholarship)
 }
 
-function handleEdit(id: number) {
+function handleEdit(_id: number) {
   emit('edit', props.scholarship)
 }
 
@@ -101,7 +101,7 @@ function handleManageFeatures(id: number) {
   emit('manageFeatures', id)
 }
 
-function handleDelete(id: number) {
+function handleDelete(_id: number) {
   emit('delete', props.scholarship)
 }
 </script>
