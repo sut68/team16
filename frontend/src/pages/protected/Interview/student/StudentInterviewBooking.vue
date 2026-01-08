@@ -27,6 +27,7 @@ const interviewModes = ref<InterviewMode[]>([]);
 const isBookingModalOpen = ref(false);
 const selectedRound = ref<InterviewRound | null>(null);
 const selectedSlot = ref<Slot | null>(null);
+const isBookingInViewMode = ref(false);
 
 // --- 2. Data Fetching ---
 onMounted(async () => {
@@ -103,14 +104,21 @@ const displayedRounds = computed(() => {
 
 const availableSlots = computed(() => {
     if (!selectedRound.value || !selectedRound.value.slots) return [];
-    return [...selectedRound.value.slots].sort((a, b) =>
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-    );
+    return [...selectedRound.value.slots]
+        .filter(slot => slot.status !== 'Disabled')
+        .sort((a, b) =>
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
 });
 
 const getBookedCount = (round: InterviewRound) => {
     if (!round.slots) return 0;
     return round.slots.filter(s => s.is_booked).length;
+}
+
+const getBookableSlotsCount = (round: InterviewRound) => {
+    if (!round.slots) return 0;
+    return round.slots.filter(s => s.status !== 'Disabled').length;
 }
 
 // --- Helper Functions for UI ---
@@ -135,8 +143,10 @@ const getRoundStatus = (round: InterviewRound): 'Closed' | 'Full' | 'Open' => {
     const roundEnd = new Date(round.end_date_time);
     if (roundEnd.getTime() < new Date().getTime()) return 'Closed';
 
-    if (!round.slots || round.slots.length === 0) return 'Open';
-    const isFull = round.slots.every(slot => slot.is_booked);
+    const bookableSlots = round.slots?.filter(s => s.status !== 'Disabled') || [];
+    if (bookableSlots.length === 0) return 'Full';
+
+    const isFull = bookableSlots.every(slot => slot.is_booked);
     return isFull ? 'Full' : 'Open';
 };
 
@@ -156,12 +166,20 @@ const formatTime = (date: string | Date) => {
 };
 
 // --- 4. Methods ---
-const openBookingModal = async (round: InterviewRound) => {
+const openBookingModal = async (round: InterviewRound, mode: 'book' | 'view' = 'book') => {
     isLoading.value = true;
+    isBookingInViewMode.value = mode === 'view';
     try {
         const freshRound = await InterviewAPI.getRoundById(round.ID);
         selectedRound.value = freshRound;
-        selectedSlot.value = null;
+        
+        if (mode === 'view') {
+            const myBookingForThisRound = myBookings.value.find(b => b.round?.ID === round.ID);
+            selectedSlot.value = myBookingForThisRound?.slot || null;
+        } else {
+            selectedSlot.value = null;
+        }
+
         isBookingModalOpen.value = true;
     } catch (error) {
         Swal.fire('ผิดพลาด', 'ไม่สามารถโหลดข้อมูลรอบสัมภาษณ์ได้', 'error');
@@ -316,9 +334,17 @@ const cancelBooking = async (bookingId: number) => {
                                     }) }} น.</p>
                             </div>
                         </div>
-                        <button @click="cancelBooking(booking.ID)"
-                            class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20 tooltip tooltip-left"
-                            data-tip="ยกเลิก">✕</button>
+                        <div class="flex items-center gap-2">
+                            <button v-if="booking.round" @click="openBookingModal(booking.round, 'view')"
+                                class="btn btn-xs bg-white/20 hover:bg-white/30 text-white font-normal border-none rounded-full px-3">
+                                ดูรายละเอียด
+                            </button>
+                            <button @click="cancelBooking(booking.ID)"
+                                class="btn btn-sm btn-circle btn-ghost text-white hover:bg-white/20 tooltip"
+                                data-tip="ยกเลิก">
+                                ✕
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -399,17 +425,17 @@ const cancelBooking = async (bookingId: number) => {
                             <div class="flex justify-between items-end gap-3">
                                 <div class="flex-1">
                                     <div class="flex justify-between text-xs mb-1">
-                                        <span class="text-gray-500">ว่าง ({{ round.slots?.length - getBookedCount(round)
+                                        <span class="text-gray-500">ว่าง ({{ getBookableSlotsCount(round) - getBookedCount(round)
                                         }} ที่นั่ง)</span>
                                         <span class="font-bold text-slate-700">{{ getBookedCount(round) }}/{{
-                                            round.slots?.length || 0 }}</span>
+                                            getBookableSlotsCount(round) }}</span>
                                     </div>
                                     <progress class="progress w-full h-2"
-                                        :class="getBookedCount(round) === (round.slots?.length || 0) ? 'progress-error' : 'progress-primary'"
-                                        :value="getBookedCount(round)" :max="round.slots?.length || 1"></progress>
+                                        :class="getBookableSlotsCount(round) > 0 && getBookedCount(round) === getBookableSlotsCount(round) ? 'progress-error' : 'progress-primary'"
+                                        :value="getBookedCount(round)" :max="getBookableSlotsCount(round) || 1"></progress>
                                 </div>
 
-                                <button @click="openBookingModal(round)"
+                                <button @click="openBookingModal(round, 'book')"
                                     :disabled="getRoundStatus(round) === 'Full'"
                                     class="btn btn-sm px-4 bg-[#1e3a8a] border-none text-white hover:bg-[#152c6f] disabled:bg-gray-100 disabled:text-gray-400 shadow-sm whitespace-nowrap">
                                     {{ getRoundStatus(round) === 'Full' ? 'ที่นั่งเต็ม' : 'เลือกเวลา' }}
@@ -432,7 +458,7 @@ const cancelBooking = async (bookingId: number) => {
                 <div class="bg-white w-full max-h-[90vh] h-full md:h-[80vh] md:max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row animate-pop-in relative">
                     
                     <div class="hidden md:flex w-[350px] bg-slate-50 border-r border-slate-200 flex-col shrink-0">
-                        <div class="p-5 bg-[#1e3a8a] text-white">
+                        <div class="p-5 bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white">
                             <div class="badge bg-orange-500 text-white border-none mb-2 text-xs">
                                 {{ selectedRound.scholarship?.scholarship_name || 'ทุนการศึกษา' }}
                             </div>
@@ -454,7 +480,17 @@ const cancelBooking = async (bookingId: number) => {
                                     <div>
                                         <p class="font-bold text-slate-700 text-[14px]">{{ getModeName(selectedRound) }}</p>
                                         <p class="text-slate-500 text-sm leading-relaxed">{{ getLocationLabel(selectedRound) }}</p>
-                                        <p v-if="getModeName(selectedRound) === 'Online' && (selectedRound as any).meeting_link" class="text-[10px] text-blue-500 mt-1 truncate max-w-[150px]">Link จะแสดงเมื่อยืนยัน</p>
+                                        <a v-if="isBookingInViewMode && getModeName(selectedRound) === 'Online' && selectedRound.meeting_link" 
+                                           :href="selectedRound.meeting_link" 
+                                           target="_blank" 
+                                           rel="noopener noreferrer"
+                                           class="text-xs text-blue-300 hover:text-white hover:underline mt-1 truncate max-w-[200px] block">
+                                            {{ selectedRound.meeting_link }}
+                                        </a>
+                                        <p v-else-if="!isBookingInViewMode && getModeName(selectedRound) === 'Online' && selectedRound.meeting_link" 
+                                           class="text-[10px] text-blue-200/70 mt-1">
+                                            Link จะแสดงเมื่อยืนยันการจอง
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -477,10 +513,10 @@ const cancelBooking = async (bookingId: number) => {
                         <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
                             <div class="flex justify-between items-center mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-800">เลือกเวลาสัมภาษณ์</h3>
-                                    <p class="text-slate-500 text-sm hidden sm:block">เลือกช่วงเวลาที่คุณสะดวก</p>
+                                    <h3 class="text-lg font-bold text-slate-800">{{ isBookingInViewMode ? 'นัดหมายของคุณ' : 'เลือกเวลาสัมภาษณ์' }}</h3>
+                                    <p class="text-slate-500 text-sm hidden sm:block">{{ isBookingInViewMode ? 'นี่คือเวลาที่คุณได้จองไว้' : 'เลือกช่วงเวลาที่คุณสะดวก' }}</p>
                                 </div>
-                                <div class="flex gap-2 text-[10px] sm:text-[13px]">
+                                <div v-if="!isBookingInViewMode" class="flex gap-2 text-[10px] sm:text-[13px]">
                                     <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white border border-green-400"></span> ว่าง</div>
                                     <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-50 border border-blue-600"></span> เลือก</div>
                                     <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-gray-100 border border-gray-200"></span> ไม่ว่าง</div>
@@ -493,15 +529,16 @@ const cancelBooking = async (bookingId: number) => {
 
                             <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
                                 <button v-for="slot in availableSlots" :key="slot.ID"
-                                    @click="!slot.is_booked && selectSlot(slot)"
-                                    :disabled="slot.is_booked"
+                                    @click="!isBookingInViewMode && !slot.is_booked && selectSlot(slot)"
+                                    :disabled="slot.is_booked || isBookingInViewMode"
                                     class="relative group flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 h-[70px] sm:h-20"
                                     :class="[
-                                        slot.is_booked 
+                                        (slot.is_booked && selectedSlot?.ID !== slot.ID)
                                             ? 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed' 
                                             : (selectedSlot?.ID === slot.ID 
                                                 ? 'bg-blue-50 border-blue-600 shadow-sm scale-[1.02] z-10' 
-                                                : 'bg-white border-slate-100 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5')
+                                                : 'bg-white border-slate-100 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5'),
+                                        isBookingInViewMode ? '!cursor-default' : ''
                                     ]">
                                     
                                     <div v-if="selectedSlot?.ID === slot.ID" class="absolute top-1 right-1 text-blue-600 animate-bounce-short">
@@ -515,10 +552,10 @@ const cancelBooking = async (bookingId: number) => {
                                     
                                     <span class="text-[10px] sm:text-[12px] px-2 py-0.5 rounded-full font-medium"
                                         :class="[
-                                            slot.is_booked ? 'bg-gray-200 text-gray-500' :
+                                            (slot.is_booked && selectedSlot?.ID !== slot.ID) ? 'bg-gray-200 text-gray-500' :
                                             (selectedSlot?.ID === slot.ID ? 'bg-blue-200 text-blue-800' : 'bg-green-100 text-green-700')
                                         ]">
-                                        {{ slot.is_booked ? 'ไม่ว่าง' : (selectedSlot?.ID === slot.ID ? 'เลือกแล้ว' : 'ว่าง') }}
+                                        {{ (slot.is_booked && selectedSlot?.ID !== slot.ID) ? 'ไม่ว่าง' : (selectedSlot?.ID === slot.ID ? 'นัดของคุณ' : 'ว่าง') }}
                                     </span>
                                 </button>
                             </div>
@@ -538,8 +575,8 @@ const cancelBooking = async (bookingId: number) => {
                             </div>
 
                             <div class="flex gap-2 w-full sm:w-auto text-sm">
-                                <button @click="isBookingModalOpen = false" class="btn btn-sm btn-ghost text-slate-500 hover:bg-slate-100 flex-1 sm:flex-none">ยกเลิก</button>
-                                <button @click="confirmBooking" 
+                                <button @click="isBookingModalOpen = false" class="btn btn-sm btn-ghost text-slate-500 hover:bg-slate-100 flex-1 sm:flex-none">{{ isBookingInViewMode ? 'ปิด' : 'ยกเลิก' }}</button>
+                                <button v-if="!isBookingInViewMode" @click="confirmBooking" 
                                     :disabled="!selectedSlot" 
                                     class="btn btn-sm bg-[#1e3a8a] text-white hover:bg-[#152c6f] border-none px-6 flex-1 sm:flex-none shadow-md shadow-blue-900/10 transition-all hover:scale-105 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:scale-100">
                                     ยืนยัน

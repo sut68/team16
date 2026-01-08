@@ -51,6 +51,9 @@ func CreateInterviewRound(c *gin.Context) {
 	var input struct {
 		entity.InterviewRound
 		InterviewerIDs []uint `json:"interviewer_ids"`
+		Slots          []struct {
+			Status string `json:"status"`
+		} `json:"slots"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -68,14 +71,18 @@ func CreateInterviewRound(c *gin.Context) {
 		return
 	}
 
-	// 2. Calculate and create slots
+	// 2. Calculate and create slots using status from payload
 	startTime := round.StartDateTime
 	endTime := round.EndDateTime
-
 	duration := time.Duration(round.SlotDuration) * time.Minute
 	var slots []entity.Slot
 
+	i := 0
 	for currentTime := startTime; currentTime.Add(duration).Before(endTime) || currentTime.Add(duration).Equal(endTime); currentTime = currentTime.Add(duration) {
+		slotStatus := "Available" // Default
+		if i < len(input.Slots) {
+			slotStatus = input.Slots[i].Status
+		}
 
 		slot := entity.Slot{
 			InterviewRoundID: round.ID,
@@ -83,9 +90,10 @@ func CreateInterviewRound(c *gin.Context) {
 			EndTime:          currentTime.Add(duration),
 			Capacity:         1,
 			BookCount:        0,
-			Status:           "Available",
+			Status:           slotStatus,
 		}
 		slots = append(slots, slot)
+		i++
 	}
 
 	if len(slots) > 0 {
@@ -108,10 +116,12 @@ func CreateInterviewRound(c *gin.Context) {
 				interviewerSlots = append(interviewerSlots, interviewerSlot)
 			}
 		}
-		if err := tx.Create(&interviewerSlots).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign interviewers: " + err.Error()})
-			return
+		if len(interviewerSlots) > 0 {
+			if err := tx.Create(&interviewerSlots).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign interviewers: " + err.Error()})
+				return
+			}
 		}
 	}
 
@@ -121,7 +131,7 @@ func CreateInterviewRound(c *gin.Context) {
 		return
 	}
 
-	// Refetch the created round ... (ส่วนนี้เหมือนเดิม)
+	// Refetch the created round
 	var createdRound entity.InterviewRound
 	if err := config.DB.
 		Preload("Scholarship").
@@ -144,14 +154,69 @@ func UpdateInterviewRound(c *gin.Context) {
 		return
 	}
 
-	var input entity.InterviewRound
+	var input struct {
+		entity.InterviewRound
+		Slots []struct {
+			ID     uint   `json:"id"`
+			Status string `json:"status"`
+		} `json:"slots"`
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	config.DB.Model(&round).Updates(input)
-	c.JSON(http.StatusOK, round)
+	tx := config.DB.Begin()
+
+	// 1. Update the round details
+	if err := tx.Model(&round).Updates(input.InterviewRound).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update interview round: " + err.Error()})
+		return
+	}
+
+	// 2. Update individual slot statuses if provided
+	if len(input.Slots) > 0 {
+		for _, slotUpdate := range input.Slots {
+			var slotToUpdate entity.Slot
+			if err := tx.First(&slotToUpdate, slotUpdate.ID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusNotFound, gin.H{"error": "Slot with ID " + c.Param("id") + " not found"})
+				return
+			}
+
+			// Do not allow changing status of a booked slot
+			if slotToUpdate.IsBooked {
+				continue
+			}
+
+			if err := tx.Model(&slotToUpdate).Update("status", slotUpdate.Status).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update slot status: " + err.Error()})
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
+		return
+	}
+
+	// Refetch the round to return the updated data
+	var updatedRound entity.InterviewRound
+	if err := config.DB.
+		Preload("Scholarship").
+		Preload("AdminProfile").
+		Preload("Slots.InterviewerSlots.Interviewer").
+		First(&updatedRound, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated round: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedRound)
 }
 
 // DeleteInterviewRound godoc
@@ -217,6 +282,12 @@ func CreateInterviewBooking(c *gin.Context) {
 	if err := tx.First(&slot, booking.SlotID).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "Slot not found"})
+		return
+	}
+
+	if slot.Status != "Available" {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Slot is not available for booking"})
 		return
 	}
 

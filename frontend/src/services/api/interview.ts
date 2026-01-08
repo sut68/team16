@@ -14,8 +14,11 @@ export interface InterviewRoundCreate {
   location_id?: number | null;
   meeting_link?: string;
   interviewer_ids: number[];
+  slots: { status: string }[];
 }
-export type InterviewRoundUpdate = Partial<InterviewRoundCreate>;
+export type InterviewRoundUpdate = Partial<Omit<InterviewRoundCreate, 'slots'>> & {
+  slots?: { id: number, status: string }[];
+};
 
 export type InterviewerCreate = Omit<Interviewer, 'ID'>;
 
