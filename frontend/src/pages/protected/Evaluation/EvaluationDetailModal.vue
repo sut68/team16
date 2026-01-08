@@ -126,9 +126,9 @@
         class="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
         <!-- Header -->
-        <div class="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-indigo-50 to-white">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
           <div>
-            <h2 class="text-xl font-bold text-gray-900">รายละเอียดการประเมิน</h2>
+            <h2 class="text-xl font-bold text-[#1e3a8a]">รายละเอียดการประเมิน</h2>
             <p v-if="studentInfo" class="text-sm text-gray-500">{{ studentInfo.name }}</p>
           </div>
           <button 
