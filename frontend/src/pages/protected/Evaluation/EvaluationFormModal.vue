@@ -134,10 +134,10 @@ watch([saving, completing], ([s, c]) => {
         class="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
         <!-- Header -->
-        <div class="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-indigo-600 to-blue-600">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
           <div>
-            <h2 class="text-xl font-bold text-white">ประเมินผู้สมัคร</h2>
-            <p class="text-sm text-white/80" v-if="evaluation">
+            <h2 class="text-xl font-bold text-[#1e3a8a]">ประเมินผู้สมัคร</h2>
+            <p class="text-sm text-gray-500" v-if="evaluation">
               รหัสการประเมิน: #{{ evaluation.ID }}
             </p>
           </div>
