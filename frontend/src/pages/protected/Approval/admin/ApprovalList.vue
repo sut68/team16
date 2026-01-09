@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
+import { RefreshCw } from 'lucide-vue-next';
 import DocumentDetailModal from './DocumentDetailModal.vue';
 import { getApprovalTasks } from '@/services/api/approval';
 import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
@@ -375,6 +376,15 @@ const handleActionCompleted = () => {
             data-testid="search-input"
           />
         </div>
+        <!-- Refresh Button -->
+        <button 
+          @click="fetchTasks"
+          :disabled="isLoading"
+          class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
+          title="รีเฟรช"
+        >
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+        </button>
       </div>
     </div>
 
