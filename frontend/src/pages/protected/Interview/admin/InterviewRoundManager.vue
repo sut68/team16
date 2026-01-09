@@ -30,9 +30,14 @@ const isModalOpen = ref(false);
 const isFilterOpen = ref(false);
 const isStudentDetailModalOpen = ref(false);
 const isNewInterviewerModalOpen = ref(false);
+const isAssignModalOpen = ref(false);
 const modalMode = ref<'create' | 'view' | 'edit'>('create');
 const activeTab = ref<'active' | 'history'>('active');
 const editingRoundId = ref<number | null>(null);
+
+const assigningSlot = ref<Slot | null>(null);
+const qualifiedApplicants = ref<any[]>([]);
+const selectedApplicantId = ref<number | null>(null);
 
 const isScholarshipDropdownOpen = ref(false);
 const scholarshipSearch = ref('');
@@ -336,6 +341,113 @@ watch(activeTab, () => {
 });
 
 // --- 5. Methods ---
+
+const reloadSelectedRoundDetails = async () => {
+    if (!editingRoundId.value && !selectedRoundDetails.value?.ID) return;
+    const idToReload = editingRoundId.value || selectedRoundDetails.value!.ID;
+    
+    try {
+        isLoading.value = true;
+        const details = await InterviewAPI.getRoundById(idToReload);
+        selectedRoundDetails.value = details;
+
+        if (modalMode.value === 'edit') {
+            editingSlotStates.value = JSON.parse(JSON.stringify(details.slots || []));
+        }
+
+    } catch (e) {
+        console.error("Failed to reload round details", e);
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลรอบล่าสุดได้', 'error');
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+
+const openAssignModal = async (slot: Slot) => {
+    if (!selectedRoundDetails.value) return;
+
+    assigningSlot.value = slot;
+    selectedApplicantId.value = null;
+    qualifiedApplicants.value = [];
+    isAssignModalOpen.value = true;
+    isLoading.value = true;
+
+    try {
+        const applicants = await InterviewAPI.getQualifiedApplicants(selectedRoundDetails.value.scholarship_id);
+        qualifiedApplicants.value = applicants;
+    } catch (error) {
+        console.error("Failed to fetch qualified applicants:", error);
+        Swal.fire('ผิดพลาด', 'ไม่สามารถดึงรายชื่อผู้มีสิทธิ์ได้', 'error');
+        isAssignModalOpen.value = false; // Close modal on error
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const handleAssignStudent = async () => {
+    if (!assigningSlot.value || !selectedApplicantId.value) {
+        Swal.fire('ข้อมูลไม่ครบถ้วน', 'กรุณาเลือกนักศึกษา', 'warning');
+        return;
+    }
+
+    const payload = {
+        slot_id: assigningSlot.value.ID,
+        application_scholarship_id: selectedApplicantId.value,
+    };
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการจองคิว',
+        text: 'คุณต้องการจองคิวให้นักศึกษาคนนี้ใช่หรือไม่?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก',
+    });
+
+    if (result.isConfirmed) {
+        isLoading.value = true;
+        try {
+            await InterviewAPI.adminCreateBooking(payload);
+            Swal.fire('สำเร็จ', 'จองคิวให้นักศึกษาเรียบร้อยแล้ว', 'success');
+            isAssignModalOpen.value = false;
+            await reloadSelectedRoundDetails(); // Reload details to show the new booking
+        } catch (error: any) {
+            Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถจองคิวได้', 'error');
+        } finally {
+            isLoading.value = false;
+        }
+    }
+};
+
+const handleAdminCancelBooking = async (bookingId: number) => {
+    if (!bookingId) {
+         Swal.fire('ผิดพลาด', 'ไม่พบรหัสการจอง', 'error');
+        return;
+    }
+    const result = await Swal.fire({
+        title: 'ยืนยันการยกเลิก',
+        text: "คุณต้องการยกเลิกการจองนี้ใช่หรือไม่? นักศึกษาจะได้รับผลกระทบ",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ใช่, ยกเลิกเลย',
+        cancelButtonText: 'ไม่',
+    });
+
+    if (result.isConfirmed) {
+        isLoading.value = true;
+        try {
+            await InterviewAPI.deleteBooking(bookingId);
+            Swal.fire('สำเร็จ', 'ยกเลิกการจองเรียบร้อยแล้ว', 'success');
+            await reloadSelectedRoundDetails();
+        } catch (error: any) {
+            Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถยกเลิกการจองได้', 'error');
+        } finally {
+            isLoading.value = false;
+        }
+    }
+};
 
 const openStudentDetailModal = (slot: Slot) => {
     if (!slot.is_booked) return;
@@ -1074,72 +1186,122 @@ const saveNewInterviewer = async () => {
 
                                 <div v-else>
                                     <!-- EDIT MODE: Interactive slots -->
-                                    <div v-if="modalMode === 'edit'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                        <div v-for="slot in editingSlotStates" :key="slot.ID">
-                                            <button @click="() => { if (!slot.is_booked) slot.status = slot.status === 'Available' ? 'Disabled' : 'Available' }" 
-                                                :disabled="slot.is_booked"
-                                                class="w-full p-3 rounded-xl border text-center flex flex-col items-center justify-center transition-all h-full"
-                                                :class="{
-                                                    'bg-blue-50 border-blue-300 cursor-not-allowed': slot.is_booked,
-                                                    'bg-gray-100 border-gray-200 text-gray-400 cursor-pointer hover:bg-gray-200': !slot.is_booked && slot.status === 'Disabled',
-                                                    'bg-white border-green-200 cursor-pointer hover:bg-green-50': !slot.is_booked && slot.status !== 'Disabled'
-                                                }">
+                                    <div v-if="modalMode === 'edit'" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                        <div v-for="slot in editingSlotStates" :key="slot.ID" 
+                                            class="p-3 rounded-xl border flex flex-col justify-between transition-all h-[130px]"
+                                            :class="{
+                                                'bg-blue-50/50 border-blue-200': slot.is_booked,
+                                                'bg-gray-100 border-gray-200 text-gray-400': !slot.is_booked && slot.status === 'Disabled',
+                                                'bg-white border-gray-200': !slot.is_booked && slot.status === 'Available'
+                                            }">
+
+                                            <!-- Slot Header -->
+                                            <div class="flex justify-between items-center mb-2">
                                                 <span class="font-bold text-lg" :class="{
-                                                    'text-slate-700': slot.is_booked || slot.status !== 'Disabled',
-                                                    'text-gray-400 line-through': !slot.is_booked && slot.status === 'Disabled'
+                                                    'text-blue-800': slot.is_booked,
+                                                    'text-gray-400 line-through': slot.status === 'Disabled',
+                                                    'text-slate-700': slot.status === 'Available'
                                                 }">
                                                     {{ formatTime(slot.start_time) }}
                                                 </span>
-                                                
-                                                <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
-                                                     class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
-                                                    {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
-                                                </div>
-                                                <div v-else class="badge badge-xs mt-1" :class="{
-                                                    'badge-ghost text-gray-400': slot.is_booked,
-                                                    'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
-                                                    'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+                                                <div class="badge badge-xs" :class="{
+                                                    'badge-info text-white': slot.is_booked,
+                                                    'badge-ghost': slot.status === 'Disabled',
+                                                    'badge-success text-white': slot.status === 'Available'
                                                 }">
                                                     {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
                                                 </div>
-                                            </button>
+                                            </div>
+
+                                            <!-- Slot Body & Actions -->
+                                            <div class="flex-1 flex flex-col items-center justify-center">
+                                                <!-- Booked State -->
+                                                <div v-if="slot.is_booked" class="text-center w-full">
+                                                     <p v-if="slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" class="font-semibold text-sm text-blue-900 truncate" :title="`${slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th} ${slot.interviewe_bookings[0].application_scholarship.application.student_profile.last_name_th}`">
+                                                        {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
+                                                    </p>
+                                                    <div class="mt-2">
+                                                        <button v-if="slot.interviewe_bookings && slot.interviewe_bookings[0]" @click="handleAdminCancelBooking(slot.interviewe_bookings[0].ID)" class="btn btn-xs btn-outline btn-error">ยกเลิกการจอง</button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Disabled State -->
+                                                <div v-else-if="slot.status === 'Disabled'" class="flex items-center justify-center">
+                                                    <button @click="slot.status = 'Available'" class="btn btn-xs btn-outline btn-success">เปิดใช้งาน</button>
+                                                </div>
+
+                                                <!-- Available State (Catch-all for not booked and not disabled) -->
+                                                <div v-else class="flex items-center justify-center gap-2">
+                                                    <button @click="openAssignModal(slot)" class="btn btn-xs bg-[#1e3a8a] text-white border-none hover:bg-[#152c6f]">จองคิว</button>
+                                                    <button @click="slot.status = 'Disabled'" class="btn btn-xs btn-ghost text-gray-500">ปิดใช้งาน</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <!-- VIEW MODE: Static slots -->
-                                    <div v-else-if="selectedRoundDetails?.slots && selectedRoundDetails.slots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                        <div v-for="slot in selectedRoundDetails.slots" :key="slot.ID">
-                                            <button @click="openStudentDetailModal(slot)" 
-                                                :disabled="!slot.is_booked"
-                                                class="w-full p-3 rounded-xl border text-center flex flex-col items-center justify-center transition-all h-full"
-                                                :class="{
-                                                    'bg-blue-50 border-blue-300 cursor-pointer hover:bg-blue-100 hover:border-blue-400': slot.is_booked,
-                                                    'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed': !slot.is_booked && slot.status === 'Disabled',
-                                                    'bg-white border-green-200 cursor-not-allowed': !slot.is_booked && slot.status !== 'Disabled'
-                                                }">
-                                                <span class="font-bold text-lg" :class="{
-                                                    'text-slate-700': slot.is_booked || slot.status !== 'Disabled',
-                                                    'text-gray-400 line-through': !slot.is_booked && slot.status === 'Disabled'
-                                                }">
-                                                    {{ formatTime(slot.start_time) }}
-                                                </span>
-                                                
-                                                <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
-                                                     class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
-                                                    {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
-                                                </div>
-                                                <div v-else class="badge badge-xs mt-1" :class="{
-                                                    'badge-ghost text-gray-400': slot.is_booked,
-                                                    'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
-                                                    'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
-                                                }">
-                                                    {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
-                                                </div>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div v-else class="flex flex-col items-center justify-center h-40 text-gray-400 border-2 border-dashed rounded-xl">
-                                        <p>ไม่มีข้อมูลช่องเวลาสำหรับรอบนี้</p>
+                                                                                                            <!-- VIEW MODE: Reverted to simple button grid -->
+
+                                                                                                            <div v-else-if="selectedRoundDetails?.slots && selectedRoundDetails.slots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+
+                                                                                                                <div v-for="slot in selectedRoundDetails.slots" :key="slot.ID">
+
+                                                                                                                    <button @click="openStudentDetailModal(slot)" 
+
+                                                                                                                        :disabled="!slot.is_booked"
+
+                                                                                                                        class="w-full p-3 rounded-xl border text-center flex flex-col items-center justify-center transition-all h-full"
+
+                                                                                                                        :class="{
+
+                                                                                                                            'bg-blue-50 border-blue-300 cursor-pointer hover:bg-blue-100 hover:border-blue-400': slot.is_booked,
+
+                                                                                                                            'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed': !slot.is_booked && slot.status === 'Disabled',
+
+                                                                                                                            'bg-white border-green-200 cursor-not-allowed': !slot.is_booked && slot.status !== 'Disabled'
+
+                                                                                                                        }">
+
+                                                                                                                        <span class="font-bold text-lg" :class="{
+
+                                                                                                                            'text-slate-700': slot.is_booked || slot.status !== 'Disabled',
+
+                                                                                                                            'text-gray-400 line-through': !slot.is_booked && slot.status === 'Disabled'
+
+                                                                                                                        }">
+
+                                                                                                                            {{ formatTime(slot.start_time) }}
+
+                                                                                                                        </span>
+
+                                                                                                                        
+
+                                                                                                                        <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
+
+                                                                                                                             class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
+
+                                                                                                                            {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
+
+                                                                                                                        </div>
+
+                                                                                                                        <div v-else class="badge badge-xs mt-1" :class="{
+
+                                                                                                                            'badge-ghost text-gray-400': slot.is_booked,
+
+                                                                                                                            'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
+
+                                                                                                                            'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+
+                                                                                                                        }">
+
+                                                                                                                            {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
+
+                                                                                                                        </div>
+
+                                                                                                                    </button>
+
+                                                                                                                </div>
+
+                                                                                                            </div>                                                                                <div v-else class="flex flex-col items-center justify-center h-40 text-gray-400 border-2 border-dashed rounded-xl">                                        <p>ไม่มีข้อมูลช่องเวลาสำหรับรอบนี้</p>
                                     </div>
                                 </div>
                             </div>
@@ -1150,7 +1312,7 @@ const saveNewInterviewer = async () => {
                 <div class="p-4 border-t bg-white flex justify-end gap-2">
                     <button @click="isModalOpen = false" class="btn btn-ghost text-gray-500">ยกเลิก</button>
                     <button v-if="modalMode === 'create'" @click="saveRound" class="btn bg-[#1e3a8a] text-white hover:bg-[#152c6f]">สร้างรอบสัมภาษณ์</button>
-                    <button v-if="modalMode === 'edit'" @click="handleUpdate" class="btn bg-blue-600 text-white hover:bg-blue-700">บันทึกการแก้ไข</button>
+                    <button v-if="modalMode === 'edit'" @click="handleUpdate" class="btn bg-[#1e3a8a] text-white hover:bg-[#152c6f]">บันทึกการแก้ไข</button>
                 </div>
             </div>
         </div>
@@ -1223,6 +1385,44 @@ const saveNewInterviewer = async () => {
                 </div>
                 <div class="p-4 border-t bg-gray-50/70 flex justify-end">
                     <button @click="isStudentDetailModalOpen = false" class="btn btn-ghost">ปิด</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assign Student Modal -->
+        <div v-if="isAssignModalOpen && assigningSlot" class="fixed inset-0 z-[102] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
+                <div class="px-6 py-4 border-b flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">จองคิวให้นักศึกษา</h2>
+                        <p class="text-sm text-gray-500">สำหรับ Slot เวลา {{ formatTime(assigningSlot.start_time) }}</p>
+                    </div>
+                    <button @click="isAssignModalOpen = false" class="btn btn-circle btn-ghost btn-sm text-gray-500">✕</button>
+                </div>
+                <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                    <div v-if="qualifiedApplicants.length > 0">
+                        <p class="text-sm font-medium text-gray-600 mb-2">เลือกนักศึกษาที่มีสิทธิ์และยังไม่จองคิว:</p>
+                        <div class="space-y-2">
+                            <label v-for="app in qualifiedApplicants" :key="app.ID" class="p-3 border rounded-lg flex items-center gap-4 cursor-pointer transition-colors" :class="selectedApplicantId === app.ID ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'">
+                                <input type="radio" name="applicant-selection" :value="app.ID" v-model="selectedApplicantId" class="radio radio-primary" />
+                                <div>
+                                    <p class="font-semibold text-gray-800">{{ app.application.student_profile.first_name_th }} {{ app.application.student_profile.last_name_th }}</p>
+                                    <p class="text-xs text-gray-500">{{ app.application.student_profile.student_id }} | GPAX: {{ app.application.student_profile.gpax.toFixed(2) }}</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-8 text-gray-500">
+                        <p>ไม่พบนักศึกษาที่มีคุณสมบัติ</p>
+                        <p class="text-xs">อาจเป็นไปได้ว่านักศึกษาทั้งหมดได้จองคิวไปแล้ว</p>
+                    </div>
+                </div>
+                <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                    <button @click="isAssignModalOpen = false" class="btn btn-ghost">ยกเลิก</button>
+                    <button @click="handleAssignStudent" class="btn bg-[#1e3a8a] text-white border-none hover:bg-[#152c6f]" :disabled="!selectedApplicantId || isLoading">
+                         <span v-if="isLoading" class="loading loading-spinner loading-xs"></span>
+                        ยืนยันการจอง
+                    </button>
                 </div>
             </div>
         </div>

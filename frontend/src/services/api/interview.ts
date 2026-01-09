@@ -24,6 +24,11 @@ export type InterviewerCreate = Omit<Interviewer, 'ID'>;
 
 export type InterviewBookingCreate = Omit<InterviewBooking, 'ID'>;
 
+export interface AdminBookingCreate {
+  slot_id: number;
+  application_scholarship_id: number;
+}
+
 
 export const InterviewAPI = {
   // Interview Rounds
@@ -44,4 +49,9 @@ export const InterviewAPI = {
 
   // Interview Modes
   getAllModes: (): Promise<InterviewMode[]> => Get("/interview-modes"),
+  
+  // Admin-specific actions
+  getQualifiedApplicants: (scholarshipId: number): Promise<any[]> => Get(`/scholarships/${scholarshipId}/qualified-applicants`),
+  adminCreateBooking: (data: AdminBookingCreate): Promise<InterviewBooking> => Post('/admin/interview-bookings', data),
+  adminMoveBooking: (bookingId: number, newSlotId: number): Promise<InterviewBooking> => Post(`/admin/interview-bookings/${bookingId}/move`, { new_slot_id: newSlotId }),
 };

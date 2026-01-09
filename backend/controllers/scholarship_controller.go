@@ -257,3 +257,31 @@ func ApplyForScholarship(ctx *gin.Context) {
 		"screeningId":              screening.ID,
 	})
 }
+
+// GetQualifiedApplicantsForScholarship godoc
+// GET /scholarships/:id/qualified-applicants
+func GetQualifiedApplicantsForScholarship(c *gin.Context) {
+	scholarshipIDStr := c.Param("id")
+	scholarshipID, err := strconv.Atoi(scholarshipIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid scholarship ID"})
+		return
+	}
+
+	var qualifiedApplicants []entity.ApplicationScholarship
+
+	// Subquery to find all application_scholarship_ids that already have a booking
+	subQuery := config.DB.Model(&entity.IntervieweBooking{}).Select("application_scholarship_id")
+
+	if err := config.DB.
+		Where("scholarship_id = ?", scholarshipID).
+		Where("status = ?", "qualified").
+		Where("id NOT IN (?)", subQuery).
+		Preload("Application.StudentProfile.Major").
+		Find(&qualifiedApplicants).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query qualified applicants: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, qualifiedApplicants)
+}
