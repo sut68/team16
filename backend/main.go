@@ -258,48 +258,52 @@ func main() {
 		api.GET("/interview-modes", controllers.GetAllInterviewModes)
 
 		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
-		api.GET("/profile/me", controllers.GetMyProfile)
-		api.PUT("/profile/me", controllers.UpdateMyProfile)
+		authorized.GET("/profile/me", controllers.GetMyProfile)
+		authorized.PUT("/profile/me", controllers.UpdateMyProfile)
+
+		// Admin-specific & Advanced Routes
+		authorized.GET("/scholarships/:id/qualified-applicants", controllers.GetQualifiedApplicantsForScholarship)
+		authorized.POST("/admin/interview-bookings", controllers.AdminCreateInterviewBooking)
+		authorized.POST("/admin/interview-bookings/:id/move", controllers.AdminMoveInterviewBooking)
 
 		// User Management (Admin)
-		api.GET("/roles", controllers.ListRoles)
-		api.GET("/majors", controllers.ListMajors)
-		api.GET("/users", controllers.ListUsers)
-		api.POST("/users", controllers.CreateUser)
-		api.DELETE("/users/:id", controllers.DeleteUser)
-		api.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
+		authorized.GET("/roles", controllers.ListRoles)
+		authorized.GET("/majors", controllers.ListMajors)
+		authorized.GET("/users", controllers.ListUsers)
+		authorized.POST("/users", controllers.CreateUser)
+		authorized.DELETE("/users/:id", controllers.DeleteUser)
+		authorized.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
 
 		// Student Favorite News
-		api.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
-		api.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+		authorized.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
+		authorized.POST("/student_favs/toggle", controllers.ToggleStudentFav)
 
 		// Evaluation System (ระบบพิจารณาผู้รับทุน)
 		// Evaluation Criteria
-		api.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
-		api.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
-		api.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
-		api.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
-		api.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
+		authorized.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
+		authorized.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
+		authorized.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
+		authorized.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
+		authorized.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
 
 		// Interview Round Criteria (เกณฑ์ในแต่ละรอบสัมภาษณ์)
-		api.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
-		api.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
-		api.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
-		api.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
+		authorized.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
+		authorized.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
+		authorized.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
+		authorized.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
 
 		// Evaluations (การประเมินผู้สมัคร)
-		api.GET("/evaluations", controllers.GetAllEvaluations)
-		api.GET("/evaluations/:id", controllers.GetEvaluationByID)
-		api.POST("/evaluations", controllers.CreateEvaluation)
-		api.PATCH("/evaluations/:id", controllers.UpdateEvaluation)
-		api.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
-		api.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
+		authorized.GET("/evaluations", controllers.GetAllEvaluations)
+		authorized.GET("/evaluations/:id", controllers.GetEvaluationByID)
+		authorized.POST("/evaluations", controllers.CreateEvaluation)
+		authorized.PATCH("/evaluations/:id", controllers.UpdateEvaluation)
+		authorized.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
+		authorized.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
 
 		// Evaluation Scores (คะแนนรายเกณฑ์)
-		api.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
-		api.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
-		api.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
-
+		authorized.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
+		authorized.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
+		authorized.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

@@ -298,6 +298,7 @@ func CreateInterviewBooking(c *gin.Context) {
 	}
 
 	// 2. Create the booking
+	booking.BookedByRole = "student" // Set the role for student bookings
 	if err := tx.Create(&booking).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
@@ -395,6 +396,15 @@ func DeleteInterviewBooking(c *gin.Context) {
 		return
 	}
 
+	// 4. Revert ApplicationScholarship status back to 'qualified'
+	if err := tx.Model(&entity.ApplicationScholarship{}).
+		Where("id = ?", booking.ApplicationScholarshipID).
+		Update("status", "qualified").Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revert application status"})
+		return
+	}
+
 	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -403,6 +413,97 @@ func DeleteInterviewBooking(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Interview booking cancelled and slot is now available"})
+}
+
+// --- Admin-specific Booking Handlers ---
+
+// AdminCreateInterviewBooking godoc
+func AdminCreateInterviewBooking(c *gin.Context) {
+	// 1. Check for admin role from token
+	role, exists := c.Get("role")
+	if !exists || role.(string) != "admin" {
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions for this action"})
+		return
+	}
+
+	// 2. Get admin ID from context (it's stored as 'user_id' by the middleware)
+	adminProfileID, exists := c.Get("user_id")
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Admin ID not found in token"})
+		return
+	}
+
+	var payload struct {
+		SlotID                   uint `json:"slot_id" binding:"required"`
+		ApplicationScholarshipID uint `json:"application_scholarship_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	booking := entity.IntervieweBooking{
+		SlotID:                   payload.SlotID,
+		ApplicationScholarshipID: payload.ApplicationScholarshipID,
+		Status:                   "confirmed",
+		BookedByRole:             "admin",
+		BookedByAdminID:          func(v interface{}) *uint { id := v.(uint); return &id }(adminProfileID),
+	}
+
+	tx := config.DB.Begin()
+
+	// 1. Check if the slot is available
+	var slot entity.Slot
+	if err := tx.First(&slot, booking.SlotID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Slot not found"})
+		return
+	}
+
+	// More robust check: A slot is unavailable only if it's already booked or explicitly disabled by an admin.
+	if slot.IsBooked || slot.Status == "Disabled" {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "Slot is not available for booking"})
+		return
+	}
+
+	// 2. Create the booking
+	if err := tx.Create(&booking).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
+		return
+	}
+
+	// 3. Increment the slot's book_count and set is_booked to true
+	if err := tx.Model(&slot).Updates(map[string]interface{}{"book_count": slot.BookCount + 1, "is_booked": true}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update slot status"})
+		return
+	}
+
+	// 4. Update ApplicationScholarship status to 'interview_scheduled'
+	if err := tx.Model(&entity.ApplicationScholarship{}).
+		Where("id = ?", booking.ApplicationScholarshipID).
+		Update("status", "interview_scheduled").Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, booking)
+}
+
+// AdminMoveInterviewBooking godoc
+func AdminMoveInterviewBooking(c *gin.Context) {
+	// Placeholder for moving a student's booking
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Move booking functionality is not implemented yet."})
 }
 
 // GetAllLocations godoc
