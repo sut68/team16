@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import ScreeningDetailModal from './DetailScreening.vue';
 import { getAllScreenings, getScreeningById } from '@/services/api/screening';
 import type { ScreeningResponse } from '@/interfaces/screening';
@@ -23,8 +23,6 @@ const isLoading = ref(false);
 const errorMsg = ref('');
 const allItems = ref<DocumentItem[]>([]);
 const activeTab = ref<'pending' | 'history'>('pending');
-let pollingInterval: any = null;
-
 // Filter States
 const searchQuery = ref('');
 const sortOrder = ref('newest');
@@ -157,13 +155,6 @@ watch(activeTab, () => {
 
 onMounted(() => { 
   fetchData(); 
-  pollingInterval = setInterval(() => {
-    fetchData(true);
-  }, 10000); // 10 seconds
-});
-
-onUnmounted(() => {
-  if (pollingInterval) clearInterval(pollingInterval);
 });
 
 // ... (Computed Filtered Items เหมือนเดิม) ...
@@ -325,6 +316,12 @@ const handleActionCompleted = () => {
       </div>
 
       <div class="flex flex-col md:flex-row items-center gap-2 w-full xl:w-auto pb-4 xl:pb-2">
+        <button @click="fetchData()" class="btn btn-sm btn-ghost bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 h-10 w-10 p-0 rounded-full shadow-sm" title="รีเฟรชข้อมูล">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+        </button>
+
         <select v-if="activeTab === 'pending'" v-model="sortOrder"
           class="select select-bordered select-sm rounded-full h-10 bg-white text-sm border-gray-300 focus:border-[#1e3a8a] focus:ring-[#1e3a8a] w-full md:w-auto shadow-sm px-4">
           <option value="newest">ใหม่ล่าสุด</option>
