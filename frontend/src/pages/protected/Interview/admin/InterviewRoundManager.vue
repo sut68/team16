@@ -6,7 +6,7 @@ import { LocationAPI } from '@/services/api/location';
 import type { InterviewRound, Interviewer, Location, InterviewMode, Slot } from '@/interfaces/interview';
 import type { ScholarshipResponse } from '@/interfaces/scholarship';
 import Swal from 'sweetalert2';
-import { Plus } from 'lucide-vue-next';
+import { Plus, RefreshCw } from 'lucide-vue-next';
 import FlatPickr from 'vue-flatpickr-component';
 import 'flatpickr/dist/flatpickr.css';
 import { Thai } from 'flatpickr/dist/l10n/th.js';
@@ -875,6 +875,15 @@ const saveNewInterviewer = async () => {
                     <input type="text" v-model="searchQuery" placeholder="ค้นหาชื่อรอบ, ทุน..."
                         class="input input-bordered input-sm h-10 w-full rounded-full pl-10 bg-white border-gray-300 shadow-sm" />
                 </div>
+                <!-- Refresh Button -->
+                <button 
+                  @click="fetchData"
+                  :disabled="isLoading"
+                  class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
+                  title="รีเฟรช"
+                >
+                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+                </button>
             </div>
         </div>
 
