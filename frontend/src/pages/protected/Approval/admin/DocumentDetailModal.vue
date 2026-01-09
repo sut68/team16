@@ -604,7 +604,7 @@ const openSpecificDocument = (path: string) => {
                                         class="btn bg-[#1e3a8a] hover:bg-[#152c6f] text-white w-full border-none"
                                         data-testid="approve-button">
                                         <span v-if="isSubmitting" class="loading loading-spinner loading-sm"></span>
-                                        อนุมัติเอกสาร (Approve)
+                                        อนุมัติเอกสาร
                                     </button>
                                     <div class="grid grid-cols-2 gap-2 mt-2">
                                         <button @click="actionType = 'request-change'" :disabled="isSubmitting"
