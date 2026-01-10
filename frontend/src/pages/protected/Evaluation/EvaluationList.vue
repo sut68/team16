@@ -4,6 +4,7 @@ import type { EvaluationResponse } from '@/interfaces/evaluation'
 import type { ApplicationScholarshipResponse } from '@/interfaces'
 import { EvaluationService } from '@/services/evaluation/evaluation'
 import { getAllApplicationScholarships } from '@/services/api/application'
+import { Get } from '@/services/api/https'
 import Swal from 'sweetalert2'
 import EvaluationFormModal from './EvaluationFormModal.vue'
 import EvaluationDetailModal from './EvaluationDetailModal.vue'
@@ -24,6 +25,7 @@ const error = ref<string | null>(null)
 const searchQuery = ref('')
 const activeTab = ref<'evaluations' | 'qualified'>('evaluations')
 const creatingEvaluation = ref(false)
+const adminId = ref<number>(1) // Default fallback, will be updated from API
 
 // Filter State
 const selectedScholarshipId = ref<number | null>(null)
@@ -225,7 +227,7 @@ async function createEvaluationForApplicant(app: ApplicationScholarshipResponse)
     await EvaluationService.create({
       application_scholarship_id: app.ID,
       interview_round_id: interviewRoundId,
-      admin_id: 1 // TODO: Should be current admin ID from auth
+      admin_id: adminId.value
     })
     
     await Swal.fire({
@@ -353,6 +355,16 @@ watch(selectedScholarshipId, () => {
 
 // ========== Lifecycle ==========
 onMounted(async () => {
+  // ดึง admin profile จาก API เพื่อให้ได้ ID ที่ถูกต้อง
+  try {
+    const profileRes: any = await Get('/profile/me')
+    if (profileRes && profileRes.role === 'admin' && profileRes.data) {
+      adminId.value = profileRes.data.ID
+    }
+  } catch (e) {
+    console.error('Error fetching admin profile:', e)
+  }
+  
   await fetchEvaluations()
   await fetchQualifiedApplicants()
 })
