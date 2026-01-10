@@ -411,7 +411,8 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 const openDocument = () => {
     const filePath = latestDocument.value?.file_path;
     if (filePath) {
-        const backendBaseUrl = 'http://localhost:8080';
+        // อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+        const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
         const fileUrl = `${backendBaseUrl}/${filePath}`;
         window.open(fileUrl, '_blank');
     } else {
@@ -421,7 +422,8 @@ const openDocument = () => {
 
 const openSpecificDocument = (path: string) => {
     if (path) {
-        const backendBaseUrl = 'http://localhost:8080';
+        // อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+        const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
         const fileUrl = `${backendBaseUrl}/${path}`;
         window.open(fileUrl, '_blank');
     }

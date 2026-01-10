@@ -1,8 +1,8 @@
 import { Get, Post, Put, Delete } from './https';
-import type { 
-  ScreeningResponse, 
-  CreateScreeningPayload, 
-  UpdateScreeningStatusPayload 
+import type {
+  ScreeningResponse,
+  CreateScreeningPayload,
+  UpdateScreeningStatusPayload
 } from './../../interfaces/screening';
 
 /**
@@ -17,7 +17,7 @@ export const getAllScreenings = async (): Promise<ScreeningResponse[]> => {
   try {
     const res: any = await Get('/screening');
 
-    console.log('Debug API Response:', res);
+    // console.log('Debug API Response:', res);
 
     if (!res) return [];
     if (Array.isArray(res)) return res;
@@ -37,7 +37,7 @@ export const getAllScreenings = async (): Promise<ScreeningResponse[]> => {
 export const getScreeningById = async (id: number): Promise<ScreeningResponse> => {
 
   const response: any = await Get(`/screening/${id}`);
-  return response.data; 
+  return response.data;
 };
 
 /**

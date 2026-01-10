@@ -1,0 +1,78 @@
+# docker-compose.hub.yml
+# Pull images from Docker Hub - use: docker compose -f docker-compose.hub.yml up -d
+# ต้อง build frontend image ด้วย VITE_API_URL=/api เพื่อให้ nginx proxy ทำงานได้
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_prod
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    networks:
+      - app_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: gowitphooang/scholarship-backend:latest
+    container_name: backend_prod
+    restart: always
+    volumes:
+      - ./uploads:/app/uploads
+    expose:
+      - "8080"
+    networks:
+      - app_network
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - GIN_MODE=release
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/api/scholarship" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: gowitphooang/scholarship-frontend:latest
+    container_name: frontend_prod
+    restart: always
+    ports:
+      - "80:80"
+    networks:
+      - app_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

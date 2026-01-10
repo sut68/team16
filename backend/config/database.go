@@ -40,5 +40,24 @@ func ConnectDB() {
 		panic("Failed to connect to database!")
 	}
 
-	fmt.Println("Database connection successfully opened")
+	// ========== Connection Pool Settings ==========
+	// Important for production performance
+	sqlDB, err := DB.DB()
+	if err != nil {
+		panic("Failed to get database connection pool!")
+	}
+
+	// SetMaxIdleConns: จำนวน idle connections ที่เก็บไว้ใน pool
+	sqlDB.SetMaxIdleConns(10)
+
+	// SetMaxOpenConns: จำนวน connections สูงสุดที่เปิดพร้อมกันได้
+	sqlDB.SetMaxOpenConns(100)
+
+	// SetConnMaxLifetime: อายุสูงสุดของ connection (ป้องกัน stale connections)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	// SetConnMaxIdleTime: เวลาสูงสุดที่ connection จะ idle ก่อนถูกปิด
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+
+	// fmt.Println("Database connection successfully opened")
 }

@@ -13,6 +13,10 @@ const SuryaGraphic = SuryaGraphicImport;
 const SUTLogo = SUTLogoImport;
 const FooterBg = FooterBgImport;
 
+// Computed URL for presenter image - extracted from template since import.meta is not allowed in Vue templates
+const baseUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
+const presenterImageUrl = `${baseUrl}/uploads/news/Bodyslam1859.jpg`;
+
 interface TabItem {
   id: string;
   label: string;
@@ -124,7 +128,7 @@ function handleViewAllNews() {
           <div
             class="w-72 h-80 md:w-96 md:h-96 bg-gradient-to-tr from-[#EEEEEE] to-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/20 flex items-center justify-center relative shadow-2xl">
             <!-- <span class="text-white/40 font-bold text-2xl">Presenter Image</span> -->
-            <img src="http://localhost:8080/uploads/news/Bodyslam1859.jpg" alt="Presenter" class="w-full h-full object-cover rounded-2xl" />
+            <img :src="presenterImageUrl" alt="Presenter" class="w-full h-full object-cover rounded-2xl" />
 
             <div
               class="absolute -top-4 -right-4 bg-[#253C90] text-white px-4 py-3 rounded-lg shadow-lg font-bold animate-bounce border border-white/30">

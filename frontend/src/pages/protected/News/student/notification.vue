@@ -5,7 +5,8 @@ import { ArrowLeft, Bell } from 'lucide-vue-next';
 import { getAllNewsPosts } from '@/services/api/news_post';
 
 const router = useRouter();
-const API_BASE_URL = 'http://localhost:8080';
+// อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
 
 const loading = ref(true);
 const notifications = ref<any[]>([]);

@@ -94,10 +94,10 @@ const loadDropdownData = async () => {
         description: props.scholarship.description,
         open_date: props.scholarship.open_date,
         close_date: props.scholarship.close_date,
-        statusscholarship_id: props.scholarship.statusscholarship_id,
-        typescholarship_id: props.scholarship.typescholarship_id,
-        sponsor_id: props.scholarship.sponsor_id,
-        semaster_id: props.scholarship.semaster.ID,
+        statusscholarship_id: props.scholarship.statusscholarship?.ID ?? props.scholarship.statusscholarship_id ?? 0,
+        typescholarship_id: props.scholarship.typescholarship?.ID ?? props.scholarship.typescholarship_id ?? 0,
+        sponsor_id: props.scholarship.sponsor?.ID ?? props.scholarship.sponsor_id ?? 0,
+        semaster_id: props.scholarship.semaster?.ID ?? props.scholarship.semaster_id ?? 0,
       };
 
       featureList.value = (featuresRes as FeatureScholarshipResponse[]).filter(

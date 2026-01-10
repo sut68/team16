@@ -16,7 +16,7 @@ import (
 
 // GET /newsposts
 func GetAllNewsPosts(c *gin.Context) {
-	fmt.Println("\n[GET] GetAllNewsPosts Called...")
+	// fmt.Println("\n[GET] GetAllNewsPosts Called...")
 	var items []entity.NewsPost
 	if err := config.DB.
 		Preload("Admin").
@@ -80,7 +80,7 @@ func GetNewsPostByID(c *gin.Context) {
 
 // POST /newsposts
 func CreateNewsPost(c *gin.Context) {
-	fmt.Println("\n[POST] CreateNewsPost Called...")
+	// fmt.Println("\n[POST] CreateNewsPost Called...")
 
 	// 1. ดึง User ID จาก Token (ที่ Middleware เซ็ตไว้ให้ เช่น c.Set("id", claims["id"]))
 	// หมายเหตุ: ชื่อ "id" ต้องตรงกับที่ Middleware ของคุณตั้งไว้
@@ -137,7 +137,7 @@ func CreateNewsPost(c *gin.Context) {
 // =================================================================
 // PUT /newsposts/:id
 func UpdateNewsPost(c *gin.Context) {
-	fmt.Println("\n[PUT] UpdateNewsPost Called...")
+	// fmt.Println("\n[PUT] UpdateNewsPost Called...")
 
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -253,6 +253,6 @@ func DeleteNewsPost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Println("[DELETE] Success!")
+	// fmt.Println("[DELETE] Success!")
 	c.JSON(http.StatusOK, gin.H{"message": "NewsPost deleted successfully"})
 }

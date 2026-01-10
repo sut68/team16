@@ -13,7 +13,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close']);
-const API_BASE_URL = 'http://localhost:8080';
+// อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
 
 // --- State ---
 const loading = ref(false);

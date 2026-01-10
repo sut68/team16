@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -10,8 +11,8 @@ import (
 	"backend/config"
 	"backend/controllers"
 	"backend/entity"
-	"backend/seed"
 	"backend/middlewares"
+	"backend/seed"
 )
 
 func main() {
@@ -21,7 +22,12 @@ func main() {
 
 	// Configure CORS
 	configCORS := cors.DefaultConfig()
-	configCORS.AllowOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"} // Allow frontend dev server
+	corsOrigins := os.Getenv("CORS_ORIGINS")
+	if corsOrigins == "" {
+		// Default for development
+		corsOrigins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174"
+	}
+	configCORS.AllowOrigins = strings.Split(corsOrigins, ",")
 	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(configCORS))
@@ -32,51 +38,53 @@ func main() {
 	// Connect to Database
 	config.ConnectDB()
 
-	if err := config.DB.Migrator().DropTable(
-		&entity.Role{},
-		&entity.User{},
-		&entity.AdminProfile{},
-		&entity.Semaster{},
-		&entity.Application{},
-		&entity.ApplicationScholarship{},
-		&entity.ApplicationDocument{},
-		&entity.ApprovalDecision{},
-		&entity.ApprovalTask{},
-		&entity.FamilyInfo{},
-		&entity.Major{},
-		&entity.NewsPost{},
-		&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
-		&entity.Requirement{},         // Added missing Requirement
-		&entity.Scholarship{},
-		&entity.Featurescholarship{},
-		&entity.Typefeature{},
-		&entity.Assistance{},
-		&entity.Chatroom{},
-		&entity.Screening{},
-		&entity.SponsorIndustry{},
-		&entity.Sponsor{},
-		&entity.SponsorContact{},
-		&entity.StatusNews{},
-		&entity.StudentFavNews{},
-		&entity.StatusScreening{},
-		&entity.Statusscholarship{},
-		&entity.StudentFavNews{},
-		&entity.StudentProfile{},
-		&entity.Typescholarship{},
-		&entity.InterviewRound{},
-		&entity.Interviewer{},
-		&entity.Slot{},
-		&entity.InterviewerSlot{},
-		&entity.IntervieweBooking{},
-		&entity.Location{},
-		&entity.InterviewMode{},
-		&entity.EvaluationScore{},
-		&entity.Evaluation{},
-		&entity.InterviewRoundCriterion{},
-		&entity.EvaluationCriterion{},
-	); err != nil {
-		log.Fatalf("DropTable failed: %v", err)
-	}
+	/*
+		if err := config.DB.Migrator().DropTable(
+			&entity.Role{},
+			&entity.User{},
+			&entity.AdminProfile{},
+			&entity.Semaster{},
+			&entity.Application{},
+			&entity.ApplicationScholarship{},
+			&entity.ApplicationDocument{},
+			&entity.ApprovalDecision{},
+			&entity.ApprovalTask{},
+			&entity.FamilyInfo{},
+			&entity.Major{},
+			&entity.NewsPost{},
+			&entity.ApprovalRequirement{}, // Moved to drop before Scholarship
+			&entity.Requirement{},         // Added missing Requirement
+			&entity.Scholarship{},
+			&entity.Featurescholarship{},
+			&entity.Typefeature{},
+			&entity.Assistance{},
+			&entity.Chatroom{},
+			&entity.Screening{},
+			&entity.SponsorIndustry{},
+			&entity.Sponsor{},
+			&entity.SponsorContact{},
+			&entity.StatusNews{},
+			&entity.StudentFavNews{},
+			&entity.StatusScreening{},
+			&entity.Statusscholarship{},
+			&entity.StudentFavNews{},
+			&entity.StudentProfile{},
+			&entity.Typescholarship{},
+			&entity.InterviewRound{},
+			&entity.Interviewer{},
+			&entity.Slot{},
+			&entity.InterviewerSlot{},
+			&entity.IntervieweBooking{},
+			&entity.Location{},
+			&entity.InterviewMode{},
+			&entity.EvaluationScore{},
+			&entity.Evaluation{},
+			&entity.InterviewRoundCriterion{},
+			&entity.EvaluationCriterion{},
+		); err != nil {
+			log.Fatalf("DropTable failed: %v", err)
+		}
+	*/
 
 	//Auto-migrate the schema
 	if err := config.DB.AutoMigrate(

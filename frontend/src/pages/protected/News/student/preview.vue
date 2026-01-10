@@ -7,7 +7,8 @@ import type { NewsPostDetailResponse } from '@/interfaces/news_post';
 
 const props = defineProps<{ id: number }>();
 const emit = defineEmits(['back']);
-const API_BASE_URL = 'http://localhost:8080'; 
+// อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', ''); 
 const loading = ref(true);
 const error = ref('');
 const news = ref<any>(null);

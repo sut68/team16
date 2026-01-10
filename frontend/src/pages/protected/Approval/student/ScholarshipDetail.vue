@@ -85,7 +85,7 @@ const fetchScholarships = async () => {
       }
     }
 
-    console.log('Data received for scholarships:', scholarships.value);
+    // console.log('Data received for scholarships:', scholarships.value);
   } catch (err) {
     error.value = 'ไม่สามารถโหลดข้อมูลทุนการศึกษาได้';
     console.error(err);
@@ -146,8 +146,8 @@ const submitApplication = async () => {
     };
 
     // Submit application with all data
-    const apiResult = await applyForScholarship(selectedScholarship.value.ID, payload);
-    console.log('Application result:', apiResult);
+    await applyForScholarship(selectedScholarship.value.ID, payload);
+    // console.log('Application result:', apiResult);
     
     closeModal();
     
