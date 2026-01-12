@@ -2,6 +2,7 @@ import type { UserResponse } from "./user"
 
 export interface ChatroomRespone {
     ID: number
+    CreatedAt: string
 
     user_id: number
     user: UserResponse
@@ -9,7 +10,7 @@ export interface ChatroomRespone {
     status_chatroom: string
 }
 
-export interface ChatroomCreate{
+export interface ChatroomCreate {
     massage?: string
 
     user_id: number
@@ -18,7 +19,7 @@ export interface ChatroomCreate{
 
 }
 
-export interface ChatroomUpdate{
+export interface ChatroomUpdate {
     ID?: number
 
     user_id?: number

@@ -9,15 +9,6 @@
         </div>
       </div>
 
-      <router-link to="/admin" class="menu-link" exact-active-class="active" data-testid="sidebar-menu-dashboard">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
-          class="w-6 h-6">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
-        </svg>
-        <span v-show="isSidebarOpen" class="menu-text">แดชบอร์ด</span>
-      </router-link>
-
       <router-link to="/admin/news" class="menu-link" :class="{ active: isMenuActive('/admin/news') }" data-testid="sidebar-menu-news">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="w-6 h-6">
@@ -271,8 +262,8 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin-top: 2px;
+  margin-bottom: 2px;
   position: relative;
 }
 
@@ -410,10 +401,10 @@ aside {
 }
 
 aside .logo {
-  width: 60px;
-  margin-top: 35px;
-  margin-bottom: 20px;
-  margin-left: -10px;
+  width: 50px;
+  margin-top: 25px;
+  margin-bottom: 10px;
+  margin-left: -5px;
   flex-shrink: 0;
   transition: all 0.3s ease-in-out;
 }
@@ -427,10 +418,9 @@ aside p {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: -40px;
-  padding: 40px 0;
+  margin-top: -30px;
+  padding: 20px 0;
   transition: all 0.3s ease-in-out;
-
 }
 
 .header-text-wrapper {
@@ -486,7 +476,7 @@ aside p {
 .logo-and-menu-header::after {
   content: "";
   position: absolute;
-  bottom: 17px;
+  bottom: 5px;
   left: -15px;
   width: 95%;
   height: 2.5px;

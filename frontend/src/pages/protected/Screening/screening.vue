@@ -258,7 +258,7 @@ const handleActionCompleted = () => {
 <template>
   <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800">
     
-    <h1 class="text-2xl font-bold text-slate-800 mb-10">คัดกรองผู้สมัคร</h1>
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">คัดกรองผู้สมัคร</h1>
     
     <!-- Stats Section -->
     <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">

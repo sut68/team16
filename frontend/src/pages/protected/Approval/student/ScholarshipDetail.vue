@@ -201,7 +201,7 @@ onMounted(fetchScholarships);
 </script>
 
 <template>
-  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800" data-theme="light">
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-y-auto font-sans text-slate-800" data-theme="light">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1 flex items-center gap-3">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1.5"

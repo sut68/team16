@@ -211,14 +211,14 @@ onMounted(fetchSponsors)
 
 <template>
   <div 
-    class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" 
+    class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-hidden" 
     data-theme="light"
     data-testid="sponsor-list-page"
   >
 
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6" data-testid="sponsor-list-header">
-      <h1 class="text-2xl font-bold text-gray-900" data-testid="sponsor-list-title">บริษัทที่ให้ทุน</h1>
+      <h1 class="text-2xl font-bold text-slate-800" data-testid="sponsor-list-title">บริษัทที่ให้ทุน</h1>
 
       <div class="flex items-center gap-3 w-full md:w-auto">
         <!-- Search Bar -->
@@ -249,7 +249,7 @@ onMounted(fetchSponsors)
     />
 
     <!-- Loading State -->
-    <div v-if="loading" class="p-6 w-full" data-testid="sponsor-loading-state">
+    <div v-if="loading" class="p-6 w-full flex-1" data-testid="sponsor-loading-state">
       <div class="animate-pulse space-y-3">
         <div class="h-6 bg-gray-200 rounded w-1/4"></div>
         <div class="bg-white rounded shadow overflow-hidden">
@@ -269,7 +269,7 @@ onMounted(fetchSponsors)
 
       <!-- Table -->
       <div
-        class="overflow-x-auto overflow-y-auto flex-1 min-h-[400px] rounded-xl border border-slate-200 bg-white shadow-sm"
+        class="overflow-x-auto overflow-y-auto flex-1 rounded-xl border border-slate-200 bg-white shadow-sm"
         role="region"
         aria-label="Sponsors table"
         data-testid="sponsor-table-container"

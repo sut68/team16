@@ -765,7 +765,7 @@ const saveNewInterviewer = async () => {
 <template>
     <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" data-theme="light">
 
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
             <h1 class="text-2xl font-bold text-slate-800">จัดการรอบสัมภาษณ์</h1>
             <button @click="openCreateModal"
                 class="btn btn-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all font-medium">

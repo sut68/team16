@@ -29,7 +29,8 @@ func main() {
 	}
 	configCORS.AllowOrigins = strings.Split(corsOrigins, ",")
 	configCORS.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "x-CSRF-Token"}
+	configCORS.AllowCredentials = true
 	r.Use(cors.New(configCORS))
 
 	// Serve static files from the "uploads" directory
@@ -147,171 +148,195 @@ func main() {
 	// API routes
 	api := r.Group("/api")
 	{
+		// -----------------------------------------------------------------
+		// 1. PUBLIC ROUTES (No Auth Required)
+		// -----------------------------------------------------------------
+		// Health Check (for Docker/Kubernetes)
+		api.GET("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
-
-		api.GET("/industries", controllers.GetIndustries)
-		api.POST("/industries", controllers.CreateIndustry)
-
-		api.GET("/sponsors", controllers.GetSponsors)
-		api.GET("/sponsors/:id", controllers.GetSponsorsByID)
-		api.POST("/sponsors", controllers.CreateSponsor)
-		api.PATCH("/sponsors/:id", controllers.UpdateSponsor)
-		api.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)
-		api.DELETE("/sponsors/:id", controllers.DeleteSponsor)
-		api.GET("/sponsors/:id/scholarships", controllers.GetSponsorScholarships)
-
-		api.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)
-		// api.GET("/scholarships", controllers.GetAllScholarship)
-		api.POST("/scholarship/:id/apply", controllers.ApplyForScholarship)
-		api.GET("/application-scholarships", controllers.GetAllApplicationScholarships)
-		api.DELETE("/application-scholarships/:id/cancel", controllers.CancelApplicationScholarship)
-
-		//scholarship
-		api.GET("/scholarship", controllers.GetAllScholarship)
-		api.GET("/scholarship/:id", controllers.GetScholarshipByID)
-		api.POST("/scholarship", controllers.CreateScholarship)
-		api.PUT("/scholarship/:id", controllers.UpdateScholarship)
-		api.DELETE("/scholarship/:id", controllers.DeleteScholarship)
-
-		//statusscholarship
-		api.GET("/statusscholarship", controllers.GetAllStatusscholarship)
-		api.GET("/statusscholarship/:id", controllers.GetStatusscholarshipByID)
-		api.POST("/statusscholarship", controllers.CreateStatusscholarship)
-		api.PUT("/statusscholarship/:id", controllers.UpdateStatusscholarship)
-		api.DELETE("/statusscholarship/:id", controllers.DeleteStatusscholarship)
-
-		//typescholarship
-		api.GET("/typescholarship", controllers.GetAllTypescholarship)
-		api.GET("/typescholarship/:id", controllers.GetTypescholarshipByID)
-		api.POST("/typescholarship", controllers.CreateTypescholarship)
-		api.PUT("/typescholarship/:id", controllers.UpdateTypescholarship)
-		api.DELETE("/typescholarship/:id", controllers.DeleteTypescholarship)
-
-		//featurescholarship
-		api.GET("/featurescholarship", controllers.GetAllFeaturescholarship)
-		api.GET("/featurescholarship/:id", controllers.GetFeaturescholarshipByID)
-		api.POST("/featurescholarship", controllers.CreateFeaturescholarship)
-		api.PUT("/featurescholarship/:id", controllers.UpdateFeaturescholarship)
-		api.DELETE("/featurescholarship/:id", controllers.DeleteFeaturescholarship)
-
-		//typefeature
-		api.GET("/typefeature", controllers.GetAllTypefeature)
-		api.GET("/typefeature/:id", controllers.GetTypefeatureByID)
-		api.POST("/typefeature", controllers.CreateTypefeature)
-		api.PUT("/typefeature/:id", controllers.UpdateTypefeature)
-		api.DELETE("/typefeature/:id", controllers.DeleteTypefeature)
-
-		// assistance
-		api.GET("/assistance", controllers.GetAllAssistance)
-		api.GET("/assistance/:id", controllers.GetAssistanceByID)
-		api.POST("/assistance", controllers.CreateAssistance)
-		api.PUT("/assistance/:id", controllers.UpdateAssistance)
-		api.DELETE("/assistance/:id", controllers.DeleteAssistance)
-
-		//chatroom
-		authorized := api.Group("/")
-		authorized.Use(middlewares.AuthMiddleware())
-		{
-			authorized.POST("/chatroom", controllers.CreateChatroom)
-			authorized.GET("/chatroom", controllers.GetAllChatroom)
-			authorized.GET("/chatroom/:id", controllers.GetChatroomByID)
-			authorized.DELETE("/chatroom/:id", controllers.DeleteChatroom)
-			authorized.GET("/chatroom/my-open", controllers.GetMyOpenChatroom)
-			authorized.GET("/chatroom/open", controllers.GetAllOpenChatrooms)
-			authorized.PUT("/chatroom/:id", controllers.UpdateChatroom)
-
-		}
-
-		//websocket
 		api.GET("/ws", controllers.WebSocketHandler)
 
-		api.GET("/approval-tasks", controllers.GetApprovalTasks)
-		api.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)
-		api.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)
-		api.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)
-		api.POST("/approval-decisions", controllers.CreateApprovalDecision)
+		// ข้อมูลบริษัทผู้ให้ทุน (Sponsor)
+		api.GET("/industries", controllers.GetIndustries)		// ดึงรายการอุตสาหกรรม - หมวดหมู่บริษัท
+		api.GET("/sponsors", controllers.GetSponsors)		// ดึงรายการอุตสาหกรรม - หมวดหมู่บริษัท
+		api.GET("/sponsors/:id", controllers.GetSponsorsByID)		// ดึงข้อมูลบริษัทผู้ให้ทุน (ตาม ID)
+		api.GET("/sponsors/:id/scholarships", controllers.GetSponsorScholarships)		// ดึงทุนทั้งหมดของบริษัทนั้น
 
-		api.GET("/application-documents", controllers.GetApplicationDocuments)
-		api.POST("/application-documents", controllers.CreateApplicationDocument)
-		api.DELETE("/application-documents/:id", controllers.DeleteApplicationDocument)
+		// ข้อมูลทุนการศึกษา (Scholarship)
+		api.GET("/scholarship", controllers.GetAllScholarship)		// ดึงรายการทุนทั้งหมด
+		api.GET("/scholarship/:id", controllers.GetScholarshipByID)		// ดึงรายละเอียดทุน (ตาม ID)
 
-		api.GET("/approval-requirements", controllers.GetApprovalRequirements)
-		api.GET("/approval-requirements/:id", controllers.GetApprovalRequirementByID)
-		api.POST("/approval-requirements", controllers.CreateApprovalRequirement)
-		api.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)
+		// Master Data (ข้อมูลหลัก)
+		api.GET("/statusscholarship", controllers.GetAllStatusscholarship)		// ดึงสถานะทุนทั้งหมด (เช่น เปิดรับ, ปิดรับ)
+		api.GET("/statusscholarship/:id", controllers.GetStatusscholarshipByID)		// ดึงสถานะทุน (ตาม ID)
+		api.GET("/typescholarship", controllers.GetAllTypescholarship)		// ดึงประเภททุนทั้งหมด (เช่น ทุนเต็ม, ทุนบางส่วน)
+		api.GET("/typescholarship/:id", controllers.GetTypescholarshipByID)		// ดึงประเภททุน (ตาม ID)
+		api.GET("/featurescholarship", controllers.GetAllFeaturescholarship)		// ดึงคุณสมบัติพิเศษทุนทั้งหมด
+		api.GET("/featurescholarship/:id", controllers.GetFeaturescholarshipByID)		// ดึงคุณสมบัติพิเศษทุน (ตาม ID)
+		api.GET("/typefeature", controllers.GetAllTypefeature)		// ดึงประเภทคุณสมบัติทั้งหมด
+		api.GET("/typefeature/:id", controllers.GetTypefeatureByID)		// ดึงประเภทคุณสมบัติ (ตาม ID)
+		api.GET("/locations", controllers.GetAllLocations)		// ดึงสถานที่สัมภาษณ์ทั้งหมด
+		api.GET("/interview-modes", controllers.GetAllInterviewModes)		// ดึงรูปแบบการสัมภาษณ์ (Onsite, Online)
 
-		api.GET("/screening", controllers.GetAllScreenings)
-		api.GET("/screening/:id", controllers.GetScreeningByID)
-		api.PUT("/screening/:id", controllers.UpdateScreeningStatus)
+		// ข่าวสาร (News)
+		api.GET("/newsposts", controllers.GetAllNewsPosts)		// ดึงข่าวสารทั้งหมด
+		api.GET("/newsposts/:id", controllers.GetNewsPostByID)		// ดึงรายละเอียดข่าว (ตาม ID)
 
-		api.GET("/newsposts", controllers.GetAllNewsPosts)
-		api.GET("/newsposts/:id", controllers.GetNewsPostByID)
-		api.POST("/newsposts", controllers.CreateNewsPost)
-		api.PUT("/newsposts/:id", controllers.UpdateNewsPost)
-		api.DELETE("/newsposts/:id", controllers.DeleteNewsPost)
+		// -----------------------------------------------------------------
+		// 2. AUTHENTICATED ROUTES (Student / General)
+		// -----------------------------------------------------------------
+		authGroup := api.Group("/")
+		authGroup.Use(middlewares.JWTAuth(), middlewares.CSRFMiddleware())
+		{
+			// การสมัครทุน (Student Application)
+			authGroup.GET("/students/:student_profile_id/applications", controllers.GetStudentApplications)		// ดูรายการทุนที่ตัวเองสมัครไว้
+			authGroup.POST("/scholarship/:id/apply", controllers.ApplyForScholarship)		// สมัครทุน (ตาม Scholarship ID)
+			authGroup.GET("/application-scholarships", controllers.GetAllApplicationScholarships)		// ดูการสมัครทุนทั้งหมด
+			authGroup.DELETE("/application-scholarships/:id/cancel", controllers.CancelApplicationScholarship)		// ยกเลิกการสมัครทุน
 
-		// Interview
-		api.GET("/interview-rounds", controllers.GetAllInterviewRounds)
-		api.GET("/interview-rounds/:id", controllers.GetInterviewRoundByID)
-		api.POST("/interview-rounds", controllers.CreateInterviewRound)
-		api.PUT("/interview-rounds/:id", controllers.UpdateInterviewRound)
-		api.DELETE("/interview-rounds/:id", controllers.DeleteInterviewRound)
-		api.GET("/interviewers", controllers.GetAllInterviewers)
-		api.POST("/interviewers", controllers.CreateInterviewer)
-		api.POST("/interview-bookings", controllers.CreateInterviewBooking)
-		api.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings)
-		api.DELETE("/interview-bookings/:id", controllers.DeleteInterviewBooking)
-		api.GET("/locations", controllers.GetAllLocations)
-		api.GET("/interview-modes", controllers.GetAllInterviewModes)
+			// เอกสารการสมัคร (Application Documents)
+			authGroup.GET("/application-documents", controllers.GetApplicationDocuments)		// ดูเอกสารที่อัปโหลดไว้
+			authGroup.POST("/application-documents", controllers.CreateApplicationDocument)		// อัปโหลดเอกสาร (เช่น ใบรับรอง, สำเนาบัตร)
+			authGroup.DELETE("/application-documents/:id", controllers.DeleteApplicationDocument)		// ลบเอกสาร
 
-		// Profile (Me) - ใช้ได้ทั้ง Admin/Student Controller จะเช็คเอง
-		authorized.GET("/profile/me", controllers.GetMyProfile)
-		authorized.PUT("/profile/me", controllers.UpdateMyProfile)
+			// ห้องแชท (Chatroom)
+			authGroup.POST("/chatroom", controllers.CreateChatroom)		// สร้างห้องแชทใหม่ (เพื่อขอความช่วยเหลือ)
+			authGroup.GET("/chatroom", controllers.GetAllChatroom)		// ดูห้องแชททั้งหมด
+			authGroup.GET("/chatroom/:id", controllers.GetChatroomByID)		// ดูห้องแชท (ตาม ID)
+			authGroup.DELETE("/chatroom/:id", controllers.DeleteChatroom)		// ลบห้องแชท
+			authGroup.GET("/chatroom/my-open", controllers.GetMyOpenChatroom)		// ดูห้องแชทที่ตัวเองเปิดไว้
+			authGroup.GET("/chatroom/open", controllers.GetAllOpenChatrooms)		//	ดูห้องแชทที่เปิดอยู่ทั้งหมด
+			authGroup.PUT("/chatroom/:id", controllers.UpdateChatroom)		// แก้ไขห้องแชท (เช่น เปลี่ยนสถานะ)
 
-		// Admin-specific & Advanced Routes
-		authorized.GET("/scholarships/:id/qualified-applicants", controllers.GetQualifiedApplicantsForScholarship)
-		authorized.POST("/admin/interview-bookings", controllers.AdminCreateInterviewBooking)
-		authorized.POST("/admin/interview-bookings/:id/move", controllers.AdminMoveInterviewBooking)
+			// โปรไฟล์ (Profile)
+			authGroup.GET("/profile/me", controllers.GetMyProfile)		// ดูข้อมูลโปรไฟล์ตัวเอง
+			authGroup.PUT("/profile/me", controllers.UpdateMyProfile)		// แก้ไขโปรไฟล์ตัวเอง
 
-		// User Management (Admin)
-		authorized.GET("/roles", controllers.ListRoles)
-		authorized.GET("/majors", controllers.ListMajors)
-		authorized.GET("/users", controllers.ListUsers)
-		authorized.POST("/users", controllers.CreateUser)
-		authorized.DELETE("/users/:id", controllers.DeleteUser)
-		authorized.PUT("/users/:id", controllers.UpdateUser) // เพิ่มเส้นทางสำหรับอัปเดตผู้ใช้
+			// ข่าวที่ชอบ (Favorite News)
+			authGroup.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)		// ดูข่าวที่ถูกใจ
+			authGroup.POST("/student_favs/toggle", controllers.ToggleStudentFav)		// กดถูกใจ/ยกเลิกถูกใจข่าว
 
-		// Student Favorite News
-		authorized.GET("/student_favs/my_favs/:id", controllers.GetStudentFavsByStudentID)
-		authorized.POST("/student_favs/toggle", controllers.ToggleStudentFav)
+			// การจองสัมภาษณ์ (Interview Bookings)
+			authGroup.POST("/interview-bookings", controllers.CreateInterviewBooking)		// จองเวลาสัมภาษณ์
+			authGroup.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings)		// ดูการจองของตัวเอง
+			authGroup.DELETE("/interview-bookings/:id", controllers.DeleteInterviewBooking)		// ยกเลิกการจอง
 
-		// Evaluation System (ระบบพิจารณาผู้รับทุน)
-		// Evaluation Criteria
-		authorized.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)
-		authorized.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)
-		authorized.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)
-		authorized.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)
-		authorized.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)
+			// ข้อความช่วยเหลือ (Assistance/Chat Messages)
+			authGroup.POST("/assistance", controllers.CreateAssistance)		// ส่งข้อความ
+			authGroup.GET("/assistance", controllers.GetAllAssistance)		// ดูข้อความทั้งหมด
+			authGroup.GET("/assistance/:id", controllers.GetAssistanceByID)		// ดูข้อความ (ตาม ID)
+			authGroup.PUT("/assistance/:id", controllers.UpdateAssistance)		// แก้ไขข้อความ
+			authGroup.DELETE("/assistance/:id", controllers.DeleteAssistance)		// ลบข้อความ
 
-		// Interview Round Criteria (เกณฑ์ในแต่ละรอบสัมภาษณ์)
-		authorized.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)
-		authorized.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)
-		authorized.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)
-		authorized.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)
+			// รอบสัมภาษณ์ (Interview Rounds - Read Only)
+			authGroup.GET("/interview-rounds", controllers.GetAllInterviewRounds)		// ดูรอบสัมภาษณ์ทั้งหมด (เพื่อเลือกจอง)
+			authGroup.GET("/interview-rounds/:id", controllers.GetInterviewRoundByID)		//	ดูรายละเอียดรอบสัมภาษณ์
+		}
 
-		// Evaluations (การประเมินผู้สมัคร)
-		authorized.GET("/evaluations", controllers.GetAllEvaluations)
-		authorized.GET("/evaluations/:id", controllers.GetEvaluationByID)
-		authorized.POST("/evaluations", controllers.CreateEvaluation)
-		authorized.PATCH("/evaluations/:id", controllers.UpdateEvaluation)
-		authorized.DELETE("/evaluations/:id", controllers.DeleteEvaluation)
-		authorized.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)
+		// -----------------------------------------------------------------
+		// 3. ADMIN ROUTES (Admin Only)
+		// -----------------------------------------------------------------
+		adminGroup := api.Group("/")
+		adminGroup.Use(middlewares.JWTAuth(), middlewares.CSRFMiddleware(), middlewares.RequireAdmin())
+		{
+			// จัดการบริษัทผู้ให้ทุน (Sponsor Management)
+			adminGroup.POST("/sponsors", controllers.CreateSponsor)		// สร้างบริษัทผู้ให้ทุนใหม่
+			adminGroup.PATCH("/sponsors/:id", controllers.UpdateSponsor)		// แก้ไขข้อมูลบริษัท
+			adminGroup.PATCH("/sponsors/:id/contacts", controllers.UpdateSponsorContacts)		// แก้ไขข้อมูลติดต่อบริษัท
+			adminGroup.DELETE("/sponsors/:id", controllers.DeleteSponsor)		// ลบบริษัท
+			adminGroup.POST("/industries", controllers.CreateIndustry)		// สร้างหมวดหมู่อุตสาหกรรมใหม่
 
-		// Evaluation Scores (คะแนนรายเกณฑ์)
-		authorized.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)
-		authorized.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)
-		authorized.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)
+			// จัดการทุนการศึกษา (Scholarship Management)
+			adminGroup.POST("/scholarship", controllers.CreateScholarship)		// สร้างทุนใหม่
+			adminGroup.PUT("/scholarship/:id", controllers.UpdateScholarship)		// แก้ไขทุน
+			adminGroup.DELETE("/scholarship/:id", controllers.DeleteScholarship)		// ลบทุน
+
+			// Master Data Management
+			adminGroup.POST("/statusscholarship", controllers.CreateStatusscholarship)		// สร้างสถานะทุนใหม่
+			adminGroup.PUT("/statusscholarship/:id", controllers.UpdateStatusscholarship)		// แก้ไขสถานะทุน
+			adminGroup.DELETE("/statusscholarship/:id", controllers.DeleteStatusscholarship)		// ลบสถานะทุน
+
+			adminGroup.POST("/typescholarship", controllers.CreateTypescholarship)		// สร้างประเภททุนใหม่
+			adminGroup.PUT("/typescholarship/:id", controllers.UpdateTypescholarship)		// แก้ไขประเภททุน
+			adminGroup.DELETE("/typescholarship/:id", controllers.DeleteTypescholarship)		// ลบประเภททุน
+
+			adminGroup.POST("/featurescholarship", controllers.CreateFeaturescholarship)		// สร้างคุณสมบัติพิเศษทุน
+			adminGroup.PUT("/featurescholarship/:id", controllers.UpdateFeaturescholarship)		// แก้ไขคุณสมบัติ
+			adminGroup.DELETE("/featurescholarship/:id", controllers.DeleteFeaturescholarship)		// ลบคุณสมบัติ
+
+			adminGroup.POST("/typefeature", controllers.CreateTypefeature)		// สร้างประเภทคุณสมบัติ
+			adminGroup.PUT("/typefeature/:id", controllers.UpdateTypefeature)		// แก้ไขประเภทคุณสมบัติ
+			adminGroup.DELETE("/typefeature/:id", controllers.DeleteTypefeature)		// ลบประเภทคุณสมบัติ
+
+			// จัดการข่าวสาร (News Posts Management)
+			adminGroup.POST("/newsposts", controllers.CreateNewsPost)		// สร้างข่าวใหม่
+			adminGroup.PUT("/newsposts/:id", controllers.UpdateNewsPost)		// แก้ไขข่าว
+			adminGroup.DELETE("/newsposts/:id", controllers.DeleteNewsPost)		// ลบข่าว
+
+			// จัดการผู้ใช้ (User Management)
+			adminGroup.GET("/users", controllers.ListUsers)		// ดูรายการผู้ใช้ทั้งหมด
+			adminGroup.POST("/users", controllers.CreateUser)		// สร้างผู้ใช้ใหม่
+			adminGroup.DELETE("/users/:id", controllers.DeleteUser)		// แก้ไขข้อมูลผู้ใช้
+			adminGroup.PUT("/users/:id", controllers.UpdateUser)		// ลบผู้ใช้
+			adminGroup.GET("/roles", controllers.ListRoles)		// ดูบทบาททั้งหมด (admin, student)
+			adminGroup.GET("/majors", controllers.ListMajors)		//	ดูสาขาวิชาทั้งหมด
+
+			// จัดการสัมภาษณ์ (Interview Management)
+			adminGroup.GET("/scholarships/:id/qualified-applicants", controllers.GetQualifiedApplicantsForScholarship)		// ดูผู้สมัครที่ผ่านเกณฑ์
+			adminGroup.POST("/admin/interview-bookings", controllers.AdminCreateInterviewBooking)		// Admin จองแทน Student
+			adminGroup.POST("/admin/interview-bookings/:id/move", controllers.AdminMoveInterviewBooking)		// Admin ย้ายเวลาจอง
+
+			adminGroup.POST("/interview-rounds", controllers.CreateInterviewRound)		// สร้างรอบสัมภาษณ์
+			adminGroup.PUT("/interview-rounds/:id", controllers.UpdateInterviewRound)		// 	แก้ไขรอบสัมภาษณ์
+			adminGroup.DELETE("/interview-rounds/:id", controllers.DeleteInterviewRound)		// 	ลบรอบสัมภาษณ์
+
+			adminGroup.GET("/interviewers", controllers.GetAllInterviewers)		// 	ดูรายชื่อผู้สัมภาษณ์
+			adminGroup.POST("/interviewers", controllers.CreateInterviewer)		// 	เพิ่มผู้สัมภาษณ์
+
+			// อนุมัติเอกสาร (Approval Tasks & Decisions)
+			adminGroup.GET("/approval-tasks", controllers.GetApprovalTasks)		// 	ดูรายการเอกสารรออนุมัติ
+			adminGroup.GET("/approval-tasks/:id", controllers.GetApprovalTaskByID)		// 	ดูรายละเอียดเอกสาร
+			adminGroup.PATCH("/approval-tasks/:id", controllers.UpdateApprovalTask)		// 	อัปเดตสถานะเอกสาร
+			adminGroup.DELETE("/approval-tasks/:id", controllers.DeleteApprovalTask)		// 	ลบเอกสาร
+			adminGroup.POST("/approval-decisions", controllers.CreateApprovalDecision)		// บันทึกการตัดสินใจ (อนุมัติ/ปฏิเสธ/ขอแก้ไข)
+
+			adminGroup.GET("/approval-requirements", controllers.GetApprovalRequirements)		// ดูเงื่อนไขการอนุมัติ
+			adminGroup.GET("/approval-requirements/:id", controllers.GetApprovalRequirementByID)		// ดูเงื่อนไข (ตาม ID)
+			adminGroup.POST("/approval-requirements", controllers.CreateApprovalRequirement)		// สร้างเงื่อนไขใหม่
+			adminGroup.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement)		// ลบเงื่อนไข
+
+			// คัดกรอง (Screening)
+			adminGroup.GET("/screening", controllers.GetAllScreenings)		// ดูรายการคัดกรองทั้งหมด
+			adminGroup.GET("/screening/:id", controllers.GetScreeningByID)		// ดูรายละเอียดการคัดกรอง
+			adminGroup.PUT("/screening/:id", controllers.UpdateScreeningStatus)		//	อัปเดตสถานะคัดกรอง (ผ่าน/ไม่ผ่าน)
+
+			// ระบบประเมิน (Evaluation System)
+			adminGroup.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)		// ดูเกณฑ์การประเมินทั้งหมด
+			adminGroup.GET("/evaluation-criteria/:id", controllers.GetEvaluationCriterionByID)		// 	ดูเกณฑ์ (ตาม ID)
+			adminGroup.POST("/evaluation-criteria", controllers.CreateEvaluationCriterion)		// 	สร้างเกณฑ์ใหม่
+			adminGroup.PATCH("/evaluation-criteria/:id", controllers.UpdateEvaluationCriterion)		// แก้ไขเกณฑ์
+			adminGroup.DELETE("/evaluation-criteria/:id", controllers.DeleteEvaluationCriterion)		// 	ลบเกณฑ์
+
+			adminGroup.GET("/interview-rounds/:id/criteria", controllers.GetInterviewRoundCriteria)		// 	ดูเกณฑ์ของรอบสัมภาษณ์
+			adminGroup.POST("/interview-rounds/:id/criteria", controllers.AddCriterionToInterviewRound)		// เพิ่มเกณฑ์เข้ารอบ
+			adminGroup.PATCH("/interview-round-criteria/:id", controllers.UpdateInterviewRoundCriterion)		// แก้ไขเกณฑ์ในรอบ
+			adminGroup.DELETE("/interview-round-criteria/:id", controllers.RemoveCriterionFromInterviewRound)		// 	ลบเกณฑ์ออกจากรอบ
+
+			adminGroup.GET("/evaluations", controllers.GetAllEvaluations)		// 	ดูการประเมินทั้งหมด
+			adminGroup.GET("/evaluations/:id", controllers.GetEvaluationByID)		// 	ดูการประเมิน (ตาม ID)
+			adminGroup.POST("/evaluations", controllers.CreateEvaluation)		// สร้างการประเมินใหม่
+			adminGroup.PATCH("/evaluations/:id", controllers.UpdateEvaluation)		// 	แก้ไขการประเมิน
+			adminGroup.DELETE("/evaluations/:id", controllers.DeleteEvaluation)		// ลบการประเมิน
+			adminGroup.POST("/evaluations/:id/complete", controllers.CompleteEvaluation)	// บันทึกผลการประเมินเสร็จสิ้น
+
+			adminGroup.POST("/evaluations/:id/scores", controllers.AddEvaluationScore)		// 	เพิ่มคะแนนประเมิน
+			adminGroup.PATCH("/evaluation-scores/:id", controllers.UpdateEvaluationScore)		// แก้ไขคะแนน
+			adminGroup.DELETE("/evaluation-scores/:id", controllers.DeleteEvaluationScore)		// ลบคะแนน
+		}
 	}
 
 	r.Run() // listen and serve on 0.0.0.0:8080

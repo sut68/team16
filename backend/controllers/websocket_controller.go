@@ -30,9 +30,21 @@ type IncomingMessage struct {
 
 func WebSocketHandler(c *gin.Context) {
 	token := c.Query("token")
-	chatroomIDStr := c.Query("chatroom_id")
 
+	// If empty, try Cookie "access_token"
+	if token == "" {
+		if cookie, err := c.Request.Cookie("access_token"); err == nil {
+			token = cookie.Value
+		}
+	}
+
+	chatroomIDStr := c.Query("chatroom_id")
 	chatroomID, _ := strconv.Atoi(chatroomIDStr)
+
+	if token == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
 
 	claims, err := services.ValidateJWT(token)
 	if err != nil {

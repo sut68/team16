@@ -39,13 +39,13 @@ const checkProfile = async (): Promise<boolean> => {
       const student = profileRes.data as StudentProfileResponse;
       const family = profileRes.family as FamilyInfo | null;
       const result = checkProfileCompleteness(student, family);
-      
+
       // Update cache
       profileCheckCache = {
         isComplete: result.isComplete,
         timestamp: Date.now(),
       };
-      
+
       return result.isComplete;
     }
     return true; // Admin doesn't need profile check
@@ -77,13 +77,13 @@ router.beforeEach(async (to, _from, next) => {
   // Redirect from root if logged in
   if (to.path === '/' && loggedIn) {
     if (role === 'admin') {
-      return next('/admin');
+      return next('/admin/news');
     }
     if (isStudent) {
       return next('/dashboard');
     }
   }
-  
+
   if (requiresAuth) {
     if (!loggedIn) {
       // User is not logged in, redirect to home
@@ -97,7 +97,7 @@ router.beforeEach(async (to, _from, next) => {
         // User is logged in but does not have the required role
         // Redirect to their respective dashboard
         if (role === 'admin') {
-          return next('/admin');
+          return next('/admin/news');
         }
         if (isStudent) {
           return next('/dashboard');
@@ -118,7 +118,7 @@ router.beforeEach(async (to, _from, next) => {
   } else if (guestOnly && loggedIn) {
     // Logged-in user tries to access guest-only pages (login/register)
     if (role === 'admin') {
-      return next('/admin');
+      return next('/admin/news');
     }
     if (isStudent) {
       return next('/dashboard');

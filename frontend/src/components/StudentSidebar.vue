@@ -205,8 +205,8 @@ aside,
   padding-left: 30px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin-top: 2px;
+  margin-bottom: 2px;
   position: relative;
 }
 
@@ -344,10 +344,10 @@ aside {
 }
 
 aside .logo {
-  width: 60px;
-  margin-top: 35px;
-  margin-bottom: 20px;
-  margin-left: -10px;
+  width: 50px;
+  margin-top: 25px;
+  margin-bottom: 10px;
+  margin-left: -5px;
   flex-shrink: 0;
   transition: all 0.3s ease-in-out;
 }
@@ -361,10 +361,9 @@ aside p {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: -40px;
-  padding: 40px 0;
+  margin-top: -30px;
+  padding: 20px 0;
   transition: all 0.3s ease-in-out;
-
 }
 
 .header-text-wrapper {
@@ -420,7 +419,7 @@ aside p {
 .logo-and-menu-header::after {
   content: "";
   position: absolute;
-  bottom: 17px;
+  bottom: 5px;
   left: -15px;
   width: 95%;
   height: 2.5px;

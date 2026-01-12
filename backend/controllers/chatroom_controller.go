@@ -104,7 +104,7 @@ func GetMyOpenChatroom(c *gin.Context) {
 
 func GetAllOpenChatrooms(c *gin.Context) {
 	var rooms []entity.Chatroom
-	if err := config.DB.Preload("User").Where("statuschatroom = ?", "open").Find(&rooms).Error; err != nil {
+	if err := config.DB.Preload("User.StudentProfiles").Where("statuschatroom = ?", "open").Find(&rooms).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
