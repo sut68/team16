@@ -21,11 +21,11 @@ defineEmits<{
 
 <template>
   <div 
-    class="flex flex-col md:flex-row items-center justify-between gap-4 pt-2 pb-0 pl-2 pr-2"
+    class="flex flex-col md:flex-row items-center justify-between gap-1 pt-1 pb-1 pl-2 pr-2"
     data-testid="pagination-container"
   >
     <!-- Info text -->
-    <div class="text-sm text-slate-500" data-testid="pagination-info">
+    <div class="text-xs text-slate-500" data-testid="pagination-info">
       แสดง
       <span class="font-semibold text-slate-700">{{ (page - 1) * perPage + (pagedLength ? 1 : 0) }}</span>
       -
@@ -34,7 +34,7 @@ defineEmits<{
     </div>
 
     <!-- Pagination Controls -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-0.5">
       <!-- First Page -->
       <button 
         class="pagination-btn"
@@ -44,7 +44,7 @@ defineEmits<{
         title="หน้าแรก"
         data-testid="pagination-first"
       >
-        <ChevronsLeft class="w-4 h-4" />
+        <ChevronsLeft class="w-3.5 h-3.5" />
       </button>
 
       <!-- Previous Page -->
@@ -56,13 +56,13 @@ defineEmits<{
         title="หน้าก่อนหน้า"
         data-testid="pagination-prev"
       >
-        <ChevronLeft class="w-4 h-4" />
+        <ChevronLeft class="w-3.5 h-3.5" />
       </button>
 
       <!-- Page Indicator -->
-      <div class="px-4 py-2 text-sm font-medium text-slate-600" data-testid="pagination-current">
+      <div class="px-2 py-1 text-xs font-medium text-slate-600" data-testid="pagination-current">
         <span class="text-slate-800 font-semibold" data-testid="pagination-current-page">{{ page }}</span>
-        <span class="text-slate-400 mx-1">/</span>
+        <span class="text-slate-400 mx-0.5">/</span>
         <span data-testid="pagination-total-pages">{{ totalPages }}</span>
       </div>
 
@@ -75,7 +75,7 @@ defineEmits<{
         title="หน้าถัดไป"
         data-testid="pagination-next"
       >
-        <ChevronRight class="w-4 h-4" />
+        <ChevronRight class="w-3.5 h-3.5" />
       </button>
 
       <!-- Last Page -->
@@ -87,7 +87,7 @@ defineEmits<{
         title="หน้าสุดท้าย"
         data-testid="pagination-last"
       >
-        <ChevronsRight class="w-4 h-4" />
+        <ChevronsRight class="w-3.5 h-3.5" />
       </button>
     </div>
   </div>
@@ -98,9 +98,9 @@ defineEmits<{
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.375rem;
   border: 1px solid #e2e8f0;
   background: white;
   color: #475569;

@@ -2,8 +2,6 @@
 # Pull images from Docker Hub - use: docker compose -f docker-compose.hub.yml up -d
 # ต้อง build frontend image ด้วย VITE_API_URL=/api เพื่อให้ nginx proxy ทำงานได้
 
-version: "3.9"
-
 services:
   postgres:
     image: postgres:13
@@ -25,12 +23,32 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    container_name: minio_prod
+    restart: always
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+    ports:
+      - "9001:9001"
+    networks:
+      - app_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   backend:
     image: gowitphooang/scholarship-backend:latest
     container_name: backend_prod
     restart: always
-    volumes:
-      - ./uploads:/app/uploads
     expose:
       - "8080"
     networks:
@@ -46,14 +64,24 @@ services:
       - COOKIE_SECURE=${COOKIE_SECURE}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
       - GIN_MODE=release
+      # MinIO configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-uploads}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-/storage}
+      - MINIO_SSL=${MINIO_SSL:-false}
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
   frontend:
     image: gowitphooang/scholarship-frontend:latest
@@ -67,7 +95,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -78,3 +106,4 @@ networks:
 
 volumes:
   postgres_data:
+  minio_data:

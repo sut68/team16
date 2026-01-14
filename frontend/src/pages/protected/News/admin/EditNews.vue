@@ -181,11 +181,19 @@ watch(isLoading, async (newVal: boolean) => {
 
 const displayImage = computed(() => {
   if (previewImage.value) return previewImage.value;
-  if (oldFilePath.value) {
-    const cleanPath = oldFilePath.value.startsWith('/') ? oldFilePath.value.substring(1) : oldFilePath.value;
-    return `${API_URL}/${cleanPath}?t=${new Date().getTime()}`; 
+  if (!oldFilePath.value) return null;
+
+  // ตัดเครื่องหมาย / หรือช่องว่างที่ส่งมาจาก Backend ออกก่อน
+  const rawPath = oldFilePath.value.trim().replace(/^[\/\s]+/, '');
+
+  // ถ้าเจอ http:// หรือ https:// ให้กรองเอาเฉพาะ URL นั้นไปเลย
+  if (rawPath.toLowerCase().includes('http://') || rawPath.toLowerCase().includes('https://')) {
+    const match = rawPath.match(/https?:\/\/[^\s]+/);
+    return match ? match[0] : rawPath;
   }
-  return null;
+
+  // กรณีเป็น Local Path (Relative)
+  return `${API_URL}/${rawPath}?t=${new Date().getTime()}`;
 });
 
 const fetchNewsDetail = async () => {

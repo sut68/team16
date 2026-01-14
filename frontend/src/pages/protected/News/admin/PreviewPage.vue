@@ -76,11 +76,20 @@ const getScholarshipStatus = (openDateStr: string | undefined, closeDateStr: str
 
 // --- Helper: Image & Features ---
 const fileUrl = computed(() => {
-  if (news.value?.file_path) {
-    const cleanPath = news.value.file_path.startsWith('/') ? news.value.file_path.substring(1) : news.value.file_path;
-    return `${API_BASE_URL}/${cleanPath}`;
+  if (!news.value?.file_path) return null;
+  
+  // ตัดเครื่องหมาย / หรือช่องว่างที่ส่งมาจาก Backend ออกก่อน
+  const rawPath = news.value.file_path.trim().replace(/^[\/\s]+/, '');
+  
+  // ถ้าเจอ http:// หรือ https:// ไม่ว่าจะอยู่ที่ไหน ให้กรองเอาเฉพาะ URL นั้นไปเลย
+  if (rawPath.toLowerCase().includes('http://') || rawPath.toLowerCase().includes('https://')) {
+    // ดึงเอาส่วนที่เป็น http เป็นต้นไป (ป้องกันกรณีมี path ขยะนำหน้า)
+    const match = rawPath.match(/https?:\/\/[^\s]+/);
+    return match ? match[0] : rawPath;
   }
-  return null;
+  
+  // กรณีเป็น Local Path (Relative)
+  return `${API_BASE_URL}/${rawPath}`;
 });
 
 const handleImageError = (event: Event) => { (event.target as HTMLImageElement).style.display = 'none'; };

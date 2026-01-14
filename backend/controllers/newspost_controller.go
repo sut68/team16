@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/storage"
 	"fmt"
 	"net/http"
 	"os"
@@ -100,18 +101,29 @@ func CreateNewsPost(c *gin.Context) {
 	scholarshipID, _ := strconv.ParseUint(c.PostForm("scholarship_id"), 10, 64)
 	statusNewsID, _ := strconv.ParseUint(c.PostForm("status_news_id"), 10, 64)
 
-	// 4. จัดการเรื่องไฟล์ (เหมือนเดิม)
+	// 4. จัดการเรื่องไฟล์ - ใช้ MinIO หรือ Local Storage
 	var filePath string
 	file, err := c.FormFile("file_path")
 	if err == nil {
-		extension := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
-		filePath = "uploads/news/" + fileName
+		if storage.IsConfigured() {
+			// Upload to MinIO
+			_, publicURL, err := storage.Client.UploadFile(file, "news")
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload to storage: " + err.Error()})
+				return
+			}
+			filePath = publicURL
+		} else {
+			// Fallback to local storage
+			extension := filepath.Ext(file.Filename)
+			fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
+			filePath = "uploads/news/" + fileName
 
-		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
-			os.MkdirAll("uploads/news", 0755)
+			if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
+				os.MkdirAll("uploads/news", 0755)
+			}
+			c.SaveUploadedFile(file, filePath)
 		}
-		c.SaveUploadedFile(file, filePath)
 	}
 
 	// 5. บันทึกข้อมูล โดยใช้ ID ที่เราหาเจอจากขั้นตอนที่ 2
@@ -202,19 +214,30 @@ func UpdateNewsPost(c *gin.Context) {
 
 	if err == nil {
 		// ✅ กรณีมีไฟล์ใหม่: บันทึกไฟล์ และอัปเดต FilePath
-		extension := filepath.Ext(file.Filename)
-		fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
-		filePath := "uploads/news/" + fileName
+		if storage.IsConfigured() {
+			// Upload to MinIO
+			_, publicURL, err := storage.Client.UploadFile(file, "news")
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload to storage: " + err.Error()})
+				return
+			}
+			updateData["file_path"] = publicURL
+		} else {
+			// Fallback to local storage
+			extension := filepath.Ext(file.Filename)
+			fileName := fmt.Sprintf("news-%s-%d%s", time.Now().Format("20060102-150405"), time.Now().Nanosecond(), extension)
+			filePath := "uploads/news/" + fileName
 
-		if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
-			os.MkdirAll("uploads/news", 0755)
-		}
+			if _, err := os.Stat("uploads/news"); os.IsNotExist(err) {
+				os.MkdirAll("uploads/news", 0755)
+			}
 
-		if err := c.SaveUploadedFile(file, filePath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-			return
+			if err := c.SaveUploadedFile(file, filePath); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+				return
+			}
+			updateData["file_path"] = filePath
 		}
-		updateData["file_path"] = filePath // อัปเดต Path ใหม่
 
 		// (Optional) ลบไฟล์เก่าทิ้ง หากไม่ต้องการเก็บไฟล์ที่ถูกแทนที่
 		if oldData.FilePath != "" {

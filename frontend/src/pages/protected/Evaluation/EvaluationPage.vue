@@ -74,17 +74,17 @@
     <!-- Page Header with Tabs -->
     <div class="px-6 pt-6">
       <!-- Title -->
-      <div class="mb-6">
+      <div class="mb-3">
         <h1 class="text-2xl font-bold text-slate-800">พิจารณาผู้รับทุน</h1>
       </div>
 
       <!-- Tab Navigation (InterviewRoundManager style) -->
-      <div class="flex gap-8 border-b border-gray-200">
+      <div class="flex gap-4 border-b border-gray-200">
         <a
           v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id"
-          class="pb-3 px-1 text-base font-medium cursor-pointer transition-all border-b-[3px] -mb-[1px] flex items-center gap-2 relative"
+          class="pb-2 px-1 text-sm font-medium cursor-pointer transition-all border-b-[3px] -mb-[1px] flex items-center gap-1.5 relative"
           :class="activeTab === tab.id 
             ? 'text-[#1e3a8a] border-[#1e3a8a]' 
             : 'text-slate-500 border-transparent hover:text-slate-700'"

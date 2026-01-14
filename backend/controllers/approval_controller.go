@@ -11,6 +11,7 @@ import (
 
 	"backend/config"
 	"backend/entity"
+	"backend/storage"
 	"backend/validators"
 )
 
@@ -197,8 +198,34 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		return
 	}
 
-	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
-	filePath := fmt.Sprintf("uploads/application/%s", uniqueFileName)
+	var filePath string
+	var uniqueFileName string
+
+	// Try to upload to MinIO first, fallback to local storage
+	if storage.IsConfigured() {
+		// Upload to MinIO
+		objectKey, publicURL, err := storage.Client.UploadFile(file, "application")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload to storage: " + err.Error()})
+			return
+		}
+		uniqueFileName = objectKey
+		filePath = publicURL
+	} else {
+		// Fallback to local storage
+		uniqueFileName = fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
+		filePath = fmt.Sprintf("uploads/application/%s", uniqueFileName)
+
+		// Ensure upload directory exists
+		if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
+			os.MkdirAll("uploads/application", 0755)
+		}
+
+		if err := ctx.SaveUploadedFile(file, filePath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
+			return
+		}
+	}
 
 	// --- 2. Create ApplicationDocument record ---
 	document := entity.ApplicationDocument{
@@ -218,17 +245,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	tx := config.DB.Begin()
-
-	// Ensure upload directory exists
-	if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
-		os.MkdirAll("uploads/application", 0755)
-	}
-
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
-		return
-	}
 
 	if err := tx.Create(&document).Error; err != nil {
 		tx.Rollback()

@@ -13,9 +13,9 @@ const SuryaGraphic = SuryaGraphicImport;
 const SUTLogo = SUTLogoImport;
 const FooterBg = FooterBgImport;
 
-// Computed URL for presenter image - extracted from template since import.meta is not allowed in Vue templates
-const baseUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
-const presenterImageUrl = `${baseUrl}/uploads/news/Bodyslam1859.jpg`;
+// Presenter image from assets (works in both dev and production)
+import SutHomePageImport from '@/assets/SutHomePage.jpg';
+const presenterImageUrl = SutHomePageImport;
 
 interface TabItem {
   id: string;
@@ -56,16 +56,16 @@ function handleViewAllNews() {
   <div class="min-h-screen font-sans bg-gray-50" data-testid="homepage-container">
 
     <header class="bg-white shadow-sm sticky top-0 z-50" data-testid="homepage-header">
-      <div class="container mx-auto px-4 h-20 flex items-center justify-between">
+      <div class="container mx-auto px-4 h-[60px] flex items-center justify-between">
         <div class="flex items-center gap-3">
           <img 
             :src="SUTLogo" 
             alt="SUT Logo" 
-            class="h-14 object-contain"
+            class="h-10 object-contain"
           />
         </div>
 
-        <nav class="hidden md:flex gap-8 text-base font-medium text-gray-600" data-testid="homepage-nav">
+        <nav class="hidden md:flex gap-6 text-sm font-medium text-gray-600" data-testid="homepage-nav">
           <a href="#" class="hover:text-[#F26522] transition">สมัครเรียน</a>
           <a href="#" class="hover:text-[#F26522] transition">คณะและหลักสูตร</a>
           <a href="#" class="hover:text-[#F26522] transition">ชีวิตในมหาลัย</a>
@@ -73,11 +73,12 @@ function handleViewAllNews() {
         </nav>
 
         <router-link to="/login"
-          class="bg-[#F26522] hover:bg-[#6d0016] text-white px-6 py-2.5 rounded-lg font-bold text-base transition shadow-lg flex items-center gap-2"
+          class="bg-[#F26522] hover:bg-[#6d0016] text-white px-4 py-2 rounded-lg font-bold text-sm transition shadow-lg flex items-center gap-1.5"
           data-testid="homepage-login-button">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m10 17 5-5-5-5"/>
+            <path d="M15 12H3"/>
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
           </svg>
           ล็อคอิน
         </router-link>
@@ -86,13 +87,18 @@ function handleViewAllNews() {
 
     <!-- Hero Banner -->
     <section class="relative bg-gradient-to-r from-[#8B001D] to-[#f97316] text-white py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
-      <div class="absolute inset-0 z-0 overflow-hidden opacity-20">
-        <img 
-          :src="SuryaGraphic" 
-          alt="" 
-          class="surya-rotate"
-          style="position: absolute; top: -50px; left: -50px;"
-        />
+      <div class="absolute inset-0 z-0 overflow-hidden">
+        <!-- Container for centering -->
+        <div 
+          class="absolute bottom-[-25vw] left-1/2 -translate-x-1/2" 
+          style="width: 70vw; min-width: 600px; max-width: 1200px;"
+        >
+          <img 
+            :src="SuryaGraphic" 
+            alt="" 
+            class="surya-rotate opacity-20 w-full h-full object-contain"
+          />
+        </div>
       </div>
       <div
         class="absolute top-0 right-0 w-80 h-80 bg-[#F26522] opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2">
