@@ -12,12 +12,12 @@ const publicRoutes: Array<RouteRecordRaw> = [
     component: () => import('../pages/public/LoginPage.vue'),
     meta: { guest: true },
   },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('../pages/public/RegisterPage.vue'),
-    meta: { guest: true },
-  },
+  // {
+  //   path: '/register',
+  //   name: 'Register',
+  //   component: () => import('../pages/public/RegisterPage.vue'),
+  //   meta: { guest: true },
+  // },
 ];
 
 export default publicRoutes;

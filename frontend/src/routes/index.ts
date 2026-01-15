@@ -86,8 +86,8 @@ router.beforeEach(async (to, _from, next) => {
 
   if (requiresAuth) {
     if (!loggedIn) {
-      // User is not logged in, redirect to home
-      return next('/');
+      // User is not logged in, redirect to login with redirect query
+      return next({ path: '/login', query: { redirect: to.fullPath } });
     }
     if (requiredRole && role !== requiredRole) {
       // Special case for student routes, which accept 'user' role

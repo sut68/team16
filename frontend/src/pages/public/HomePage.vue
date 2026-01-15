@@ -5,9 +5,14 @@ import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
 import SUTLogoImport from '@/assets/logo/Institute_of_Engineering_SUT_Logo.svg';
 import NewsCardList from '@/components/ui/NewsCardList.vue';
 import StatisticsSection from '@/components/ui/StatisticsSection.vue';
+import FabMenu from '@/components/ui/FabMenu.vue';
+import { 
+  Facebook, 
+  Globe, 
+  MessageCircle 
+} from 'lucide-vue-next';
 import type { NewsPost } from '@/interfaces/news_post';
 import FooterBgImport from '@/assets/Suranapa-Tower01.jpg';
-
 
 const SuryaGraphic = SuryaGraphicImport;
 const SUTLogo = SUTLogoImport;
@@ -108,12 +113,12 @@ function handleViewAllNews() {
     </header>
 
     <!-- Hero Banner -->
-    <section class="relative bg-gradient-to-r from-[#8B001D] to-[#f97316] text-white py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
+    <section class="relative bg-gradient-to-r from-[#8B001D] to-[#f97316] text-white py-10 sm:py-16 md:py-24 overflow-hidden" data-testid="homepage-hero-section">
       <div class="absolute inset-0 z-0 overflow-hidden">
         <!-- Container for centering -->
         <div 
           class="absolute bottom-[-25vw] left-1/2 -translate-x-1/2" 
-          style="width: 70vw; min-width: 600px; max-width: 1200px;"
+          style="width: 70vw; min-width: 300px; max-width: 1200px;"
         >
           <img 
             :src="SuryaGraphic" 
@@ -123,43 +128,41 @@ function handleViewAllNews() {
         </div>
       </div>
       <div
-        class="absolute top-0 right-0 w-80 h-80 bg-[#F26522] opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2">
-      </div>
+        class="absolute top-0 right-0 w-40 sm:w-80 h-40 sm:h-80 bg-[#F26522] opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
       <div
-        class="absolute bottom-0 left-0 w-64 h-64 bg-[#8B001D] opacity-20 rounded-full blur-2xl transform -translate-x-1/2 translate-y-1/2">
-      </div>
+        class="absolute bottom-0 left-0 w-32 sm:w-64 h-32 sm:h-64 bg-[#8B001D] opacity-20 rounded-full blur-2xl transform -translate-x-1/2 translate-y-1/2"></div>
 
       <div class="container mx-auto px-4 relative z-10 flex flex-col md:flex-row items-center">
-        <div class="md:w-1/2 text-center md:text-left mb-8 md:mb-0 pl-0 md:pl-8">
-          <span class="inline-block bg-[#F26522] text-white text-xm font-bold px-3 py-1 rounded-full mb-4 shadow-md">
+        <div class="md:w-1/2 text-center md:text-left mb-6 md:mb-0 pl-0 md:pl-8">
+          <span class="inline-block bg-[#F26522] text-white text-xs sm:text-sm font-bold px-2 sm:px-3 py-1 rounded-full mb-3 sm:mb-4 shadow-md">
             เปิดรับสมัครแล้ว!!
           </span>
-          <h1 class="text-4xl md:text-7xl font-extrabold mb-4 leading-tight" data-testid="homepage-hero-title">
+          <h1 class="text-2xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold mb-3 sm:mb-4 leading-tight" data-testid="homepage-hero-title">
             #TCAS69 <br />
             <span
-              class="text-[#F26522] bg-white px-4 rounded-lg transform -skew-x-6 inline-block mt-2 font-black text-gray-500 italic">SUT
+              class="text-[#F26522] bg-white px-2 sm:px-4 rounded-lg transform -skew-x-6 inline-block mt-1 sm:mt-2 font-black text-gray-500 italic text-xl sm:text-3xl md:text-4xl lg:text-6xl">SUT
               TEAM</span>
           </h1>
-          <p class="text-xl md:text-2xl font-light mb-8">
+          <p class="text-base sm:text-xl md:text-2xl font-light mb-4 sm:mb-8">
             ทุนเรียนดี SUT ตัวจริง รับทุนสูงสุด <span
-              class="font-bold text-white border-b-4 border-[#F26522]">100%*</span>
+              class="font-bold text-white border-b-2 sm:border-b-4 border-[#F26522]">100%*</span>
           </p>
           <button
-            class="bg-white text-[#253C90] px-8 py-3 rounded-full font-bold text-lg hover:shadow-xl hover:scale-105 transition transform border-2 border-transparent hover:border-[#F26522]"
+            class="bg-white text-[#253C90] px-5 sm:px-8 py-2 sm:py-3 rounded-full font-bold text-sm sm:text-lg hover:shadow-xl hover:scale-105 transition transform border-2 border-transparent hover:border-[#F26522]"
             data-testid="homepage-apply-button">
             ยื่นสมัครเลย
           </button>
-          <p class="mt-4 text-xm opacity-70">*เงื่อนไขเป็นไปตามที่มหาวิทยาลัยกำหนด</p>
+          <p class="mt-2 sm:mt-4 text-xs sm:text-sm opacity-70">*เงื่อนไขเป็นไปตามที่มหาวิทยาลัยกำหนด</p>
         </div>
 
         <div class="md:w-1/2 flex justify-center relative">
           <div
-            class="w-72 h-80 md:w-96 md:h-96 bg-gradient-to-tr from-[#EEEEEE] to-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/20 flex items-center justify-center relative shadow-2xl">
+            class="w-56 h-64 sm:w-72 sm:h-80 md:w-80 md:h-80 lg:w-96 lg:h-96 bg-gradient-to-tr from-[#EEEEEE] to-white/10 backdrop-blur-sm rounded-2xl border-2 border-white/20 flex items-center justify-center relative shadow-2xl">
             <!-- <span class="text-white/40 font-bold text-2xl">Presenter Image</span> -->
             <img :src="presenterImageUrl" alt="Presenter" class="w-full h-full object-cover rounded-2xl" />
 
             <div
-              class="absolute -top-4 -right-4 bg-[#253C90] text-white px-4 py-3 rounded-lg shadow-lg font-bold animate-bounce border border-white/30">
+              class="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 bg-[#253C90] text-white px-2 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg font-bold text-xs sm:text-base animate-bounce border border-white/30">
               ทุน 100%
             </div>
           </div>
@@ -259,99 +262,91 @@ function handleViewAllNews() {
       />
     </section>
 
-    <div class="fixed right-0 top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-1 hidden md:flex" data-testid="homepage-social-links">
-      <a href="#"
-        class="w-10 h-10 bg-[#1877F2] text-white flex items-center justify-center hover:w-12 transition-all shadow-md">F</a>
-      <a href="#"
-        class="w-10 h-10 bg-[#FF0000] text-white flex items-center justify-center hover:w-12 transition-all shadow-md">Y</a>
-      <a href="#"
-        class="w-10 h-10 bg-[#06C755] text-white flex items-center justify-center hover:w-12 transition-all shadow-md">L</a>
-    </div>
-
     <!-- Footer -->
-    <footer class="relative mt-16">
+    <footer class="relative mt-10 sm:mt-16">
       <img 
         :src="FooterBg" 
         alt="" 
-        class="w-full object-cover"
+        class="w-full h-[400px] sm:h-auto object-cover"
       />
       
       <!-- gradient: 100% gray-50 (top) to 0% transparent (bottom) -->
       <div class="absolute inset-0 bg-gradient-to-b from-gray-50 via-gray-50/30 via-40% to-transparent"></div>
       
       <!-- Footer content -->
-      <div class="absolute inset-0 z-10 flex items-end pb-8">
+      <div class="absolute inset-0 z-10 flex items-end pb-4 sm:pb-8">
         <div class="container mx-auto px-4">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-white mb-8">
-            <div class="md:col-span-1">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="w-12 h-12 bg-[#F26522] rounded-lg flex items-center justify-center font-bold text-white">
+          <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 text-white mb-4 sm:mb-8">
+            <div class="col-span-2 sm:col-span-2 md:col-span-1">
+              <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                <div class="w-8 h-8 sm:w-12 sm:h-12 bg-[#F26522] rounded-lg flex items-center justify-center font-bold text-white text-xs sm:text-base">
                   SUT
                 </div>
                 <div>
-                  <h3 class="font-bold text-lg">SURANAREE</h3>
-                  <p class="text-xs text-white/70">University of Technology</p>
+                  <h3 class="font-bold text-sm sm:text-lg">SURANAREE</h3>
+                  <p class="text-[10px] sm:text-xs text-white/70">University of Technology</p>
                 </div>
               </div>
-              <p class="text-sm text-white/80 leading-relaxed">
+              <p class="text-xs sm:text-sm text-white/80 leading-relaxed hidden sm:block">
                 ระบบทุนการศึกษา มหาวิทยาลัยเทคโนโลยีสุรนารี
               </p>
             </div>
 
-            <!-- Quick Links เดี๋ยวค่อยมาปรับอีกที-->
+            <!-- Quick Links -->
             <div>
-              <h4 class="font-bold mb-4 text-[#F26522]">เมนูลัด</h4>
-              <ul class="space-y-2 text-sm text-white/80">
+              <h4 class="font-bold mb-2 sm:mb-4 text-[#F26522] text-xs sm:text-base">เมนูลัด</h4>
+              <ul class="space-y-1 sm:space-y-2 text-xs sm:text-sm text-white/80">
                 <li><a href="#" class="hover:text-[#F26522] transition">หน้าแรก</a></li>
                 <li><a href="#" class="hover:text-[#F26522] transition">ทุนการศึกษา</a></li>
-                <li><a href="#" class="hover:text-[#F26522] transition">สมัครทุน</a></li>
-                <li><a href="#" class="hover:text-[#F26522] transition">ติดต่อเรา</a></li>
+                <li class="hidden sm:block"><a href="#" class="hover:text-[#F26522] transition">สมัครทุน</a></li>
+                <li class="hidden sm:block"><a href="#" class="hover:text-[#F26522] transition">ติดต่อเรา</a></li>
               </ul>
             </div>
 
             <!-- Contact -->
             <div>
-              <h4 class="font-bold mb-4 text-[#F26522]">ติดต่อเรา</h4>
-              <ul class="space-y-2 text-sm text-white/80">
-                <li class="flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h4 class="font-bold mb-2 sm:mb-4 text-[#F26522] text-xs sm:text-base">ติดต่อเรา</h4>
+              <ul class="space-y-1 sm:space-y-2 text-xs sm:text-sm text-white/80">
+                <li class="flex items-center gap-1 sm:gap-2">
+                  <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                   </svg>
-                  044-224-xxxx
+                  <span class="truncate">044-224-xxxx</span>
                 </li>
-                <li class="flex items-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <li class="flex items-center gap-1 sm:gap-2">
+                  <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                   </svg>
-                  scholarship@sut.ac.th
+                  <span class="truncate text-[10px] sm:text-sm">scholarship@sut.ac.th</span>
                 </li>
               </ul>
             </div>
 
             <!-- Social -->
-            <div>
+            <div class="hidden md:block">
               <h4 class="font-bold mb-4 text-[#F26522]">ติดตามเรา</h4>
               <div class="flex gap-3">
-                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
-                  <span class="font-bold">F</span>
+                <a href="#" class="group w-10 h-10 bg-white/10 hover:bg-[#1877F2] rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <Facebook class="w-5 h-5" />
                 </a>
-                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
-                  <span class="font-bold">Y</span>
+                <a href="https://www.sut.ac.th" target="_blank" class="group w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <Globe class="w-5 h-5" />
                 </a>
-                <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#F26522] rounded-lg flex items-center justify-center transition">
-                  <span class="font-bold">L</span>
+                <a href="#" class="group w-10 h-10 bg-white/10 hover:bg-[#06C755] rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110">
+                  <MessageCircle class="w-5 h-5" />
                 </a>
               </div>
             </div>
           </div>
 
-          <div class="border-t border-white/20 pt-6 text-center text-sm text-white/60">
+          <div class="border-t border-white/20 pt-3 sm:pt-6 text-center text-[10px] sm:text-sm text-white/60">
             <p>พัฒนาโดย Team 16 | SE Project</p>
           </div>
         </div>
       </div>
     </footer>
 
+    <FabMenu />
   </div>
 </template>
 

@@ -57,7 +57,6 @@ export class ScreeningWebSocketService {
    */
   connect(): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('🔌 Screening WebSocket already connected');
       return;
     }
 
@@ -73,24 +72,20 @@ export class ScreeningWebSocketService {
       wsUrl = apiUrl.replace('http', 'ws') + '/ws/screening';
     }
 
-    console.log('🔌 Connecting to Screening WebSocket:', wsUrl);
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('✅ Screening WebSocket connected');
       this.reconnectAttempts = 0;
       this.connectionCallbacks.forEach(cb => cb(true));
     };
 
     this.ws.onclose = (event) => {
-      console.log('❌ Screening WebSocket disconnected:', event.code, event.reason);
       this.ws = null;
       this.connectionCallbacks.forEach(cb => cb(false));
 
       // Auto reconnect if not intentionally closed
       if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++;
-        console.log(`🔄 Reconnecting in ${this.reconnectDelay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
         setTimeout(() => this.connect(), this.reconnectDelay);
       }
     };
@@ -116,19 +111,16 @@ export class ScreeningWebSocketService {
     switch (message.type) {
       case 'screening_result':
         const result = message.data as ScreeningResult;
-        console.log('📢 Screening result received:', result.student_name, result.passed ? '✅' : '⏳');
         this.resultCallbacks.forEach(cb => cb(result));
         break;
 
       case 'progress':
         const progress = message.data as BatchProgress;
-        console.log(`📊 Progress: ${progress.processed}/${progress.total}`);
         this.progressCallbacks.forEach(cb => cb(progress));
         break;
 
       case 'batch_complete':
         const complete = message.data as BatchComplete;
-        console.log(`🎉 Batch complete: ${complete.passed} passed, ${complete.failed} needs review`);
         this.batchCompleteCallbacks.forEach(cb => cb(complete));
         break;
     }
