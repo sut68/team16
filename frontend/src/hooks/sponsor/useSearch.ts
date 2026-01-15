@@ -25,11 +25,15 @@ export function useSearch<T>(
     }, debounceMs)
   })
 
-  // Filtered items
+  // Filtered items (sorted by ID ASC - 1, 2, 3...)
   const filtered = computed(() => {
     const term = q.value
-    if (!term) return items.value
-    return items.value.filter(item => filterFn(item, term))
+    let result = term
+      ? items.value.filter(item => filterFn(item, term))
+      : [...items.value]
+
+    // Sort by ID ASC (1, 2, 3...)
+    return result.sort((a: any, b: any) => (a.ID || 0) - (b.ID || 0))
   })
 
   function clearSearch() {

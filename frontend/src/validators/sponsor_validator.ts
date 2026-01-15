@@ -30,7 +30,8 @@ export const SPONSOR_VALIDATION_RULES = {
   },
   website: {
     required: false,
-    pattern: /^https?:\/\//i,
+    // รองรับทั้ง domain ธรรมดา (example.com) และ full URL (https://example.com)
+    pattern: /^(https?:\/\/)?[a-zA-Z0-9][a-zA-Z0-9-]*(\.[a-zA-Z0-9-]+)+/i,
   },
   status: {
     required: true,
@@ -55,7 +56,10 @@ export const CONTACT_VALIDATION_RULES = {
 
 // HELPER FUNCTIONS
 function isValidURL(url = ''): boolean {
-  return SPONSOR_VALIDATION_RULES.website.pattern.test(String(url).trim())
+  const trimmed = String(url).trim()
+  if (!trimmed) return true // Empty is valid (optional field)
+  // รองรับทั้ง "example.com" และ "https://example.com"
+  return SPONSOR_VALIDATION_RULES.website.pattern.test(trimmed)
 }
 
 function isValidEmail(email = ''): boolean {
@@ -72,9 +76,9 @@ export function validateSponsorForm(form: Partial<SponsorPayload>): ValidationRe
     errors.company_name = `โปรดระบุชื่อบริษัท (อย่างน้อย ${SPONSOR_VALIDATION_RULES.company_name.minLength} ตัวอักษร)`
   }
 
-  // Website validation
+  // Website validation - รองรับทั้ง domain และ full URL
   if (form.website && !isValidURL(String(form.website))) {
-    errors.website = 'ใส่ URL ให้มี http:// หรือ https://'
+    errors.website = 'URL ไม่ถูกต้อง (เช่น example.com หรือ https://example.com)'
   }
 
   // Status validation
@@ -120,7 +124,7 @@ export function validateWebsite(url: string | undefined): string | undefined {
     return undefined // Optional field
   }
   if (!isValidURL(url)) {
-    return 'URL ต้องเริ่มต้นด้วย http:// หรือ https://'
+    return 'URL ไม่ถูกต้อง (เช่น example.com หรือ https://example.com)'
   }
 
   return undefined
