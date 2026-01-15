@@ -411,10 +411,15 @@ const submitAction = async (type: 'approve' | 'reject' | 'request-change') => {
 const openDocument = () => {
     const filePath = latestDocument.value?.file_path;
     if (filePath) {
-        // อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
-        const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
-        const fileUrl = `${backendBaseUrl}/${filePath}`;
-        window.open(fileUrl, '_blank');
+        // ตรวจสอบว่า filePath เป็น URL เต็มหรือไม่
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            window.open(filePath, '_blank');
+        } else {
+            // Relative path - ต่อกับ base URL
+            const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
+            const fileUrl = `${backendBaseUrl}/${filePath}`;
+            window.open(fileUrl, '_blank');
+        }
     } else {
         alert('ไม่พบไฟล์เอกสาร');
     }
@@ -422,10 +427,15 @@ const openDocument = () => {
 
 const openSpecificDocument = (path: string) => {
     if (path) {
-        // อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
-        const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
-        const fileUrl = `${backendBaseUrl}/${path}`;
-        window.open(fileUrl, '_blank');
+        // ตรวจสอบว่า path เป็น URL เต็มหรือไม่
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            window.open(path, '_blank');
+        } else {
+            // Relative path - ต่อกับ base URL
+            const backendBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
+            const fileUrl = `${backendBaseUrl}/${path}`;
+            window.open(fileUrl, '_blank');
+        }
     }
 };
 </script>

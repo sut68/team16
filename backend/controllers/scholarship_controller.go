@@ -30,6 +30,7 @@ func GetAllScholarship(c *gin.Context) {
 	// Only preload the data that is actually needed for the list view.
 	// Preloading ApprovalRequirements or ApplicationScholarships here would cause a crash.
 	if err := config.DB.
+		Order("id DESC").
 		Preload("Statusscholarship").
 		Preload("Typescholarship").
 		Preload("Semaster").
