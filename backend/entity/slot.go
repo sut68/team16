@@ -16,6 +16,30 @@ type Slot struct {
 	InterviewRoundID uint `json:"interview_round_id"`
 	InterviewRound   InterviewRound `gorm:"foreignKey:InterviewRoundID" json:"-"`
 
-	InterviewerSlots []InterviewerSlot `gorm:"foreignKey:SlotID" json:"interviewer_slots"`
-	IntervieweBookings []IntervieweBooking `gorm:"foreignKey:SlotID" json:"interviewe_bookings"`
-}
+		InterviewerSlots  []InterviewerSlot  `gorm:"foreignKey:SlotID" json:"interviewer_slots"`
+
+		IntervieweBookings []IntervieweBooking `gorm:"foreignKey:SlotID" json:"interviewe_bookings"`
+
+	}
+
+	
+
+	// AfterFind GORM hook to ensure slices are never nil, so they marshal as [] instead of null
+
+	func (slot *Slot) AfterFind(tx *gorm.DB) (err error) {
+
+		if slot.InterviewerSlots == nil {
+
+			slot.InterviewerSlots = []InterviewerSlot{}
+
+		}
+
+		if slot.IntervieweBookings == nil {
+
+			slot.IntervieweBookings = []IntervieweBooking{}
+
+		}
+
+		return
+
+	}

@@ -8,8 +8,7 @@ const adminRoutes: Array<RouteRecordRaw> = [
     children: [
       {
         path: '',
-        name: 'AdminDashboard',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
+        redirect: 'news',
       },
       {
         path: 'users',
@@ -50,11 +49,6 @@ const adminRoutes: Array<RouteRecordRaw> = [
         path: 'interview',
         name: 'Interview',
         component: () => import('@/pages/protected/Interview/admin/InterviewRoundManager.vue'),
-      },
-      {
-        path: 'consider',
-        name: 'Consider',
-        component: () => import('@/pages/protected/DashboardPage.vue'),
       },
       {
         path: 'assistance',

@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"net/http"
 	"strings"
 
@@ -47,7 +49,7 @@ func Register(c *gin.Context) {
 	user := entity.User{
 		Username: username,
 		Password: hashedPassword,
-		RoleID:   &role.ID, 
+		RoleID:   &role.ID,
 	}
 
 	if err := config.DB.Create(&user).Error; err != nil {
@@ -70,6 +72,14 @@ func Register(c *gin.Context) {
 		"username": user.Username,
 		"role_id":  user.RoleID,
 	})
+}
+
+func makeCSRFToken(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func Login(c *gin.Context) {
@@ -103,7 +113,6 @@ func Login(c *gin.Context) {
 	if user.Role != nil {
 		roleName = user.Role.Name
 	} else {
-		// Handle case where role is not found, maybe default or return an error
 		roleName = "user" // Defaulting to "user" for safety
 	}
 
@@ -113,9 +122,47 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// 1. Set Access Token Cookie
+	accessCookie := &http.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		Path:     "/",
+		Domain:   config.CookieDomain,
+		MaxAge:   int(config.AccessTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   config.CookieSecure,
+	}
+	switch strings.ToLower(config.CookieSameSite) {
+	case "strict":
+		accessCookie.SameSite = http.SameSiteStrictMode
+	case "none":
+		accessCookie.SameSite = http.SameSiteNoneMode
+	default:
+		accessCookie.SameSite = http.SameSiteLaxMode
+	}
+	http.SetCookie(c.Writer, accessCookie)
+
+	// 2. Generate and Set CSRF Token Cookie
+	csrfToken, err := makeCSRFToken(32)
+	if err != nil {
+		csrfToken = "" // Fail open or handle error
+	}
+	csrfCookie := &http.Cookie{
+		Name:     "csrf_token",
+		Value:    csrfToken,
+		Path:     "/",
+		Domain:   config.CookieDomain,
+		MaxAge:   int(config.AccessTTL.Seconds()),
+		HttpOnly: false, // Must be readable by JS
+		Secure:   config.CookieSecure,
+	}
+	csrfCookie.SameSite = accessCookie.SameSite
+	http.SetCookie(c.Writer, csrfCookie)
+
 	c.JSON(http.StatusOK, gin.H{
-		"token":      token,
-		"token_type": "Bearer",
+		"message":    "login successful",
+		"token":      token,    // For Frontend backward compatibility
+		"token_type": "Bearer", // For Frontend backward compatibility
 		"user": gin.H{
 			"id":       user.ID,
 			"username": user.Username,
@@ -123,4 +170,39 @@ func Login(c *gin.Context) {
 			"role":     roleName,
 		},
 	})
+}
+
+func Logout(c *gin.Context) {
+	clearAccess := &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		Domain:   config.CookieDomain,
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   config.CookieSecure,
+	}
+	switch strings.ToLower(config.CookieSameSite) {
+	case "strict":
+		clearAccess.SameSite = http.SameSiteStrictMode
+	case "none":
+		clearAccess.SameSite = http.SameSiteNoneMode
+	default:
+		clearAccess.SameSite = http.SameSiteLaxMode
+	}
+	http.SetCookie(c.Writer, clearAccess)
+
+	clearCSRF := &http.Cookie{
+		Name:     "csrf_token",
+		Value:    "",
+		Path:     "/",
+		Domain:   config.CookieDomain,
+		MaxAge:   -1,
+		HttpOnly: false,
+		Secure:   config.CookieSecure,
+	}
+	clearCSRF.SameSite = clearAccess.SameSite
+	http.SetCookie(c.Writer, clearCSRF)
+
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }

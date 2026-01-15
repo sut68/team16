@@ -104,20 +104,20 @@ func SeedAll(db *gorm.DB) error {
 	}
 	log.Println("Requirements seed completed")
 
-	if err := approval.SeedApplications(db); err != nil {
-		return err
-	}
-	log.Println("Applications seed completed")
+	// if err := approval.SeedApplications(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Applications seed completed")
 
-	if err := approval.SeedApplicationScholarships(db); err != nil {
-		return err
-	}
-	log.Println("Application scholarships seed completed")
+	// if err := approval.SeedApplicationScholarships(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Application scholarships seed completed")
 
-	if err := approval.SeedApplicationDocuments(db); err != nil {
-		return err
-	}
-	log.Println("Application documents seed completed")
+	// if err := approval.SeedApplicationDocuments(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Application documents seed completed")
 
 	if err := approval.SeedApprovalRequirements(db); err != nil {
 		return err
@@ -125,25 +125,27 @@ func SeedAll(db *gorm.DB) error {
 	log.Println("Approval requirements seed completed")
 
 	// --- New/Corrected Seeders ---
-	if err := approval.SeedApprovalTasks(db); err != nil {
-		return err
-	}
-	log.Println("Approval tasks seed completed")
+	// These seeds depend on ApplicationScholarship, comment out if not seeding applications
+	// if err := approval.SeedApprovalTasks(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Approval tasks seed completed")
 
-	if err := approval.SeedApprovalDecisions(db); err != nil {
-		return err
-	}
-	log.Println("Approval decisions seed completed")
+	// if err := approval.SeedApprovalDecisions(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Approval decisions seed completed")
 
 	if err := screening.SeedStatusScreenings(db); err != nil {
 		return err
 	}
 	log.Println("Status screenings seed completed")
 
-	if err := screening.SeedScreenings(db); err != nil {
-		return err
-	}
-	log.Println("Screenings seed completed")
+	// Depends on ApplicationScholarship
+	// if err := screening.SeedScreenings(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Screenings seed completed")
 
 	if err := news.SeedStatusNews(db); err != nil {
 		return err
@@ -160,30 +162,31 @@ func SeedAll(db *gorm.DB) error {
 	}
 	log.Println("Evaluation criteria seed completed")
 
-	if err := interview.SeedInterviewRounds(db); err != nil {
-		return err
-	}
-	log.Println("Interview rounds and slots seed completed")
+	// Depends on ApplicationScholarship
+	// if err := interview.SeedInterviewRounds(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Interview rounds and slots seed completed")
 
-	if err := interview.SeedInterviewBookings(db); err != nil {
-		return err
-	}
-	log.Println("Interview bookings seed completed")
+	// if err := interview.SeedInterviewBookings(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Interview bookings seed completed")
 
-	if err := evaluation.SeedInterviewRoundCriteria(db); err != nil {
-		return err
-	}
-	log.Println("Interview round criteria seed completed")
+	// if err := evaluation.SeedInterviewRoundCriteria(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Interview round criteria seed completed")
 
-	if err := evaluation.SeedEvaluations(db); err != nil {
-		return err
-	}
-	log.Println("Evaluations seed completed")
+	// if err := evaluation.SeedEvaluations(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Evaluations seed completed")
 
-	if err := evaluation.SeedEvaluationScores(db); err != nil {
-		return err
-	}
-	log.Println("Evaluation scores seed completed")
+	// if err := evaluation.SeedEvaluationScores(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("Evaluation scores seed completed")
 
 	return nil
 }

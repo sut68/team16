@@ -14,15 +14,32 @@ export class ChatService {
     // กัน connect ซ้ำ
     if (this.ws) return;
 
-    const url = `ws://localhost:8080/api/ws?token=${token}&chatroom_id=${chatroomId}`;
+    // อ่าน WebSocket URL จาก ENV หรือ derive จาก API URL
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+    // สร้าง WebSocket URL
+    let wsUrl: string;
+    if (import.meta.env.VITE_WS_URL) {
+      // ถ้ามีการตั้งค่า VITE_WS_URL ใช้ค่านั้น
+      wsUrl = import.meta.env.VITE_WS_URL;
+    } else if (apiUrl.startsWith('/')) {
+      // ถ้าเป็น relative path (เช่น /api) ให้สร้าง full URL จาก window.location
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}${apiUrl}`;
+    } else {
+      // ถ้าเป็น absolute URL ให้แปลง http → ws
+      wsUrl = apiUrl.replace('http', 'ws');
+    }
+
+    const url = `${wsUrl}/ws?token=${token}&chatroom_id=${chatroomId}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
-      console.log("✅ WebSocket connected:", chatroomId);
+      // console.log("✅ WebSocket connected:", chatroomId);
     };
 
     this.ws.onclose = () => {
-      console.log("❌ WebSocket disconnected");
+      // console.log("❌ WebSocket disconnected");
       this.ws = null;
     };
 
@@ -60,7 +77,7 @@ export class ChatService {
   onMessage(callback: MessageCallback) {
     this.callbacks.push(callback);
   }
-  
+
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN
   }

@@ -122,7 +122,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold text-[#1e3a8a]">เกณฑ์ประจำรอบสัมภาษณ์</h1>
+        <h2 class="text-xl font-bold text-[#1e3a8a]">เกณฑ์ประจำรอบสัมภาษณ์</h2>
       </div>
     </div>
 

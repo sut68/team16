@@ -14,6 +14,10 @@ const studentApplications = ref<ApplicationScholarshipResponse[]>([]);
 const studentProfile = ref<MyProfileResponse | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+// Filter & Sort state
+const searchQuery = ref('');
+const filterStatus = ref('all'); // all, available, applied
 const router = useRouter();
 const route = useRoute();
 
@@ -61,6 +65,33 @@ const isAlreadyApplied = (scholarshipId: number) => {
   return studentApplications.value.some(app => app.scholarship_id === scholarshipId);
 };
 
+// Filtered scholarships
+const filteredScholarships = computed(() => {
+  let result = [...scholarships.value];
+  
+  // Search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter(s => 
+      s.scholarship_name?.toLowerCase().includes(query) ||
+      s.description?.toLowerCase().includes(query) ||
+      s.typescholarship?.type_name?.toLowerCase().includes(query)
+    );
+  }
+  
+  // Status filter (available/applied)
+  if (filterStatus.value === 'available') {
+    result = result.filter(s => !isAlreadyApplied(s.ID));
+  } else if (filterStatus.value === 'applied') {
+    result = result.filter(s => isAlreadyApplied(s.ID));
+  }
+  
+  // Default sort: closing soon first
+  result.sort((a, b) => new Date(a.close_date).getTime() - new Date(b.close_date).getTime());
+  
+  return result;
+});
+
 const fetchScholarships = async () => {
   isLoading.value = true;
   error.value = null;
@@ -85,7 +116,7 @@ const fetchScholarships = async () => {
       }
     }
 
-    console.log('Data received for scholarships:', scholarships.value);
+    // console.log('Data received for scholarships:', scholarships.value);
   } catch (err) {
     error.value = 'ไม่สามารถโหลดข้อมูลทุนการศึกษาได้';
     console.error(err);
@@ -146,8 +177,8 @@ const submitApplication = async () => {
     };
 
     // Submit application with all data
-    const apiResult = await applyForScholarship(selectedScholarship.value.ID, payload);
-    console.log('Application result:', apiResult);
+    await applyForScholarship(selectedScholarship.value.ID, payload);
+    // console.log('Application result:', apiResult);
     
     closeModal();
     
@@ -201,17 +232,47 @@ onMounted(fetchScholarships);
 </script>
 
 <template>
-  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800" data-theme="light">
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1 flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-          stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-        </svg>
-        ยื่นสมัครทุนการศึกษา
-      </h1>
-      <p class="text-gray-500 text-sm">เลือกทุนการศึกษาที่คุณต้องการสมัคร</p>
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-y-auto font-sans text-slate-800" data-theme="light">
+    <!-- Header with Search & Filter -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1 flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+          </svg>
+          ยื่นสมัครทุนการศึกษา
+        </h1>
+        <p class="text-gray-500 text-sm">เลือกทุนการศึกษาที่คุณต้องการสมัคร</p>
+      </div>
+      
+      <!-- Search & Filter inline -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <!-- Search -->
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="ค้นหาชื่อทุน..."
+            class="input input-bordered input-sm h-10 w-full sm:w-64 rounded-full pl-10 bg-white border-gray-300 shadow-sm focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] text-sm" 
+          />
+        </div>
+        
+        <!-- Filter by Status -->
+        <select 
+          v-model="filterStatus"
+          class="select select-bordered select-sm h-10 rounded-full bg-white text-sm border-gray-300 focus:border-[#1e3a8a] shadow-sm">
+          <option value="all">ทั้งหมด</option>
+          <option value="available">ยังไม่สมัคร</option>
+          <option value="applied">สมัครแล้ว</option>
+        </select>
+      </div>
     </div>
 
       <div v-if="isLoading" class="text-center py-20 text-gray-500">
@@ -224,8 +285,9 @@ onMounted(fetchScholarships);
         <button @click="fetchScholarships" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
       </div>
 
-      <div v-else class="grid grid-cols-1 gap-5">
-        <div v-for="scholarship in scholarships" :key="scholarship.ID"
+      <div v-else>
+        <div class="grid grid-cols-1 gap-5">
+        <div v-for="scholarship in filteredScholarships" :key="scholarship.ID"
           class="card bg-white shadow-sm hover:shadow-lg transition-all border border-transparent rounded-2xl overflow-hidden group"
           :class="{'ring-2 ring-green-400 ring-offset-2': isAlreadyApplied(scholarship.ID)}">
 
@@ -268,8 +330,18 @@ onMounted(fetchScholarships);
             </div>
           </div>
         </div>
-        <div v-if="scholarships.length === 0" class="text-center py-20 text-gray-500">
-          <p>ไม่พบทุนการศึกษาที่เปิดรับสมัครในขณะนี้</p>
+        
+        <!-- Empty state -->
+        <div v-if="filteredScholarships.length === 0" class="text-center py-16 text-gray-500">
+          <div class="bg-gray-50 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p v-if="searchQuery">ไม่พบทุนที่ตรงกับ "{{ searchQuery }}"</p>
+          <p v-else-if="filterStatus === 'applied'">คุณยังไม่ได้สมัครทุนใดๆ</p>
+          <p v-else>ไม่พบทุนการศึกษาที่เปิดรับสมัครในขณะนี้</p>
+        </div>
         </div>
       </div>
   </div>

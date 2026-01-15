@@ -10,6 +10,7 @@ import { Plus, RefreshCw } from 'lucide-vue-next';
 import FlatPickr from 'vue-flatpickr-component';
 import 'flatpickr/dist/flatpickr.css';
 import { Thai } from 'flatpickr/dist/l10n/th.js';
+import { useInterviewWebSocket } from '@/hooks/useInterviewWebSocket';
 
 // --- Interfaces ---
 interface StudentProfile {
@@ -25,6 +26,16 @@ interface StudentProfile {
 }
 
 // --- 1. State Management ---
+
+// WebSocket Hook for real-time interview round data
+const { rounds: allRounds, isConnected, error: wsError } = useInterviewWebSocket();
+watch(wsError, (newError) => {
+    if (newError) {
+        Swal.fire('WebSocket Error', newError, 'error');
+    }
+});
+
+
 const isLoading = ref(true);
 const isModalOpen = ref(false);
 const isFilterOpen = ref(false);
@@ -54,8 +65,7 @@ const selectScholarship = (scholarship: ScholarshipResponse) => {
     isScholarshipDropdownOpen.value = false;
 };
 
-// Data from API
-const allRounds = ref<InterviewRound[]>([]);
+// Data from API (for non-websocket data)
 const scholarships = ref<ScholarshipResponse[]>([]);
 const interviewersList = ref<Interviewer[]>([]);
 const locations = ref<Location[]>([]);
@@ -135,21 +145,20 @@ const isSlotConfigDirty = computed(() => {
 
 // --- 2. Data Fetching ---
 onMounted(async () => {
-    await fetchData();
+    // Fetch non-realtime data
+    await fetchAuxiliaryData();
 });
 
-const fetchData = async () => {
+const fetchAuxiliaryData = async () => {
     isLoading.value = true;
     try {
-        const [roundsRes, scholarsRes, interviewersRes, locationsRes, modesRes] = await Promise.allSettled([
-            InterviewAPI.getAllRounds(),
+        const [scholarsRes, interviewersRes, locationsRes, modesRes] = await Promise.allSettled([
             ScholarshipAPI.getAll(),
             InterviewAPI.getAllInterviewers(),
             LocationAPI.getAllLocations(),
             InterviewAPI.getAllModes(),
         ]);
 
-        if (roundsRes.status === 'fulfilled') allRounds.value = roundsRes.value || [];
         if (scholarsRes.status === 'fulfilled') scholarships.value = scholarsRes.value || [];
         if (interviewersRes.status === 'fulfilled') interviewersList.value = interviewersRes.value || [];
         if (locationsRes.status === 'fulfilled') locations.value = locationsRes.value || [];
@@ -157,7 +166,7 @@ const fetchData = async () => {
 
     } catch (error) {
         console.error(error);
-        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลได้', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลเสริมได้', 'error');
     } finally {
         isLoading.value = false;
     }
@@ -342,28 +351,6 @@ watch(activeTab, () => {
 
 // --- 5. Methods ---
 
-const reloadSelectedRoundDetails = async () => {
-    if (!editingRoundId.value && !selectedRoundDetails.value?.ID) return;
-    const idToReload = editingRoundId.value || selectedRoundDetails.value!.ID;
-    
-    try {
-        isLoading.value = true;
-        const details = await InterviewAPI.getRoundById(idToReload);
-        selectedRoundDetails.value = details;
-
-        if (modalMode.value === 'edit') {
-            editingSlotStates.value = JSON.parse(JSON.stringify(details.slots || []));
-        }
-
-    } catch (e) {
-        console.error("Failed to reload round details", e);
-        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลรอบล่าสุดได้', 'error');
-    } finally {
-        isLoading.value = false;
-    }
-}
-
-
 const openAssignModal = async (slot: Slot) => {
     if (!selectedRoundDetails.value) return;
 
@@ -385,68 +372,64 @@ const openAssignModal = async (slot: Slot) => {
     }
 };
 
-const handleAssignStudent = async () => {
+const handleAssignStudent = () => {
     if (!assigningSlot.value || !selectedApplicantId.value) {
         Swal.fire('ข้อมูลไม่ครบถ้วน', 'กรุณาเลือกนักศึกษา', 'warning');
         return;
     }
 
-    const payload = {
-        slot_id: assigningSlot.value.ID,
-        application_scholarship_id: selectedApplicantId.value,
-    };
+    const slot = editingSlotStates.value.find(s => s.ID === assigningSlot.value!.ID);
+    const applicant = qualifiedApplicants.value.find(a => a.ID === selectedApplicantId.value);
 
-    const result = await Swal.fire({
-        title: 'ยืนยันการจองคิว',
-        text: 'คุณต้องการจองคิวให้นักศึกษาคนนี้ใช่หรือไม่?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยัน',
-        cancelButtonText: 'ยกเลิก',
-    });
-
-    if (result.isConfirmed) {
-        isLoading.value = true;
-        try {
-            await InterviewAPI.adminCreateBooking(payload);
-            Swal.fire('สำเร็จ', 'จองคิวให้นักศึกษาเรียบร้อยแล้ว', 'success');
-            isAssignModalOpen.value = false;
-            await reloadSelectedRoundDetails(); // Reload details to show the new booking
-        } catch (error: any) {
-            Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถจองคิวได้', 'error');
-        } finally {
-            isLoading.value = false;
-        }
-    }
-};
-
-const handleAdminCancelBooking = async (bookingId: number) => {
-    if (!bookingId) {
-         Swal.fire('ผิดพลาด', 'ไม่พบรหัสการจอง', 'error');
+    if (!slot || !applicant) {
+        Swal.fire('ผิดพลาด', 'ไม่พบข้อมูล Slot หรือนักศึกษา', 'error');
         return;
     }
-    const result = await Swal.fire({
-        title: 'ยืนยันการยกเลิก',
-        text: "คุณต้องการยกเลิกการจองนี้ใช่หรือไม่? นักศึกษาจะได้รับผลกระทบ",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'ใช่, ยกเลิกเลย',
-        cancelButtonText: 'ไม่',
-    });
 
-    if (result.isConfirmed) {
-        isLoading.value = true;
-        try {
-            await InterviewAPI.deleteBooking(bookingId);
-            Swal.fire('สำเร็จ', 'ยกเลิกการจองเรียบร้อยแล้ว', 'success');
-            await reloadSelectedRoundDetails();
-        } catch (error: any) {
-            Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถยกเลิกการจองได้', 'error');
-        } finally {
-            isLoading.value = false;
+    // Create a temporary booking object that matches the expected structure for the UI
+    const newBooking = {
+        ID: Date.now() * -1, // Use a temporary negative ID for new bookings
+        status: 'confirmed',
+        slot_id: slot.ID,
+        application_scholarship_id: applicant.ID,
+        application_scholarship: {
+            // We need to nest the data to match what the UI expects
+            ID: applicant.ID,
+            application: {
+                ID: applicant.application.ID,
+                student_profile: applicant.application.student_profile,
+            }
         }
+    };
+
+    // Add the new booking and update slot state
+    slot.interviewe_bookings.push(newBooking as any);
+    slot.is_booked = true;
+    slot.book_count++;
+    
+    // Close the modal
+    isAssignModalOpen.value = false;
+};
+
+const handleAdminCancelBooking = (bookingId: number, slotId: number) => {
+    if (!bookingId || !slotId) return;
+
+    const slot = editingSlotStates.value.find(s => s.ID === slotId);
+    if (!slot) return;
+
+    const bookingIndex = slot.interviewe_bookings.findIndex(b => b.ID === bookingId);
+    if (bookingIndex === -1) return;
+
+    // Remove the booking
+    slot.interviewe_bookings.splice(bookingIndex, 1);
+
+    // Update slot properties
+    slot.is_booked = false;
+    if (slot.book_count > 0) {
+        slot.book_count--;
     }
+    
+    // The UI will now update automatically because it's bound to editingSlotStates
 };
 
 const openStudentDetailModal = (slot: Slot) => {
@@ -565,7 +548,6 @@ const handleDelete = async (id: number) => {
         try {
             await InterviewAPI.deleteRound(id);
             Swal.fire('ลบสำเร็จ!', 'รอบการสัมภาษณ์ถูกลบเรียบร้อยแล้ว', 'success');
-            await fetchData();
         } catch (e) {
             Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบรอบได้', 'error');
         }
@@ -573,53 +555,237 @@ const handleDelete = async (id: number) => {
 };
 
 const handleUpdate = async () => {
-    if (!editingRoundId.value) return;
 
-    if (isSlotConfigDirty.value) {
-        Swal.fire('ยังไม่รองรับ', 'การแก้ไขโครงสร้างเวลา (วัน, เวลา, หรือระยะเวลา) ยังไม่ถูกรองรับในเวอร์ชันนี้', 'info');
-        return;
-    }
+    if (!editingRoundId.value || !selectedRoundDetails.value) return;
 
-    if (!formData.scholarship_id || !formData.interview_mode_id) {
-        Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'warning');
-        return;
-    }
 
-    const startDateTime = new Date(`${formData.date}T${formData.start_time}`).toISOString();
-    const endDateTime = new Date(`${formData.end_date}T${formData.end_time}`).toISOString();
-
-    const changedSlots = editingSlotStates.value
-        .filter((editedSlot, index) => {
-            const originalSlot = selectedRoundDetails.value?.slots[index];
-            return originalSlot && originalSlot.status !== editedSlot.status;
-        })
-        .map(slot => ({ id: slot.ID, status: slot.status }));
-    
-    const payload: InterviewRoundUpdate = {
-        name: formData.name,
-        description: formData.description,
-        start_date_time: startDateTime,
-        end_date_time: endDateTime,
-        scholarship_id: formData.scholarship_id as number,
-        interview_mode_id: formData.interview_mode_id as number,
-        location_id: formData.location_id ? Number(formData.location_id) : null,
-        meeting_link: formData.meeting_link,
-        interviewer_ids: formData.interviewer_ids,
-        slot_duration: formData.slot_duration,
-        slots: changedSlots.length > 0 ? changedSlots : undefined,
-    };
 
     isLoading.value = true;
-    try {
-        await InterviewAPI.updateRound(editingRoundId.value, payload);
-        Swal.fire('สำเร็จ', 'อัปเดตรอบสัมภาษณ์เรียบร้อยแล้ว!', 'success');
-        isModalOpen.value = false;
-        await fetchData();
-    } catch (error: any) {
-        Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถอัปเดตรอบสัมภาษณ์ได้', 'error');
-    } finally {
-        isLoading.value = false;
+
+
+
+    const originalSlots = selectedRoundDetails.value.slots || [];
+
+    const editedSlots = editingSlotStates.value;
+
+
+
+    const promises = [];
+
+
+
+    // 1. Find bookings to ADD
+
+    for (const slot of editedSlots) {
+
+        for (const booking of slot.interviewe_bookings) {
+
+            if (booking.ID < 0) { // New booking identified by negative temp ID
+
+                const studentName = booking.application_scholarship?.application?.student_profile?.first_name_th || 'ไม่ระบุชื่อ';
+
+                promises.push(
+
+                    InterviewAPI.adminCreateBooking({
+
+                        slot_id: slot.ID,
+
+                        application_scholarship_id: booking.application_scholarship_id,
+
+                    }).then(() => ({ status: 'fulfilled', value: `จองคิว ${studentName} สำเร็จ` }))
+
+                      .catch(err => ({ status: 'rejected', reason: `จองคิว ${studentName} ล้มเหลว: ${err.response?.data?.error || 'Unknown error'}` }))
+
+                );
+
+            }
+
+        }
+
     }
+
+
+
+    // 2. Find bookings to DELETE
+
+    const editedBookingIds = new Set(editedSlots.flatMap(s => s.interviewe_bookings.map(b => b.ID)));
+
+    for (const slot of originalSlots) {
+
+        for (const booking of slot.interviewe_bookings) {
+
+            if (!editedBookingIds.has(booking.ID)) {
+
+                promises.push(
+
+                    InterviewAPI.deleteBooking(booking.ID)
+
+                        .then(() => ({ status: 'fulfilled', value: `ยกเลิกการจอง ID ${booking.ID} สำเร็จ` }))
+
+                        .catch(err => ({ status: 'rejected', reason: `ยกเลิกการจอง ID ${booking.ID} ล้มเหลว: ${err.response?.data?.error || 'Unknown error'}` }))
+
+                );
+
+            }
+
+        }
+
+    }
+
+    
+
+    // --- Execute booking changes ---
+
+    const bookingResults = await Promise.all(promises);
+
+
+
+    // 3. Update Round Details and Slot STATUSES (not bookings)
+
+    let roundUpdateSuccess = true;
+
+    let roundUpdateError = '';
+
+    try {
+
+        const startDateTime = new Date(`${formData.date}T${formData.start_time}`).toISOString();
+
+        const endDateTime = new Date(`${formData.end_date}T${formData.end_time}`).toISOString();
+
+
+
+        const changedSlots = editedSlots
+
+            .map(editedSlot => {
+
+                const originalSlot = originalSlots.find(os => os.ID === editedSlot.ID);
+
+                // Only include if status has changed
+
+                if (originalSlot && originalSlot.status !== editedSlot.status) {
+
+                    return { id: editedSlot.ID, status: editedSlot.status };
+
+                }
+
+                return null;
+
+            })
+
+            .filter(Boolean);
+
+
+
+        const payload: InterviewRoundUpdate = {
+
+            name: formData.name,
+
+            description: formData.description,
+
+            start_date_time: startDateTime,
+
+            end_date_time: endDateTime,
+
+            scholarship_id: formData.scholarship_id as number,
+
+            interview_mode_id: formData.interview_mode_id as number,
+
+            location_id: formData.location_id ? Number(formData.location_id) : null,
+
+            meeting_link: formData.meeting_link,
+
+            interviewer_ids: formData.interviewer_ids,
+
+            slot_duration: formData.slot_duration,
+
+            slots: changedSlots.length > 0 ? changedSlots as any : undefined,
+
+        };
+
+
+
+        await InterviewAPI.updateRound(editingRoundId.value, payload);
+
+    } catch (error: any) {
+
+        roundUpdateSuccess = false;
+
+        roundUpdateError = error.response?.data?.error || 'ไม่สามารถอัปเดตรอบสัมภาษณ์ได้';
+
+    }
+
+
+
+
+
+    // --- Final Summary ---
+
+    isLoading.value = false;
+
+
+
+    const successfulOps = bookingResults.filter(r => r.status === 'fulfilled').map((r: any) => r.value);
+
+    const failedOps = bookingResults.filter(r => r.status === 'rejected').map((r: any) => r.reason);
+
+    
+
+    if (roundUpdateSuccess) {
+
+        successfulOps.push('อัปเดตข้อมูลรอบสัมภาษณ์สำเร็จ');
+
+    } else {
+
+        failedOps.push(roundUpdateError);
+
+    }
+
+
+
+    if (failedOps.length === 0) {
+
+        Swal.fire('สำเร็จ', 'การเปลี่ยนแปลงทั้งหมดถูกบันทึกเรียบร้อยแล้ว', 'success');
+
+        isModalOpen.value = false;
+
+    } else {
+
+        let html = '<strong>เกิดข้อผิดพลาดบางรายการ:</strong><br>';
+
+        if (successfulOps.length > 0) {
+
+            html += '<div style="text-align: left; margin-top: 10px;"><strong>สำเร็จ:</strong><ul style="list-style-type: disc; margin-left: 20px;">';
+
+            successfulOps.forEach(op => html += `<li>${op}</li>`);
+
+            html += '</ul></div>';
+
+        }
+
+        if (failedOps.length > 0) {
+
+            html += '<div style="text-align: left; margin-top: 10px;"><strong>ล้มเหลว:</strong><ul style="list-style-type: disc; margin-left: 20px;">';
+
+            failedOps.forEach(op => html += `<li>${op}</li>`);
+
+            html += '</ul></div>';
+
+        }
+
+        Swal.fire({
+
+            title: 'บันทึกเสร็จสิ้น (มีข้อผิดพลาด)',
+
+            html: html,
+
+            icon: 'warning',
+
+        });
+
+        // We don't close the modal so the user can see what failed and try again.
+
+    }
+
 };
 
 const saveRound = async () => {
@@ -696,7 +862,6 @@ const saveRound = async () => {
         await InterviewAPI.createRound(payload);
         Swal.fire('สำเร็จ', 'สร้างรอบสัมภาษณ์เรียบร้อยแล้ว!', 'success');
         isModalOpen.value = false;
-        await fetchData();
     } catch (error: any) {
         Swal.fire('เกิดข้อผิดพลาด', error.response?.data?.error || 'ไม่สามารถสร้างรอบสัมภาษณ์ได้', 'error');
     } finally {
@@ -765,7 +930,7 @@ const saveNewInterviewer = async () => {
 <template>
     <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" data-theme="light">
 
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
             <h1 class="text-2xl font-bold text-slate-800">จัดการรอบสัมภาษณ์</h1>
             <button @click="openCreateModal"
                 class="btn btn-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all font-medium">
@@ -877,12 +1042,12 @@ const saveNewInterviewer = async () => {
                 </div>
                 <!-- Refresh Button -->
                 <button 
-                  @click="fetchData"
+                  @click="() => {}"
                   :disabled="isLoading"
                   class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
-                  title="รีเฟรช"
+                  title="สถานะการเชื่อมต่อ Real-time"
                 >
-                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': !isConnected }" />
                 </button>
             </div>
         </div>
@@ -1230,7 +1395,7 @@ const saveNewInterviewer = async () => {
                                                         {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
                                                     </p>
                                                     <div class="mt-2">
-                                                        <button v-if="slot.interviewe_bookings && slot.interviewe_bookings[0]" @click="handleAdminCancelBooking(slot.interviewe_bookings[0].ID)" class="btn btn-xs btn-outline btn-error">ยกเลิกการจอง</button>
+                                                        <button v-if="slot.interviewe_bookings && slot.interviewe_bookings[0]" @click="handleAdminCancelBooking(slot.interviewe_bookings[0].ID, slot.ID)" class="btn btn-xs btn-outline btn-error">ยกเลิกการจอง</button>
                                                     </div>
                                                 </div>
 
@@ -1284,27 +1449,47 @@ const saveNewInterviewer = async () => {
 
                                                                                                                         
 
-                                                                                                                        <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
+                                                                                                                                                                                  <div v-if="slot.is_booked && slot.interviewe_bookings && slot.interviewe_bookings[0]?.application_scholarship?.application?.student_profile" 
 
-                                                                                                                             class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
+                                                                                                                        
 
-                                                                                                                            {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
+                                                                                                                                                                                                                                                     class="mt-1 text-xs text-blue-700 font-semibold truncate w-full px-1">
 
-                                                                                                                        </div>
+                                                                                                                        
 
-                                                                                                                        <div v-else class="badge badge-xs mt-1" :class="{
+                                                                                                                                                                                                                                                    {{ slot.interviewe_bookings[0].application_scholarship.application.student_profile.first_name_th }}
 
-                                                                                                                            'badge-ghost text-gray-400': slot.is_booked,
+                                                                                                                        
 
-                                                                                                                            'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
+                                                                                                                                                                                                                                                </div>
 
-                                                                                                                            'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+                                                                                                                        
 
-                                                                                                                        }">
+                                                                                                                                                                                                                                                <div v-else class="badge badge-xs mt-1" :class="{
 
-                                                                                                                            {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
+                                                                                                                        
 
-                                                                                                                        </div>
+                                                                                                                                                                                                                                                    'badge-ghost text-gray-400': slot.is_booked,
+
+                                                                                                                        
+
+                                                                                                                                                                                                                                                    'badge-ghost text-gray-500 border-gray-300': !slot.is_booked && slot.status === 'Disabled',
+
+                                                                                                                        
+
+                                                                                                                                                                                                                                                    'badge-success text-white': !slot.is_booked && slot.status !== 'Disabled'
+
+                                                                                                                        
+
+                                                                                                                                                                                                                                                }">
+
+                                                                                                                        
+
+                                                                                                                                                                                                                                                    {{ slot.is_booked ? 'จองแล้ว' : (slot.status === 'Disabled' ? 'ปิด' : 'ว่าง') }}
+
+                                                                                                                        
+
+                                                                                                                                                                                                                                                </div>
 
                                                                                                                     </button>
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import DocumentDetailModal from './DocumentDetailModal.vue';
-import { getApprovalTasks } from '@/services/api/approval';
+import { useApprovalWebSocket } from '@/hooks/useApprovalWebSocket';
 import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
@@ -11,9 +11,13 @@ interface ApprovalTaskDisplay extends ApprovalTaskResponse {
   semaster: SemasterResponse;
 }
 
-const allTasks = ref<ApprovalTaskDisplay[]>([]);
-const isLoading = ref(true);
-const error = ref<string | null>(null);
+const { tasks, isConnected, error } = useApprovalWebSocket();
+
+const allTasks = computed(() => {
+    if (!tasks.value) return [];
+    return tasks.value.map(processTask);
+});
+const isLoading = ref(false); // This can be driven by the hook's connection status if needed
 
 const activeTab = ref<'pending' | 'history'>('pending');
 const searchQuery = ref('');
@@ -32,39 +36,28 @@ const isModalOpen = ref(false);
 const isFilterOpen = ref(false);
 const selectedDocument = ref<ApprovalTaskDisplay | null>(null);
 
-const fetchTasks = async () => {
-  isLoading.value = true;
-  error.value = null;
-  try {
-    const tasks = await getApprovalTasks();
-    const processedTasks = tasks.map((task: ApprovalTaskResponse) => {
-      const semaster = task.application_document?.application_scholarship?.application?.semaster;
-      const roundText = semaster
-        ? `ปี: ${semaster.academic_year} เทอม: ${semaster.term} รอบ: ${semaster.round}`
-        : 'N/A';
-      return {
-        ...task,
-        roundText: roundText,
-        semaster: semaster,
-        submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }),
-      };
-    });
-    allTasks.value = processedTasks;
+const processTask = (task: ApprovalTaskResponse): ApprovalTaskDisplay => {
+  const semaster = task.application_document?.application_scholarship?.application?.semaster;
+  const roundText = semaster
+    ? `ปี: ${semaster.academic_year} เทอม: ${semaster.term} รอบ: ${semaster.round}`
+    : 'N/A';
+  return {
+    ...task,
+    roundText: roundText,
+    semaster: semaster,
+    submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }),
+  };
+};
 
+watch(allTasks, (processedTasks) => {
     const uniqueYears = [...new Set(processedTasks.map(t => t.semaster?.academic_year).filter(Boolean))];
     availableYears.value = uniqueYears.map(y => ({ label: `ปีการศึกษา ${y}`, value: y }));
+}, { immediate: true });
 
-  } catch (err) {
-    error.value = 'ไม่สามารถโหลดข้อมูลได้';
-    console.error(err);
-  } finally {
-    isLoading.value = false;
-  }
-};
 
 watch(filterYear, (newYear) => {
   filterTerm.value = 'all';
@@ -94,7 +87,6 @@ watch(filterTerm, (newTerm) => {
   }
 });
 
-
 const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
   if (task.status?.toLowerCase() !== 'pending') return false;
   const decisions = task.approval_decisions;
@@ -103,8 +95,6 @@ const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
   const latestDecision = sortedDecisions[0];
   return latestDecision?.decision === 'request-change';
 };
-
-onMounted(fetchTasks);
 
 const pendingItems = computed(() => {
   return allTasks.value.filter(item =>
@@ -217,15 +207,27 @@ const handleCardClick = (item: ApprovalTaskDisplay) => {
 };
 
 const handleActionCompleted = () => {
+
   isModalOpen.value = false;
-  fetchTasks();
+
+  // No need to fetchTasks(), the websocket will handle the update.
+
 };
+
+
+
+const reloadPage = () => {
+
+  window.location.reload();
+
+};
+
 </script>
 
 <template>
   <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible" data-theme="light" data-testid="approval-list-page">
     
-    <h1 class="text-2xl font-bold text-slate-800 mb-10">อนุมัติเอกสาร</h1>
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">อนุมัติเอกสาร</h1>
     
     <!-- Stats Section -->
     <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
@@ -378,12 +380,12 @@ const handleActionCompleted = () => {
         </div>
         <!-- Refresh Button -->
         <button 
-          @click="fetchTasks"
+          @click="() => {}"
           :disabled="isLoading"
           class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
-          title="รีเฟรช"
+          title="สถานะการเชื่อมต่อ Real-time"
         >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': !isConnected }" />
         </button>
       </div>
     </div>
@@ -394,7 +396,7 @@ const handleActionCompleted = () => {
     </div>
     <div v-if="error" class="text-center py-20 text-red-500" data-testid="error-message">
       <p>{{ error }}</p>
-      <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
+      <button @click="reloadPage" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
     
     <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1" data-testid="approval-list-container">

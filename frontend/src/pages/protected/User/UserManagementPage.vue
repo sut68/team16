@@ -258,10 +258,10 @@ const removeUser = async (id: number) => {
 </script>
 
 <template>
-  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow" data-theme="light">
+  <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-hidden" data-theme="light">
     
-    <div class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-bold text-[#1e3a8a]">จัดการข้อมูลผู้ใช้งาน</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">จัดการข้อมูลผู้ใช้งาน</h1>
       <button 
         @click="openCreateModal" 
         class="btn btn-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 flex items-center justify-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed, onMounted, onBeforeUnmount } from 'vue';
 import type { PropType } from 'vue';
 import type { SponsorPayload, ContactPayload } from '@/interfaces/sponsor';
 import { validateSponsorForm } from '@/validators/sponsor_validator';
@@ -34,6 +34,50 @@ const errors = ref<Record<string, any>>({});
 // Use Hooks
 const { industries, loading: industryLoading } = useIndustries({ autoLoad: true });
 const { dialogId, focusFirstElement, onBackdropClick, close } = useModalFocusTrap(props, emit);
+
+// Industry search state
+const industrySearch = ref('');
+const industryDropdownOpen = ref(false);
+const industryDropdownRef = ref<HTMLElement | null>(null);
+
+// Filtered industries based on search
+const filteredIndustries = computed(() => {
+  if (!industrySearch.value.trim()) {
+    return industries.value;
+  }
+  const query = industrySearch.value.toLowerCase();
+  return industries.value.filter(i => 
+    i.name.toLowerCase().includes(query)
+  );
+});
+
+// Select industry
+function selectIndustry(id: number, name: string) {
+  form.value.industry_id = id;
+  industrySearch.value = name;
+  industryDropdownOpen.value = false;
+}
+
+// Clear industry selection
+function clearIndustry() {
+  form.value.industry_id = null;
+  industrySearch.value = '';
+}
+
+// Close dropdown when clicking outside
+function onClickOutsideIndustry(e: MouseEvent) {
+  if (!industryDropdownRef.value?.contains(e.target as Node)) {
+    industryDropdownOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onClickOutsideIndustry);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onClickOutsideIndustry);
+});
 
 // Watch isOpen (reset form when opened)
 watch(
@@ -71,6 +115,18 @@ function removeContact(idx: number) {
   form.value.contacts?.splice(idx, 1);
 }
 
+// Format website - remove protocol if user accidentally typed it
+function formatWebsite() {
+  if (form.value.website) {
+    let url = String(form.value.website).trim();
+    // ลบ protocol ออกถ้าผู้ใช้พิมพ์มา
+    url = url.replace(/^https?:\/\//i, '');
+    // ลบ trailing slash
+    url = url.replace(/\/+$/, '');
+    form.value.website = url || null;
+  }
+}
+
 function submit() {
   const { valid, errors: vErrors } = validateSponsorForm(form.value);
   errors.value = vErrors;
@@ -79,9 +135,19 @@ function submit() {
     return;
   }
 
+  // Format website with https:// prefix
+  let websiteUrl: string | null = null;
+  if (form.value.website) {
+    let url = String(form.value.website).trim();
+    url = url.replace(/^https?:\/\//i, ''); // ลบ protocol ถ้ามี
+    if (url) {
+      websiteUrl = `https://${url}`;
+    }
+  }
+
   const payload: SponsorPayload = {
     company_name: String(form.value.company_name).trim(),
-    website: form.value.website ? String(form.value.website).trim() : null,
+    website: websiteUrl,
     industry_id: form.value.industry_id ?? null,
     status: String(form.value.status ?? 'active'),
     description: form.value.description ? String(form.value.description).trim() : null,
@@ -156,41 +222,86 @@ function submit() {
                 <!-- Website -->
                 <div>
                   <label class="block text-sm text-gray-600 mb-1">เว็บไซต์</label>
-                  <div class="relative">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                      <g stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5" fill="none" stroke="currentColor">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                      </g>
-                    </svg>
-
+                  <div class="join w-full">
+                    <span class="join-item flex items-center px-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm select-none">
+                      https://
+                    </span>
                     <input
                       v-model="form.website"
-                      type="url"
-                      placeholder="https://example.com"
-                      class="input input-bordered w-full placeholder:text-gray-400 pl-10"
+                      type="text"
+                      placeholder="example.com"
+                      class="input input-bordered join-item flex-1 rounded-r-lg"
                       :aria-invalid="errors.website ? 'true' : 'false'"
                       :data-has-error="errors.website ? 'true' : null"
+                      @blur="formatWebsite"
                     />
-
-                    <p v-if="errors.website" class="text-xs text-red-500 mt-1">
-                      {{ errors.website }}
-                    </p>
                   </div>
+                  <p v-if="errors.website" class="text-xs text-red-500 mt-1">
+                    {{ errors.website }}
+                  </p>
                 </div>
 
-                <!-- Industry -->
-                <div>
+                <!-- Industry (Searchable) -->
+                <div ref="industryDropdownRef" class="relative">
                   <label class="block text-sm text-gray-600 mb-1">อุตสาหกรรม</label>
-
-                  <select
-                    v-model="form.industry_id"
-                    class="select select-bordered w-full bg-white"
-                    :disabled="industryLoading"
+                  
+                  <div class="relative">
+                    <input
+                      v-model="industrySearch"
+                      type="text"
+                      class="input input-bordered w-full pr-16"
+                      placeholder="ค้นหาหรือเลือกอุตสาหกรรม..."
+                      :disabled="industryLoading"
+                      @focus="industryDropdownOpen = true"
+                      @input="industryDropdownOpen = true; form.industry_id = null"
+                    />
+                    
+                    <!-- Clear button -->
+                    <button
+                      v-if="industrySearch || form.industry_id"
+                      type="button"
+                      class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      @click.stop="clearIndustry"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    
+                    <!-- Dropdown arrow -->
+                    <button
+                      type="button"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      @click.stop="industryDropdownOpen = !industryDropdownOpen"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform" :class="{ 'rotate-180': industryDropdownOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <!-- Dropdown list -->
+                  <div
+                    v-if="industryDropdownOpen && !industryLoading"
+                    class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
                   >
-                    <option :value="null">-- เลือกอุตสาหกรรม --</option>
-                    <option v-for="i in industries" :key="i.ID" :value="i.ID">{{ i.name }}</option>
-                  </select>
+                    <div v-if="filteredIndustries.length === 0" class="px-4 py-3 text-sm text-gray-500 text-center">
+                      ไม่พบอุตสาหกรรมที่ค้นหา
+                    </div>
+                    <button
+                      v-for="i in filteredIndustries"
+                      :key="i.ID"
+                      type="button"
+                      class="w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 transition-colors flex items-center justify-between"
+                      :class="{ 'bg-blue-50 text-blue-700': form.industry_id === i.ID }"
+                      @click="selectIndustry(i.ID, i.name)"
+                    >
+                      <span>{{ i.name }}</span>
+                      <svg v-if="form.industry_id === i.ID" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                  </div>
 
                   <p v-if="industryLoading" class="text-xs text-slate-400 mt-1">กำลังโหลดรายการ...</p>
                 </div>

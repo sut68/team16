@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import ScreeningDetailModal from './DetailScreening.vue';
 import { getAllScreenings, getScreeningById } from '@/services/api/screening';
+import { useScreeningSocket } from '@/hooks/useScreeningSocket';
 import type { ScreeningResponse } from '@/interfaces/screening';
 import type { SemasterResponse } from '@/interfaces';
 
@@ -18,6 +19,32 @@ interface DocumentItem {
   created_at_date?: Date;
   semaster: Partial<SemasterResponse>;
 }
+
+// WebSocket for realtime updates
+const { lastResult } = useScreeningSocket();
+
+// Toast notification state
+const toastMessage = ref('');
+const toastType = ref<'success' | 'info' | 'warning'>('info');
+const showToast = ref(false);
+
+// Show toast notification
+const displayToast = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
+  toastMessage.value = message;
+  toastType.value = type;
+  showToast.value = true;
+  setTimeout(() => { showToast.value = false; }, 4000);
+};
+
+// Watch for new screening results from WebSocket
+watch(lastResult, (result) => {
+  if (result) {
+    const status = result.passed ? '✅ ผ่าน' : '⏳ รอตรวจสอบ';
+    displayToast(`${result.student_name} - ${status}`, result.passed ? 'success' : 'info');
+    // Refresh data in background
+    fetchData(true);
+  }
+});
 
 const isLoading = ref(false);
 const errorMsg = ref('');
@@ -258,7 +285,26 @@ const handleActionCompleted = () => {
 <template>
   <div class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800">
     
-    <h1 class="text-2xl font-bold text-slate-800 mb-10">คัดกรองผู้สมัคร</h1>
+    <!-- Toast Notification -->
+    <Transition name="toast">
+      <div v-if="showToast" 
+        class="fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg flex items-center gap-2"
+        :class="{
+          'bg-green-500 text-white': toastType === 'success',
+          'bg-blue-500 text-white': toastType === 'info',
+          'bg-yellow-500 text-white': toastType === 'warning'
+        }">
+        <svg v-if="toastType === 'success'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="font-medium">{{ toastMessage }}</span>
+      </div>
+    </Transition>
+
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">คัดกรองผู้สมัคร</h1>
     
     <!-- Stats Section -->
     <div class="grid grid-cols-1 md:grid-cols-3 bg-white shadow rounded-2xl border border-gray-100 w-full mb-8 divide-y md:divide-y-0 md:divide-x divide-gray-100">
@@ -469,4 +515,10 @@ const handleActionCompleted = () => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
 @keyframes pop-in { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
 .animate-pop-in { animation: pop-in 0.1s ease-out; }
+
+/* Toast animation */
+.toast-enter-active { animation: slide-in 0.3s ease-out; }
+.toast-leave-active { animation: slide-out 0.3s ease-in; }
+@keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slide-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 </style>

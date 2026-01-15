@@ -5,7 +5,8 @@ import { ArrowLeft, Bell } from 'lucide-vue-next';
 import { getAllNewsPosts } from '@/services/api/news_post';
 
 const router = useRouter();
-const API_BASE_URL = 'http://localhost:8080';
+// อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
 
 const loading = ref(true);
 const notifications = ref<any[]>([]);
@@ -38,16 +39,27 @@ const fetchData = async () => {
     // 3. เรียงลำดับจาก ID มากไปน้อย (ใหม่สุดอยู่บน)
     const sortedPosts = posts.sort((a: any, b: any) => b.ID - a.ID);
 
-    notifications.value = sortedPosts.map((post: any) => ({
-      id: post.ID,
-      title: post.title,
-      desc: post.post_detail,
-      // เช็คว่าใหม่กว่าที่เคยดูหรือไม่
-      isNew: (post.ID || post.id) > lastSeenId.value, 
-      createdAt: post.CreatedAt,
-      // 🔥 แก้ไข: ใช้ undefined แทน null เพื่อแก้ Type Error ในบาง IDE
-      image: post.file_path ? `${API_BASE_URL}/${post.file_path}` : undefined
-    }));
+    notifications.value = sortedPosts.map((post: any) => {
+      let imagePath = undefined;
+      if (post.file_path) {
+        const rawPath = post.file_path.trim().replace(/^[\/\s]+/, '');
+        if (rawPath.toLowerCase().includes('http://') || rawPath.toLowerCase().includes('https://')) {
+          const match = rawPath.match(/https?:\/\/[^\s]+/);
+          imagePath = match ? match[0] : rawPath;
+        } else {
+          imagePath = `${API_BASE_URL}/${rawPath}`;
+        }
+      }
+
+      return {
+        id: post.ID,
+        title: post.title,
+        desc: post.post_detail,
+        isNew: (post.ID || post.id) > lastSeenId.value, 
+        createdAt: post.CreatedAt,
+        image: imagePath
+      };
+    });
 
   } catch (error) {
     console.error("Failed to load notifications:", error);

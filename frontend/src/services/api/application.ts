@@ -1,4 +1,4 @@
-import { Get, Delete } from './https';
+import { Get, Delete, Post } from './https';
 import type { ApplicationScholarshipResponse } from '@/interfaces';
 
 /**
@@ -38,22 +38,14 @@ export const uploadDocument = async (applicationScholarshipId: number, file: Fil
   formData.append('application_scholarship_id', String(applicationScholarshipId));
   formData.append('uploaded_by', String(studentProfileId));
 
-  // We cannot use the JSON Post wrapper because this is multipart/form-data.
-  // We need a custom fetch or a different axios setup.
-  // For now, let's use a raw fetch.
-  // NOTE: This will not have the auth headers from the wrapper.
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-  const response = await fetch(`${API_URL}/application-documents`, {
-    method: 'POST',
-    body: formData,
-  });
+  // Use Post wrapper which handles auth headers and FormData correctly
+  const response = await Post('/application-documents', formData);
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Upload failed');
+  if (response?.error) {
+    throw new Error(response.error || 'Upload failed');
   }
 
-  return response.json();
+  return response;
 };
 
 /**

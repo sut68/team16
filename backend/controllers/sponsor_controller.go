@@ -110,12 +110,12 @@ func GetSponsorScholarships(ctx *gin.Context) {
 // POST /sponsors
 func CreateSponsor(ctx *gin.Context) {
 	var inputValues struct {
-		CompanyName		string		`json:"company_name"`
-		IndustryID		*uint     `json:"industry_id"`
-		Website				*string		`json:"website"`
-		Status				string		`json:"status"`
-		Description		*string		`json:"description"`
-		Contacts			[]entity.SponsorContact		`json:"contacts"`
+		CompanyName string                  `json:"company_name"`
+		IndustryID  *uint                   `json:"industry_id"`
+		Website     *string                 `json:"website"`
+		Status      string                  `json:"status"`
+		Description *string                 `json:"description"`
+		Contacts    []entity.SponsorContact `json:"contacts"`
 	}
 
 	if err := ctx.ShouldBindJSON(&inputValues); err != nil {
@@ -130,19 +130,19 @@ func CreateSponsor(ctx *gin.Context) {
 	}
 
 	sponsor := entity.Sponsor{
-		CompanyName:		inputValues.CompanyName,
-		IndustryID:			inputValues.IndustryID,
-		Website:				inputValues.Website,
-		Status:					inputValues.Status,
-		Description:		inputValues.Description,
-		Contacts:				inputValues.Contacts,
+		CompanyName: inputValues.CompanyName,
+		IndustryID:  inputValues.IndustryID,
+		Website:     inputValues.Website,
+		Status:      inputValues.Status,
+		Description: inputValues.Description,
+		Contacts:    inputValues.Contacts,
 	}
 
 	// Validate Sponsor
 	if err := validators.ValidateStruct(&sponsor); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",
-			"error": err.Error(),
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -152,7 +152,7 @@ func CreateSponsor(ctx *gin.Context) {
 		if err := validators.ValidateStruct(&c); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"message": "contact validation failed",
-				"error": err.Error(),
+				"error":   err.Error(),
 			})
 			return
 		}
@@ -211,11 +211,11 @@ func UpdateSponsor(ctx *gin.Context) {
 	}
 
 	var inputValues struct {
-		CompanyName		*string		`json:"company_name" valid:"optional,stringlength(2|100)~Company name must be 2-100 characters"`
-		IndustryID    *uint		  `json:"industry_id"  valid:"optional"`
-		Website				*string		`json:"website"      valid:"optional,url~Website must be a valid URL"`
-		Status				*string		`json:"status"       valid:"optional,in(active|inactive)~Invalid status"`
-		Description		*string		`json:"description"  valid:"optional,stringlength(1|500)~Description too long"`
+		CompanyName *string `json:"company_name" valid:"optional,stringlength(2|100)~Company name must be 2-100 characters"`
+		IndustryID  *uint   `json:"industry_id"  valid:"optional"`
+		Website     *string `json:"website"      valid:"optional,url~Website must be a valid URL"`
+		Status      *string `json:"status"       valid:"optional,in(active|inactive)~Invalid status"`
+		Description *string `json:"description"  valid:"optional,stringlength(1|500)~Description too long"`
 	}
 
 	if err := ctx.ShouldBindJSON(&inputValues); err != nil {
@@ -227,7 +227,7 @@ func UpdateSponsor(ctx *gin.Context) {
 	if err := validators.ValidateStruct(&inputValues); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",
-			"error": err.Error(),
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -239,7 +239,7 @@ func UpdateSponsor(ctx *gin.Context) {
 		return
 	}
 	// defer เพื่อจัดการ Rollback หากเกิด Panic
-	defer func ()  {
+	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 			panic(r)
@@ -289,8 +289,8 @@ func UpdateSponsor(ctx *gin.Context) {
 
 // PATCH /sponsors/:id/contacts
 type BatchContactsPayload struct {
-	Upsert			[]entity.SponsorContact	 `json:"upsert"      valid:"optional"`
-	DeleteIDs		[]uint									 `json:"delete_ids"  valid:"optional"`
+	Upsert    []entity.SponsorContact `json:"upsert"      valid:"optional"`
+	DeleteIDs []uint                  `json:"delete_ids"  valid:"optional"`
 }
 
 func UpdateSponsorContacts(ctx *gin.Context) {
@@ -312,7 +312,7 @@ func UpdateSponsorContacts(ctx *gin.Context) {
 	if err := validators.ValidateStruct(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "validation failed",
-			"error": err.Error(),
+			"error":   err.Error(),
 		})
 		return
 	}
@@ -345,7 +345,7 @@ func UpdateSponsorContacts(ctx *gin.Context) {
 		if err := validators.ValidateStruct(&payload.Upsert[i]); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"message": "contact validation failed",
-				"error": err.Error(),
+				"error":   err.Error(),
 			})
 			return
 		}
@@ -353,7 +353,7 @@ func UpdateSponsorContacts(ctx *gin.Context) {
 
 	if len(payload.Upsert) > 0 {
 		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
+			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name", "email", "phone", "position", "sponsor_id", "updated_at",
 			}),
@@ -437,4 +437,39 @@ func DeleteSponsor(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Sponsor delete successfully"})
+}
+
+// GET /statistics/public - Public statistics for homepage
+func GetPublicStatistics(ctx *gin.Context) {
+	type StatisticsResponse struct {
+		ScholarshipsCount int64 `json:"scholarships_count"`
+		ApprovedCount     int64 `json:"approved_count"`
+		SponsorsCount     int64 `json:"sponsors_count"`
+	}
+
+	var stats StatisticsResponse
+
+	// Count active scholarships
+	if err := config.DB.Model(&entity.Scholarship{}).Count(&stats.ScholarshipsCount).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count scholarships"})
+		return
+	}
+
+	// Count approved applications (status = 'approved')
+	if err := config.DB.Model(&entity.ApplicationScholarship{}).
+		Where("status = ?", "approved").
+		Count(&stats.ApprovedCount).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count approved applications"})
+		return
+	}
+
+	// Count active sponsors
+	if err := config.DB.Model(&entity.Sponsor{}).
+		Where("status = ?", "active").
+		Count(&stats.SponsorsCount).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count sponsors"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, stats)
 }

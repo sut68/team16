@@ -9,7 +9,8 @@ import NewsPreview from './preview.vue';
 import { getAllNewsPosts } from '@/services/api/news_post'; 
 import { getMyFavoriteNews, toggleStudentFavoriteNews } from '@/services/api/student_fav_news'; 
 
-const API_BASE_URL = 'http://localhost:8080'; 
+// อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', ''); 
 const CURRENT_STUDENT_ID = 1; 
 
 // --- State Variables ---
@@ -133,18 +134,31 @@ const fetchData = async (background = false) => {
     // Filter: Show Public (1) and Members Only (4)
     const validPosts = posts.filter((post: any) => post.status_news_id === 1 || post.status_news_id === 4);
 
-    newsItems.value = validPosts.map((post: any) => ({
-      id: Number(post.ID || post.id), 
-      title: post.title,
-      desc: stripHtml(post.post_detail),
-      caption: post.scholarship?.scholarship_name || 'ข่าวทั่วไป', // ชื่อทุน
-      postDetail: stripHtml(post.post_detail),
-      imagePath: post.file_path ? `${API_BASE_URL}/${post.file_path}` : null,
-      isLiked: favSet.has(post.ID || post.id),
-      createdAt: post.CreatedAt,
-      isNewBadge: Number(post.ID || post.id) > lastSeenNewsId.value, 
-      fallbackColor: ['bg-blue-100', 'bg-emerald-100', 'bg-orange-100', 'bg-purple-100'][(post.ID || post.id) % 4]
-    }));
+    newsItems.value = validPosts.map((post: any) => {
+      let imagePath = null;
+      if (post.file_path) {
+        const rawPath = post.file_path.trim().replace(/^[\/\s]+/, '');
+        if (rawPath.toLowerCase().includes('http://') || rawPath.toLowerCase().includes('https://')) {
+          const match = rawPath.match(/https?:\/\/[^\s]+/);
+          imagePath = match ? match[0] : rawPath;
+        } else {
+          imagePath = `${API_BASE_URL}/${rawPath}`;
+        }
+      }
+
+      return {
+        id: Number(post.ID || post.id), 
+        title: post.title,
+        desc: stripHtml(post.post_detail),
+        caption: post.scholarship?.scholarship_name || 'ข่าวทั่วไป', // ชื่อทุน
+        postDetail: stripHtml(post.post_detail),
+        imagePath: imagePath,
+        isLiked: favSet.has(post.ID || post.id),
+        createdAt: post.CreatedAt,
+        isNewBadge: Number(post.ID || post.id) > lastSeenNewsId.value, 
+        fallbackColor: ['bg-blue-100', 'bg-emerald-100', 'bg-orange-100', 'bg-purple-100'][(post.ID || post.id) % 4]
+      };
+    });
 
   } catch (error) {
     console.error("Failed to fetch news:", error);
@@ -158,7 +172,7 @@ onMounted(() => {
   startAutoPlay();
   pollingInterval = setInterval(() => {
     fetchData(true);
-  }, 30000); // 30 seconds
+  }, 60000); // 60 seconds (increased from 30s)
 });
 onUnmounted(() => { 
   clearInterval(slideInterval);

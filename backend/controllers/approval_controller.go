@@ -2,16 +2,19 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"backend/config"
 	"backend/entity"
+	"backend/storage"
 	"backend/validators"
+	"backend/ws" // Import the ws package
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetApprovalTasks(ctx *gin.Context) {
@@ -106,12 +109,19 @@ func UpdateApprovalTask(ctx *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Preload("ApplicationDocument").Preload("ApprovalDecisions").First(&task, id).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
-		return
+	// After commit, fetch the updated task and broadcast it
+	var updatedTask entity.ApprovalTask
+	if err := config.DB.
+		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
+		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
+		Preload("ApprovalDecisions.Admin").
+		First(&updatedTask, id).Error; err == nil {
+		ws.ApprovalHubInstance.BroadcastUpdate("approval_task_updated", updatedTask)
 	}
 
-	ctx.JSON(http.StatusOK, task)
+	ctx.JSON(http.StatusOK, updatedTask)
 }
 
 // DELETE /approval-tasks/:id
@@ -197,8 +207,34 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		return
 	}
 
-	uniqueFileName := fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
-	filePath := fmt.Sprintf("uploads/application/%s", uniqueFileName)
+	var filePath string
+	var uniqueFileName string
+
+	// Try to upload to MinIO first, fallback to local storage
+	if storage.IsConfigured() {
+		// Upload to MinIO
+		objectKey, publicURL, err := storage.Client.UploadFile(file, "application")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload to storage: " + err.Error()})
+			return
+		}
+		uniqueFileName = objectKey
+		filePath = publicURL
+	} else {
+		// Fallback to local storage
+		uniqueFileName = fmt.Sprintf("%d-%s", time.Now().Unix(), file.Filename)
+		filePath = fmt.Sprintf("uploads/application/%s", uniqueFileName)
+
+		// Ensure upload directory exists
+		if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
+			os.MkdirAll("uploads/application", 0755)
+		}
+
+		if err := ctx.SaveUploadedFile(file, filePath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
+			return
+		}
+	}
 
 	// --- 2. Create ApplicationDocument record ---
 	document := entity.ApplicationDocument{
@@ -218,17 +254,6 @@ func CreateApplicationDocument(ctx *gin.Context) {
 	}
 
 	tx := config.DB.Begin()
-
-	// Ensure upload directory exists
-	if _, err := os.Stat("uploads/application"); os.IsNotExist(err) {
-		os.MkdirAll("uploads/application", 0755)
-	}
-
-	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		tx.Rollback()
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
-		return
-	}
 
 	if err := tx.Create(&document).Error; err != nil {
 		tx.Rollback()
@@ -283,6 +308,27 @@ func CreateApplicationDocument(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
 		return
 	}
+
+	// --- 5. Broadcast WebSocket Update ---
+	var taskToBroadcast entity.ApprovalTask
+	// We need to find the task associated with the ApplicationScholarshipID
+	// as it might have been created or updated.
+	errBroadcast := config.DB.
+		Joins("JOIN application_documents ON application_documents.id = approval_tasks.document_id").
+		Where("application_documents.application_scholarship_id = ?", appScholarshipID).
+		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
+		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
+		Preload("ApprovalDecisions.Admin").
+		First(&taskToBroadcast).Error
+
+	if errBroadcast == nil {
+		ws.ApprovalHubInstance.BroadcastUpdate("approval_task_updated", taskToBroadcast)
+	} else {
+		log.Printf("⚠️  Could not find task to broadcast after document upload: %v", errBroadcast)
+	}
+
 
 	ctx.JSON(http.StatusCreated, document)
 }
@@ -426,7 +472,19 @@ func CreateApprovalDecision(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, decision)
+	// After commit, fetch the updated task and broadcast it
+	var updatedTask entity.ApprovalTask
+	if err := config.DB.
+		Preload("ApplicationDocument.ApplicationScholarship.Application.StudentProfile.Major").
+		Preload("ApplicationDocument.ApplicationScholarship.Application.Semaster").
+		Preload("ApplicationDocument.ApplicationScholarship.Scholarship.ApprovalRequirements.Requirement").
+		Preload("ApplicationDocument.ApplicationScholarship.ApplicationDocuments").
+		Preload("ApprovalDecisions.Admin").
+		First(&updatedTask, input.TaskID).Error; err == nil {
+		ws.ApprovalHubInstance.BroadcastUpdate("approval_task_updated", updatedTask)
+	}
+
+	ctx.JSON(http.StatusCreated, updatedTask)
 }
 
 // GET /approval-requirements

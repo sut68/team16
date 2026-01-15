@@ -158,7 +158,7 @@
   >
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-      <h1 class="text-2xl font-bold text-[#1e3a8a]">เกณฑ์การประเมิน</h1>
+      <h2 class="text-xl font-bold text-[#1e3a8a]">เกณฑ์การประเมิน</h2>
 
       <div class="flex items-center gap-3 w-full md:w-auto">
         <!-- Search Bar -->
@@ -216,7 +216,7 @@
     <!-- Content -->
     <div v-if="!loading && !error" class="flex-1 min-h-0 flex flex-col gap-4">
       <!-- Table -->
-      <div class="overflow-x-auto overflow-y-auto flex-1 min-h-[400px] rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto overflow-y-auto flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
         <table class="table table-sm w-full">
           <thead>
             <tr class="bg-slate-800 text-white">

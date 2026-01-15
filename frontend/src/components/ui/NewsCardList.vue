@@ -98,10 +98,10 @@
 <template>
   <section class="news-list-section">
     <!-- Section Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <div class="w-1.5 h-8 bg-gradient-to-b from-[#1e3a8a] to-blue-400 rounded-full"></div>
-        <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2>
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="w-1 sm:w-1.5 h-6 sm:h-8 bg-gradient-to-b from-[#1e3a8a] to-blue-400 rounded-full"></div>
+        <h2 class="text-lg sm:text-2xl font-bold text-gray-800">{{ title }}</h2>
       </div>
       
       <button 
@@ -118,7 +118,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       <div 
         v-for="i in 3" 
         :key="i" 
@@ -165,7 +165,7 @@
     <!-- News Cards Grid -->
     <div 
       v-else 
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
     >
       <NewsCard
         v-for="item in displayNews"

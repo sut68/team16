@@ -3,8 +3,10 @@ import { https } from '@/services/api'
 
 export const getApprovalTasks = async (): Promise<ApprovalTaskResponse[]> => {
   // axiosInstance จะ return AxiosResponse เราต้อง .data เพื่อเอาเนื้อหา
-  const response = await https.get<ApprovalTaskResponse[]>('/approval-tasks')
-  return response.data
+  // Add a cache-busting query parameter
+  const cacheBust = new Date().getTime();
+  const response = await https.get<ApprovalTaskResponse[]>(`/approval-tasks?t=${cacheBust}`);
+  return response.data;
 }
 
 export const getApprovalTaskById = async (id: number): Promise<ApprovalTaskResponse> => {

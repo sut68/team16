@@ -17,9 +17,11 @@ export interface RoleResponse {
 
 export interface UserResponse {
   ID: number;
+  CreatedAt?: string;
   username: string;
   role_id?: number | null;
   role?: RoleResponse | null;
+  student_profile?: StudentProfileResponse[];
 }
 
 export interface AdminProfileResponse {
@@ -88,7 +90,7 @@ export interface CreateUserPayload {
   username: string;
   password?: string;
   role_id: number;
-  
+
   // Student Fields
   student_id?: string;
   first_name_th?: string;

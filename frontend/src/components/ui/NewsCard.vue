@@ -25,7 +25,9 @@ const imageUrl = computed(() => {
     if (props.news.file_path.startsWith('http')) {
       return props.news.file_path;
     }
-    return `http://localhost:8080/${props.news.file_path}`; // Adjust base URL as needed
+    // อ่าน Base URL จาก ENV (ตัด /api ออกสำหรับ static files)
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').replace('/api', '');
+    return `${baseUrl}/${props.news.file_path}`;
   }
   return null;
 });

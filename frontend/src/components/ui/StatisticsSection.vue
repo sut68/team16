@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { Get } from '@/services/api/https';
 
-// Stats data - can be fetched from API later
+// Stats data - fetched from API
 const stats = ref([
   {
     id: 'scholarships',
-    value: 15,
+    value: 0,
     label: 'ทุนที่เปิดรับ',
     suffix: 'ทุน',
     icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>`,
@@ -15,7 +16,7 @@ const stats = ref([
   },
   {
     id: 'recipients',
-    value: 500,
+    value: 0,
     label: 'ผู้รับทุนสะสม',
     suffix: 'คน',
     prefix: '+',
@@ -25,12 +26,12 @@ const stats = ref([
     textColor: 'text-blue-600',
   },
   {
-    id: 'totalValue',
-    value: 5.2,
-    label: 'มูลค่าทุนรวม',
-    suffix: 'ล้านบาท',
+    id: 'sponsors',
+    value: 0,
+    label: 'ผู้สนับสนุน',
+    suffix: 'องค์กร',
     prefix: '',
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>`,
     color: 'from-emerald-500 to-teal-500',
     bgColor: 'bg-emerald-50',
     textColor: 'text-emerald-600',
@@ -39,6 +40,20 @@ const stats = ref([
 
 // Animated counter
 const displayValues = ref<number[]>([]);
+
+async function fetchStatistics() {
+  try {
+    const response: any = await Get('/statistics/public');
+    if (response && stats.value.length >= 3) {
+      stats.value[0]!.value = response.scholarships_count || 0;
+      stats.value[1]!.value = response.approved_count || 0;
+      stats.value[2]!.value = response.sponsors_count || 0;
+    }
+  } catch (error) {
+    console.error('Failed to fetch statistics:', error);
+    // Keep default values (0) on error
+  }
+}
 
 function animateCounters() {
   stats.value.forEach((stat, index) => {
@@ -62,11 +77,14 @@ function animateCounters() {
   });
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Initialize display values
   displayValues.value = stats.value.map(() => 0);
   
-  // Start animation after a short delay
+  // Fetch real data from API
+  await fetchStatistics();
+  
+  // Start animation after data is loaded
   setTimeout(animateCounters, 300);
 });
 
@@ -79,22 +97,22 @@ function formatNumber(value: number, hasDecimal: boolean = false): string {
 </script>
 
 <template>
-  <section class="py-12">
+  <section class="py-8 sm:py-12">
     <div class="container mx-auto px-4">
       <!-- Section Title -->
-      <div class="text-center mb-10">
-        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+      <div class="text-center mb-6 sm:mb-10">
+        <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">
           สถิติทุนการศึกษา <span class="text-[#F26522]">มทส.</span>
         </h2>
-        <p class="text-gray-500">ข้อมูลทุนการศึกษาล่าสุด</p>
+        <p class="text-gray-500 text-sm sm:text-base">ข้อมูลทุนการศึกษาล่าสุด</p>
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
         <div 
           v-for="(stat, index) in stats" 
           :key="stat.id"
-          class="stat-card group relative bg-white rounded-2xl p-6 shadow-md hover:shadow-xl 
+          class="stat-card group relative bg-white rounded-2xl p-4 sm:p-6 shadow-md hover:shadow-xl 
                  border border-gray-100 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
         >
           <!-- Background gradient on hover -->
@@ -105,23 +123,23 @@ function formatNumber(value: number, hasDecimal: boolean = false): string {
 
           <!-- Icon -->
           <div 
-            class="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+            class="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-300 group-hover:scale-110"
             :class="[stat.bgColor, stat.textColor]"
           >
-            <span v-html="stat.icon"></span>
+            <span v-html="stat.icon" class="scale-75 sm:scale-100"></span>
           </div>
 
           <!-- Value -->
           <div class="flex items-baseline gap-1 mb-1">
-            <span v-if="stat.prefix" class="text-2xl font-bold text-gray-800">{{ stat.prefix }}</span>
-            <span class="text-4xl font-bold text-gray-800">
+            <span v-if="stat.prefix" class="text-lg sm:text-2xl font-bold text-gray-800">{{ stat.prefix }}</span>
+            <span class="text-2xl sm:text-4xl font-bold text-gray-800">
               {{ stat.id === 'totalValue' ? formatNumber(displayValues[index] || 0, true) : formatNumber(displayValues[index] || 0) }}
             </span>
-            <span class="text-lg font-medium text-gray-500 ml-1">{{ stat.suffix }}</span>
+            <span class="text-sm sm:text-lg font-medium text-gray-500 ml-1">{{ stat.suffix }}</span>
           </div>
 
           <!-- Label -->
-          <p class="text-gray-600 font-medium">{{ stat.label }}</p>
+          <p class="text-gray-600 font-medium text-sm sm:text-base">{{ stat.label }}</p>
 
           <!-- Decorative corner -->
           <div 
