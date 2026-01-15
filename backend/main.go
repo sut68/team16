@@ -155,6 +155,9 @@ func main() {
 	// Initialize Screening WebSocket Hub
 	ws.InitScreeningHub()
 
+	// Initialize Approval WebSocket Hub
+	ws.InitApprovalHub()
+
 	// API routes
 	api := r.Group("/api")
 	{
@@ -257,6 +260,9 @@ func main() {
 		adminGroup := api.Group("/")
 		adminGroup.Use(middlewares.JWTAuth(), middlewares.CSRFMiddleware(), middlewares.RequireAdmin())
 		{
+			// WebSocket for Approvals
+			adminGroup.GET("/ws/approval", controllers.ApprovalWebSocketHandler)
+
 			// จัดการบริษัทผู้ให้ทุน (Sponsor Management)
 			adminGroup.POST("/sponsors", controllers.CreateSponsor)                       // สร้างบริษัทผู้ให้ทุนใหม่
 			adminGroup.PATCH("/sponsors/:id", controllers.UpdateSponsor)                  // แก้ไขข้อมูลบริษัท

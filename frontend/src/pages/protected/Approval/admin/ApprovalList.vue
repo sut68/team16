@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import DocumentDetailModal from './DocumentDetailModal.vue';
 import { getApprovalTasks } from '@/services/api/approval';
+import { approvalWs } from '@/services/api/approvalWebSocket';
 import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
@@ -32,27 +33,31 @@ const isModalOpen = ref(false);
 const isFilterOpen = ref(false);
 const selectedDocument = ref<ApprovalTaskDisplay | null>(null);
 
-const fetchTasks = async () => {
-  isLoading.value = true;
+const processTask = (task: ApprovalTaskResponse): ApprovalTaskDisplay => {
+  const semaster = task.application_document?.application_scholarship?.application?.semaster;
+  const roundText = semaster
+    ? `ปี: ${semaster.academic_year} เทอม: ${semaster.term} รอบ: ${semaster.round}`
+    : 'N/A';
+  return {
+    ...task,
+    roundText: roundText,
+    semaster: semaster,
+    submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }),
+  };
+};
+
+const fetchTasks = async (background = false) => {
+  if (!background) {
+    isLoading.value = true;
+  }
   error.value = null;
   try {
     const tasks = await getApprovalTasks();
-    const processedTasks = tasks.map((task: ApprovalTaskResponse) => {
-      const semaster = task.application_document?.application_scholarship?.application?.semaster;
-      const roundText = semaster
-        ? `ปี: ${semaster.academic_year} เทอม: ${semaster.term} รอบ: ${semaster.round}`
-        : 'N/A';
-      return {
-        ...task,
-        roundText: roundText,
-        semaster: semaster,
-        submission_date: new Date(task.CreatedAt).toLocaleDateString('th-TH', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }),
-      };
-    });
+    const processedTasks = tasks.map(processTask);
     allTasks.value = processedTasks;
 
     const uniqueYears = [...new Set(processedTasks.map(t => t.semaster?.academic_year).filter(Boolean))];
@@ -62,7 +67,9 @@ const fetchTasks = async () => {
     error.value = 'ไม่สามารถโหลดข้อมูลได้';
     console.error(err);
   } finally {
-    isLoading.value = false;
+    if (!background) {
+      isLoading.value = false;
+    }
   }
 };
 
@@ -104,7 +111,29 @@ const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
   return latestDecision?.decision === 'request-change';
 };
 
-onMounted(fetchTasks);
+let unsubscribe: (() => void) | null = null;
+
+onMounted(() => {
+  fetchTasks();
+  
+  // Connect to the approval websocket
+  approvalWs.connect();
+
+  // Subscribe to updates and store the unsubscribe function
+  unsubscribe = approvalWs.on<ApprovalTaskResponse>('approval_task_updated', (updatedTask) => {
+    console.log('Received task update from WebSocket:', updatedTask);
+    // Re-fetch the entire list in the background to ensure data consistency.
+    fetchTasks(true);
+  });
+});
+
+onUnmounted(() => {
+  // Unsubscribe from the event listener when the component is destroyed,
+  // but leave the WebSocket connection open for other components.
+  if (unsubscribe) {
+    unsubscribe();
+  }
+});
 
 const pendingItems = computed(() => {
   return allTasks.value.filter(item =>
@@ -378,7 +407,7 @@ const handleActionCompleted = () => {
         </div>
         <!-- Refresh Button -->
         <button 
-          @click="fetchTasks"
+          @click="() => fetchTasks()"
           :disabled="isLoading"
           class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
           title="รีเฟรช"
@@ -394,7 +423,7 @@ const handleActionCompleted = () => {
     </div>
     <div v-if="error" class="text-center py-20 text-red-500" data-testid="error-message">
       <p>{{ error }}</p>
-      <button @click="fetchTasks" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
+      <button @click="() => fetchTasks()" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
     
     <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1" data-testid="approval-list-container">
