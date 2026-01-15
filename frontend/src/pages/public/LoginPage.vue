@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { jwtDecode } from 'jwt-decode';
 import { Eye, EyeOff, Sparkles, GraduationCap, ArrowRight } from 'lucide-vue-next';
 
@@ -18,13 +18,14 @@ const message = ref('');
 const showPassword = ref(false);
 
 const router = useRouter();
+const route = useRoute();
 
 const handleLogin = async () => {
   loading.value = true;
   message.value = '';
   
   // Fake delay for animation effect
-  await new Promise(resolve => setTimeout(resolve, 800));
+  await new Promise(resolve => setTimeout(resolve, 400));
 
   try {
     const data = await authAPI.login(user.value);
@@ -36,8 +37,15 @@ const handleLogin = async () => {
       }
 
       const decodedToken: { role: string } = jwtDecode(data.token);
-
-      if (decodedToken.role === 'admin') {
+      
+      // Check for redirect query parameter
+      const redirectPath = route.query.redirect as string | undefined;
+      
+      if (redirectPath) {
+        // Use window.location.href for full page navigation to requested URL
+        window.location.href = redirectPath;
+        return;
+      } else if (decodedToken.role === 'admin') {
         await router.push('/admin/news');
       } else if (['user', 'student'].includes(decodedToken.role)) {
         await router.push('/dashboard');
@@ -74,19 +82,19 @@ const handleLogin = async () => {
     <div class="absolute bottom-20 right-20 w-64 h-64 bg-[#F26522] rounded-full blur-[100px] animate-float-delayed opacity-50"></div>
 
     <!-- Main Card Container -->
-    <div class="relative z-10 w-full max-w-5xl h-[85vh] max-h-[700px] flex rounded-[3rem] overflow-hidden shadow-2xl animate-card-entrance backdrop-blur-xl border border-white/20 bg-white/10">
+    <div class="relative z-10 w-full max-w-5xl mx-4 min-h-[500px] lg:h-[85vh] lg:max-h-[700px] flex flex-col lg:flex-row rounded-2xl lg:rounded-[3rem] overflow-hidden shadow-2xl animate-card-entrance backdrop-blur-xl border border-white/20 bg-white/10">
       
       <!-- LEFT SIDE: Form -->
-      <div class="w-full lg:w-[45%] p-8 md:p-12 flex flex-col justify-center relative bg-white/10 backdrop-blur-md border-r border-white/10">
+      <div class="w-full lg:w-[45%] p-6 sm:p-8 md:p-12 flex flex-col justify-center relative bg-white/10 backdrop-blur-md lg:border-r border-white/10">
         
         <!-- Logo -->
-        <div class="flex items-center gap-4 mb-4 animate-fade-in-down" style="animation-delay: 0.2s;">
-          <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-all duration-300">
-             <img :src="SUTLogo" alt="SUT" class="w-12 h-auto" />
+        <div class="flex items-center gap-3 sm:gap-4 mb-4 animate-fade-in-down" style="animation-delay: 0.2s;">
+          <div class="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-all duration-300">
+             <img :src="SUTLogo" alt="SUT" class="w-9 sm:w-12 h-auto" />
           </div>
           <div>
-            <h2 class="text-white font-black text-2xl tracking-tighter leading-none shadow-black drop-shadow-md">SUT</h2>
-            <span class="text-[#FFD700] text-xs font-bold tracking-[0.2em] uppercase drop-shadow">Scholarships</span>
+            <h2 class="text-white font-black text-xl sm:text-2xl tracking-tighter leading-none shadow-black drop-shadow-md">SUT</h2>
+            <span class="text-[#FFD700] text-[10px] sm:text-xs font-bold tracking-[0.15em] sm:tracking-[0.2em] uppercase drop-shadow">Scholarships</span>
           </div>
         </div>
 

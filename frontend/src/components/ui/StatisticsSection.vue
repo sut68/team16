@@ -97,22 +97,22 @@ function formatNumber(value: number, hasDecimal: boolean = false): string {
 </script>
 
 <template>
-  <section class="py-12">
+  <section class="py-8 sm:py-12">
     <div class="container mx-auto px-4">
       <!-- Section Title -->
-      <div class="text-center mb-10">
-        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+      <div class="text-center mb-6 sm:mb-10">
+        <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">
           สถิติทุนการศึกษา <span class="text-[#F26522]">มทส.</span>
         </h2>
-        <p class="text-gray-500">ข้อมูลทุนการศึกษาล่าสุด</p>
+        <p class="text-gray-500 text-sm sm:text-base">ข้อมูลทุนการศึกษาล่าสุด</p>
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
         <div 
           v-for="(stat, index) in stats" 
           :key="stat.id"
-          class="stat-card group relative bg-white rounded-2xl p-6 shadow-md hover:shadow-xl 
+          class="stat-card group relative bg-white rounded-2xl p-4 sm:p-6 shadow-md hover:shadow-xl 
                  border border-gray-100 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
         >
           <!-- Background gradient on hover -->
@@ -123,23 +123,23 @@ function formatNumber(value: number, hasDecimal: boolean = false): string {
 
           <!-- Icon -->
           <div 
-            class="w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+            class="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-300 group-hover:scale-110"
             :class="[stat.bgColor, stat.textColor]"
           >
-            <span v-html="stat.icon"></span>
+            <span v-html="stat.icon" class="scale-75 sm:scale-100"></span>
           </div>
 
           <!-- Value -->
           <div class="flex items-baseline gap-1 mb-1">
-            <span v-if="stat.prefix" class="text-2xl font-bold text-gray-800">{{ stat.prefix }}</span>
-            <span class="text-4xl font-bold text-gray-800">
+            <span v-if="stat.prefix" class="text-lg sm:text-2xl font-bold text-gray-800">{{ stat.prefix }}</span>
+            <span class="text-2xl sm:text-4xl font-bold text-gray-800">
               {{ stat.id === 'totalValue' ? formatNumber(displayValues[index] || 0, true) : formatNumber(displayValues[index] || 0) }}
             </span>
-            <span class="text-lg font-medium text-gray-500 ml-1">{{ stat.suffix }}</span>
+            <span class="text-sm sm:text-lg font-medium text-gray-500 ml-1">{{ stat.suffix }}</span>
           </div>
 
           <!-- Label -->
-          <p class="text-gray-600 font-medium">{{ stat.label }}</p>
+          <p class="text-gray-600 font-medium text-sm sm:text-base">{{ stat.label }}</p>
 
           <!-- Decorative corner -->
           <div 
