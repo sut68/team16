@@ -14,6 +14,7 @@ import (
 	"backend/middlewares"
 	"backend/seed"
 	"backend/storage"
+	"backend/ws"
 )
 
 func main() {
@@ -105,8 +106,8 @@ func main() {
 		&entity.Scholarship{},
 		&entity.Featurescholarship{},
 		&entity.Typefeature{},
-		&entity.ApprovalRequirement{}, // Added missing ApprovalRequirement
-		&entity.Requirement{},         // Added missing Requirement
+		&entity.ApprovalRequirement{},
+		&entity.Requirement{},
 		&entity.Screening{},
 		&entity.Featurescholarship{},
 		&entity.Typefeature{},
@@ -151,6 +152,9 @@ func main() {
 		log.Printf("⚠️  MinIO initialization failed: %v (uploads will use local storage)", err)
 	}
 
+	// Initialize Screening WebSocket Hub
+	ws.InitScreeningHub()
+
 	// API routes
 	api := r.Group("/api")
 	{
@@ -165,6 +169,7 @@ func main() {
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
 		api.GET("/ws", controllers.WebSocketHandler)
+		api.GET("/ws/screening/status", controllers.GetScreeningHubStatus) // สถานะ WebSocket Hub (public for debugging)
 
 		// ข้อมูลบริษัทผู้ให้ทุน (Sponsor)
 		api.GET("/industries", controllers.GetIndustries)                         // ดึงรายการอุตสาหกรรม - หมวดหมู่บริษัท
@@ -319,9 +324,12 @@ func main() {
 			adminGroup.DELETE("/approval-requirements/:id", controllers.DeleteApprovalRequirement) // ลบเงื่อนไข
 
 			// คัดกรอง (Screening)
-			adminGroup.GET("/screening", controllers.GetAllScreenings)          // ดูรายการคัดกรองทั้งหมด
-			adminGroup.GET("/screening/:id", controllers.GetScreeningByID)      // ดูรายละเอียดการคัดกรอง
-			adminGroup.PUT("/screening/:id", controllers.UpdateScreeningStatus) //	อัปเดตสถานะคัดกรอง (ผ่าน/ไม่ผ่าน)
+			adminGroup.GET("/screening", controllers.GetAllScreenings)                         // ดูรายการคัดกรองทั้งหมด
+			adminGroup.GET("/screening/:id", controllers.GetScreeningByID)                     // ดูรายละเอียดการคัดกรอง
+			adminGroup.GET("/ws/screening", controllers.ScreeningWebSocketHandler)             // WebSocket สำหรับ realtime screening notifications
+			adminGroup.PUT("/screening/:id", controllers.UpdateScreeningStatus)                // อัปเดตสถานะคัดกรอง (ผ่าน/ไม่ผ่าน)
+			adminGroup.POST("/screening/:id/auto-screen", controllers.AutoScreenSingle)        // คัดกรองอัตโนมัติ 1 คน
+			adminGroup.POST("/scholarship/:id/auto-screen-batch", controllers.AutoScreenBatch) // คัดกรองอัตโนมัติทั้งทุน
 
 			// ระบบประเมิน (Evaluation System)
 			adminGroup.GET("/evaluation-criteria", controllers.GetAllEvaluationCriteria)         // ดูเกณฑ์การประเมินทั้งหมด

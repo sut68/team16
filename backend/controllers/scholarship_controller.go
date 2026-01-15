@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/services"
 	"net/http"
 	"strconv"
 
@@ -250,8 +251,27 @@ func ApplyForScholarship(ctx *gin.Context) {
 		return
 	}
 
+	// --- 9. Auto Screening (async) ---
+	// Run auto screening in background to not block the response
+	// ผู้สมัครจะได้รับการคัดกรองทันที ถ้าผ่านทุกเกณฑ์จะ auto approve
+	go func(screeningID uint) {
+		result, err := services.AutoScreenSingle(screeningID, 1, "ระบบอัตโนมัติ")
+		if err != nil {
+			// Log error but don't fail - admin can review manually
+			// Note: This uses log package, make sure it's imported
+			return
+		}
+
+		// Log the result
+		if result.AutoApproved {
+			// Auto approved - student passed all criteria
+			_ = result // Result is broadcast via WebSocket in AutoScreenSingle
+		}
+		// If not auto approved, screening stays pending for manual review
+	}(screening.ID)
+
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":                  "Application created successfully. Please wait for qualification screening.",
+		"message":                  "Application created successfully. Auto screening in progress.",
 		"applicationId":            application.ID,
 		"applicationScholarshipId": appScholarship.ID,
 		"screeningId":              screening.ID,

@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 
 	"backend/config"
 	"backend/entity"
+	"backend/services"
 )
 
 func GetAllScreenings(c *gin.Context) {
@@ -237,4 +240,122 @@ func UpdateScreeningStatus(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"data": true})
+}
+
+// AutoScreenSingle performs auto screening for a single screening record
+// POST /api/screening/:id/auto-screen
+func AutoScreenSingle(c *gin.Context) {
+	id := c.Param("id")
+
+	// Parse screening ID
+	var screeningID uint
+	if _, err := fmt.Sscanf(id, "%d", &screeningID); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid screening ID"})
+		return
+	}
+
+	// Get admin info from token
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var admin entity.AdminProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
+		c.JSON(400, gin.H{"error": "Admin profile not found"})
+		return
+	}
+
+	adminName := admin.AdminFirstname
+	if adminName == "" {
+		adminName = "ระบบอัตโนมัติ"
+	}
+
+	// Perform auto screening
+	result, err := services.AutoScreenSingle(screeningID, admin.ID, adminName)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"data":    result,
+		"message": getMessage(result.AutoApproved),
+	})
+}
+
+// AutoScreenBatch performs auto screening for all pending screenings of a scholarship
+// POST /api/scholarship/:id/auto-screen-batch
+func AutoScreenBatch(c *gin.Context) {
+	id := c.Param("id")
+
+	// Parse scholarship ID
+	var scholarshipID uint
+	if _, err := fmt.Sscanf(id, "%d", &scholarshipID); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid scholarship ID"})
+		return
+	}
+
+	// Check if scholarship exists
+	var scholarship entity.Scholarship
+	if err := config.DB.First(&scholarship, scholarshipID).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Scholarship not found"})
+		return
+	}
+
+	// Get admin info from token
+	userID, err := getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var admin entity.AdminProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&admin).Error; err != nil {
+		c.JSON(400, gin.H{"error": "Admin profile not found"})
+		return
+	}
+
+	adminName := admin.AdminFirstname
+	if adminName == "" {
+		adminName = "ระบบอัตโนมัติ"
+	}
+
+	// Perform batch auto screening
+	results, err := services.AutoScreenBatch(scholarshipID, admin.ID, adminName)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Count results
+	autoApproved := 0
+	needsReview := 0
+	for _, r := range results {
+		if r.AutoApproved {
+			autoApproved++
+		} else {
+			needsReview++
+		}
+	}
+
+	c.JSON(200, gin.H{
+		"data": results,
+		"summary": gin.H{
+			"total":         len(results),
+			"auto_approved": autoApproved,
+			"needs_review":  needsReview,
+			"scholarship":   scholarship.ScholarshipName,
+		},
+		"message": fmt.Sprintf("คัดกรองอัตโนมัติเสร็จสิ้น: อนุมัติ %d คน, รอตรวจสอบ %d คน", autoApproved, needsReview),
+	})
+}
+
+// getMessage returns appropriate message based on result
+func getMessage(autoApproved bool) string {
+	if autoApproved {
+		return "ผ่านทุกเกณฑ์ - อนุมัติอัตโนมัติแล้ว"
+	}
+	return "ไม่ผ่านบางเกณฑ์ - รอการตรวจสอบจากเจ้าหน้าที่"
 }
