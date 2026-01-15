@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import SuryaGraphicImport from '@/assets/brand/Surya_graphic.png';
 import SUTLogoImport from '@/assets/logo/Institute_of_Engineering_SUT_Logo.svg';
@@ -17,27 +17,49 @@ const FooterBg = FooterBgImport;
 import SutHomePageImport from '@/assets/SutHomePage.jpg';
 const presenterImageUrl = SutHomePageImport;
 
-interface TabItem {
-  id: string;
-  label: string;
-}
-
-const activeTab = ref<string>('all');
-
-const tabs: TabItem[] = [
-  { id: 'all', label: 'ทั้งหมด' },
-  { id: 'bachelor', label: 'ปริญญาตรี' },
-  { id: 'master', label: 'ปริญญาโท' },
-  { id: 'doctoral', label: 'ปริญญาเอก' },
-  { id: 'inter', label: 'International' },
-];
-
-const setActiveTab = (id: string) => {
-  activeTab.value = id;
-};
-
 // Router for navigation
 const router = useRouter();
+
+// Timeline data
+const timelineRef = ref<HTMLElement | null>(null);
+
+const thaiMonths = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+// Sample scholarship counts per month (in real app, fetch from API)
+const scholarshipCounts = [2, 3, 5, 2, 1, 0, 1, 2, 3, 4, 2, 1];
+
+const timelineMonths = computed(() => {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  // Generate all 12 months starting from current month
+  return Array.from({ length: 12 }, (_, i) => {
+    const monthIndex = (currentMonth + i) % 12;
+    const year = currentYear + Math.floor((currentMonth + i) / 12);
+    const thaiYear = year + 543;
+    
+    return {
+      name: thaiMonths[monthIndex],
+      year: thaiYear.toString(),
+      count: scholarshipCounts[monthIndex] ?? 0,
+      isCurrentMonth: i === 0
+    };
+  });
+});
+
+function scrollTimeline(direction: 'left' | 'right') {
+  if (timelineRef.value) {
+    const scrollAmount = 150;
+    timelineRef.value.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  }
+}
 
 // Handle news card click
 function handleViewNewsDetail(_news : NewsPost) {
@@ -145,19 +167,78 @@ function handleViewAllNews() {
       </div>
     </section>
 
-    <!-- Tabs -->
-    <section class="container mx-auto px-4 -mt-8 relative z-20" data-testid="homepage-tabs-section">
+    <!-- Scholarship Timeline Section (Compact) -->
+    <section class="container mx-auto px-4 -mt-8 relative z-20" data-testid="homepage-timeline-section">
       <div class="bg-white rounded-xl shadow-xl p-2 md:p-4 max-w-4xl mx-auto border-b-4 border-[#F26522]">
-        <div class="flex flex-wrap justify-center gap-2 md:gap-4">
-          <button v-for="tab in tabs" :key="tab.id" @click="setActiveTab(tab.id)"
-            class="px-6 py-3 rounded-md font-bold text-sm md:text-base transition-all duration-300 w-full md:w-auto"
-            :data-testid="`homepage-tab-${tab.id}`"
-            :class="[
-              activeTab === tab.id
-                ? 'bg-[#F26522] text-white shadow-md scale-105'
-                : 'bg-[#EEEEEE] text-gray-500 hover:bg-gray-200'
-            ]">
-            {{ tab.label }}
+        <div class="flex items-center gap-3">
+          <!-- Header -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#F26522]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+              <line x1="16" x2="16" y1="2" y2="6"/>
+              <line x1="8" x2="8" y1="2" y2="6"/>
+              <line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+            <span class="text-sm font-bold text-gray-700 hidden sm:inline">ปฏิทินทุน</span>
+          </div>
+          
+          <!-- Scroll Left Button -->
+          <button 
+            class="hidden md:flex w-6 h-6 bg-gray-100 hover:bg-[#F26522] hover:text-white rounded-full items-center justify-center text-gray-400 transition-all flex-shrink-0"
+            @click="scrollTimeline('left')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+          </button>
+          
+          <!-- Timeline Months -->
+          <div 
+            ref="timelineRef"
+            class="flex gap-2 overflow-x-auto scroll-smooth flex-1 py-2 px-2"
+            style="scrollbar-width: none; -ms-overflow-style: none;"
+          >
+            <div 
+              v-for="(month, index) in timelineMonths" 
+              :key="index"
+              @click="router.push('/login')"
+              class="flex-shrink-0 cursor-pointer"
+            >
+              <div 
+                class="relative px-4 py-2.5 rounded-lg border transition-all duration-200 hover:shadow-md hover:scale-105 flex items-center gap-2"
+                :class="[
+                  month.isCurrentMonth 
+                    ? 'bg-gradient-to-r from-[#F26522] to-[#ea580c] border-[#F26522] text-white' 
+                    : 'bg-gray-50 border-gray-200 hover:border-[#F26522] text-gray-700'
+                ]"
+              >
+                <!-- Current month indicator -->
+                <div 
+                  v-if="month.isCurrentMonth"
+                  class="w-2 h-2 bg-green-400 rounded-full animate-pulse"
+                ></div>
+                
+                <!-- Month name -->
+                <span class="text-xs font-bold">{{ month.name }}</span>
+                
+                <!-- Count badge -->
+                <span 
+                  v-if="month.count > 0"
+                  class="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  :class="month.isCurrentMonth ? 'bg-white/30 text-white' : 'bg-[#F26522]/10 text-[#F26522]'"
+                >{{ month.count }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Scroll Right Button -->
+          <button 
+            class="hidden md:flex w-6 h-6 bg-gray-100 hover:bg-[#F26522] hover:text-white rounded-full items-center justify-center text-gray-400 transition-all flex-shrink-0"
+            @click="scrollTimeline('right')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
           </button>
         </div>
       </div>

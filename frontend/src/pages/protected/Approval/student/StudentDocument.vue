@@ -288,7 +288,7 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
 
 <template>
   <div
-    class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-visible font-sans text-slate-800"
+    class="w-full mx-auto flex flex-col h-full p-6 bg-white rounded-tl-[30px] shadow overflow-auto font-sans text-slate-800"
     data-theme="light"
   >
     <div class="mb-6">

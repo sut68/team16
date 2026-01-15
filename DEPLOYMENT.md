@@ -172,6 +172,61 @@ sudo docker compose -f docker-compose.hub.yml down -v
 sudo docker image prune -a
 ```
 
+### 🗑️ Reset Data (ล้างข้อมูลทั้งหมด)
+
+```bash
+cd ~/team16
+
+# ⚠️ ระวัง! คำสั่งด้านล่างจะลบข้อมูลทั้งหมด
+
+# 1. หยุด services ทั้งหมด
+sudo docker compose -f docker-compose.hub.yml down
+
+# 2. ลบ PostgreSQL volume (ล้าง database)
+sudo docker volume rm team16_postgres_data
+
+# 3. ลบ MinIO volume (ล้างไฟล์ที่ upload ทั้งหมด)
+sudo docker volume rm team16_minio_data
+
+# 4. ลบทั้ง 2 volumes พร้อมกัน
+sudo docker volume rm team16_postgres_data team16_minio_data
+
+# 5. หรือลบทุกอย่างในครั้งเดียว (containers + networks + volumes)
+sudo docker compose -f docker-compose.hub.yml down -v --remove-orphans
+```
+
+### 🔄 ดู Volumes ที่มี
+
+```bash
+# ดู volumes ทั้งหมด
+sudo docker volume ls
+
+# ดูรายละเอียด volume
+sudo docker volume inspect team16_postgres_data
+sudo docker volume inspect team16_minio_data
+```
+
+### ♻️ Fresh Start (เริ่มใหม่ทั้งหมด)
+
+```bash
+cd ~/team16
+
+# ลบทุกอย่าง
+sudo docker compose -f docker-compose.hub.yml down -v --remove-orphans
+
+# ลบ images เก่า
+sudo docker image prune -a -f
+
+# Pull images ใหม่
+sudo docker compose -f docker-compose.hub.yml pull
+
+# Start ใหม่ทั้งหมด
+sudo docker compose -f docker-compose.hub.yml up -d
+
+# ดู logs
+sudo docker compose -f docker-compose.hub.yml logs -f
+```
+
 ---
 
 ## ✅ ทดสอบหลัง Deploy
@@ -191,34 +246,87 @@ http://<VM_IP>/
 
 ## 🏗️ Architecture
 
+### Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Vue 3 + TypeScript + Vite + TailwindCSS + DaisyUI |
+| **Web Server** | Nginx (reverse proxy + static files) |
+| **Backend** | Go (Gin framework) + GORM |
+| **Database** | PostgreSQL 13 |
+| **File Storage** | MinIO (S3-compatible object storage) |
+| **Auth** | JWT (Cookie-based) + CSRF Token |
+| **Realtime** | WebSocket |
+| **Container** | Docker + Docker Compose |
+
+### System Diagram
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Internet                              │
-└────────────────────────┬────────────────────────────────┘
-                         │ Port 80
-┌────────────────────────▼────────────────────────────────┐
-│              Frontend (Nginx)                           │
-│  ┌────────────────────────────────────────────────────┐│
-│  │  /          → Vue.js SPA                           ││
-│  │  /api/*     → proxy to backend:8080                ││
-│  │  /health    → 200 OK                               ││
-│  └────────────────────────────────────────────────────┘│
-└────────────────────────┬────────────────────────────────┘
-                         │ Internal (app_network)
-┌────────────────────────▼────────────────────────────────┐
-│              Backend (Go/Gin)                           │
-│  - Connection pooling enabled                          │
-│  - GIN_MODE=release                                    │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│              PostgreSQL                                 │
-│  - Internal only (no external port)                    │
-│  - Data persisted in volume                            │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                           Internet                                   │
+└─────────────────────────────────┬────────────────────────────────────┘
+                                  │ Port 80
+┌─────────────────────────────────▼────────────────────────────────────┐
+│                     Frontend (Nginx)                                 │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │   /              → Vue.js SPA (static files)                    ││
+│  │   /api/*         → proxy to backend:8080                        ││
+│  │   /storage/*     → proxy to minio:9000 (file access)            ││
+│  │   /health        → 200 OK                                       ││
+│  │   *.js,css,img   → cached 1 year (immutable)                    ││
+│  └─────────────────────────────────────────────────────────────────┘│
+│  Features: Gzip, Security Headers, Large file upload (50MB)         │
+└──────────────────────┬──────────────────────────┬────────────────────┘
+                       │                          │
+         Internal (app_network)        Internal (app_network)
+                       │                          │
+┌──────────────────────▼────────────┐ ┌──────────▼────────────────────┐
+│       Backend (Go/Gin)            │ │       MinIO                   │
+│  ┌───────────────────────────────┐│ │  ┌──────────────────────────┐ │
+│  │ REST API + WebSocket          ││ │  │ S3-compatible storage    │ │
+│  │ - Authentication (JWT+CSRF)   ││ │  │ - uploads bucket         │ │
+│  │ - Connection pooling          ││ │  │ - news images            │ │
+│  │ - GIN_MODE=release            ││ │  │ - documents              │ │
+│  └───────────────────────────────┘│ │  └──────────────────────────┘ │
+│  Port: 8080 (internal only)       │ │  Port: 9000 (API, internal)   │
+└──────────────────────┬────────────┘ │  Port: 9001 (Console, public) │
+                       │              └───────────────────────────────┘
+                       │                          │
+         Internal (app_network)        Internal (app_network)
+                       │                          │
+                       └────────────┬─────────────┘
+                                    │
+┌───────────────────────────────────▼──────────────────────────────────┐
+│                        PostgreSQL                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │  - Internal only (no external port exposed)                     ││
+│  │  - Data persisted in Docker volume (postgres_data)              ││
+│  │  - Health check enabled                                         ││
+│  └─────────────────────────────────────────────────────────────────┘│
+│  Port: 5432 (internal only)                                          │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+### Data Flow
+
+```
+User Browser
+    │
+    ├── GET /                    → Nginx → Vue.js SPA
+    ├── GET /api/scholarships    → Nginx → Backend → PostgreSQL
+    ├── POST /api/upload         → Nginx → Backend → MinIO
+    ├── GET /storage/uploads/*   → Nginx → MinIO (direct)
+    └── WS /api/ws/*             → Nginx → Backend (WebSocket)
+```
+
+### Docker Volumes
+
+| Volume | Purpose |
+|--------|---------|
+| `postgres_data` | PostgreSQL database files |
+| `minio_data` | MinIO object storage files |
 
 ---
 
 ## 📅 Last Updated
-2026-01-10
+2026-01-15
