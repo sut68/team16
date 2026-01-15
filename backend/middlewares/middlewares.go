@@ -80,16 +80,16 @@ func JWTAuth() gin.HandlerFunc {
 
 		// Legacy support for existing controllers
 		ctx.Set("user_id", claims.UserID)
-		if user.Role != nil {
-			ctx.Set("role", user.Role.Name)
-		} else {
-			ctx.Set("role", claims.Role)
-		}
-
-		ctx.Next()
-	}
-}
-
+		        		if user.Role != nil {
+		        			ctx.Set("role", user.Role.Name)
+		        		} else {
+		        			ctx.Set("role", claims.Role)
+		        		}
+		        
+		        		ctx.Next()
+		        	}
+		        }		
+		        
 // double-submit cookie check for unsafe methods
 func CSRFMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {

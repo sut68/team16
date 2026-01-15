@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { RefreshCw } from 'lucide-vue-next';
 import DocumentDetailModal from './DocumentDetailModal.vue';
-import { getApprovalTasks } from '@/services/api/approval';
-import { approvalWs } from '@/services/api/approvalWebSocket';
+import { useApprovalWebSocket } from '@/hooks/useApprovalWebSocket';
 import type { ApprovalTaskResponse, SemasterResponse } from '@/interfaces';
 
 interface ApprovalTaskDisplay extends ApprovalTaskResponse {
@@ -12,9 +11,13 @@ interface ApprovalTaskDisplay extends ApprovalTaskResponse {
   semaster: SemasterResponse;
 }
 
-const allTasks = ref<ApprovalTaskDisplay[]>([]);
-const isLoading = ref(true);
-const error = ref<string | null>(null);
+const { tasks, isConnected, error } = useApprovalWebSocket();
+
+const allTasks = computed(() => {
+    if (!tasks.value) return [];
+    return tasks.value.map(processTask);
+});
+const isLoading = ref(false); // This can be driven by the hook's connection status if needed
 
 const activeTab = ref<'pending' | 'history'>('pending');
 const searchQuery = ref('');
@@ -50,28 +53,11 @@ const processTask = (task: ApprovalTaskResponse): ApprovalTaskDisplay => {
   };
 };
 
-const fetchTasks = async (background = false) => {
-  if (!background) {
-    isLoading.value = true;
-  }
-  error.value = null;
-  try {
-    const tasks = await getApprovalTasks();
-    const processedTasks = tasks.map(processTask);
-    allTasks.value = processedTasks;
-
+watch(allTasks, (processedTasks) => {
     const uniqueYears = [...new Set(processedTasks.map(t => t.semaster?.academic_year).filter(Boolean))];
     availableYears.value = uniqueYears.map(y => ({ label: `ปีการศึกษา ${y}`, value: y }));
+}, { immediate: true });
 
-  } catch (err) {
-    error.value = 'ไม่สามารถโหลดข้อมูลได้';
-    console.error(err);
-  } finally {
-    if (!background) {
-      isLoading.value = false;
-    }
-  }
-};
 
 watch(filterYear, (newYear) => {
   filterTerm.value = 'all';
@@ -101,7 +87,6 @@ watch(filterTerm, (newTerm) => {
   }
 });
 
-
 const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
   if (task.status?.toLowerCase() !== 'pending') return false;
   const decisions = task.approval_decisions;
@@ -110,30 +95,6 @@ const checkIsResubmitted = (task: ApprovalTaskDisplay) => {
   const latestDecision = sortedDecisions[0];
   return latestDecision?.decision === 'request-change';
 };
-
-let unsubscribe: (() => void) | null = null;
-
-onMounted(() => {
-  fetchTasks();
-  
-  // Connect to the approval websocket
-  approvalWs.connect();
-
-  // Subscribe to updates and store the unsubscribe function
-  unsubscribe = approvalWs.on<ApprovalTaskResponse>('approval_task_updated', (updatedTask) => {
-    console.log('Received task update from WebSocket:', updatedTask);
-    // Re-fetch the entire list in the background to ensure data consistency.
-    fetchTasks(true);
-  });
-});
-
-onUnmounted(() => {
-  // Unsubscribe from the event listener when the component is destroyed,
-  // but leave the WebSocket connection open for other components.
-  if (unsubscribe) {
-    unsubscribe();
-  }
-});
 
 const pendingItems = computed(() => {
   return allTasks.value.filter(item =>
@@ -246,9 +207,21 @@ const handleCardClick = (item: ApprovalTaskDisplay) => {
 };
 
 const handleActionCompleted = () => {
+
   isModalOpen.value = false;
-  fetchTasks();
+
+  // No need to fetchTasks(), the websocket will handle the update.
+
 };
+
+
+
+const reloadPage = () => {
+
+  window.location.reload();
+
+};
+
 </script>
 
 <template>
@@ -407,12 +380,12 @@ const handleActionCompleted = () => {
         </div>
         <!-- Refresh Button -->
         <button 
-          @click="() => fetchTasks()"
+          @click="() => {}"
           :disabled="isLoading"
           class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
-          title="รีเฟรช"
+          title="สถานะการเชื่อมต่อ Real-time"
         >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': !isConnected }" />
         </button>
       </div>
     </div>
@@ -423,7 +396,7 @@ const handleActionCompleted = () => {
     </div>
     <div v-if="error" class="text-center py-20 text-red-500" data-testid="error-message">
       <p>{{ error }}</p>
-      <button @click="() => fetchTasks()" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
+      <button @click="reloadPage" class="btn btn-sm btn-outline mt-4">ลองใหม่อีกครั้ง</button>
     </div>
     
     <div v-if="!isLoading && !error" class="space-y-4 pb-10 overflow-y-auto pr-1 custom-scrollbar flex-1" data-testid="approval-list-container">

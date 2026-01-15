@@ -158,6 +158,9 @@ func main() {
 	// Initialize Approval WebSocket Hub
 	ws.InitApprovalHub()
 
+	// Initialize Interview WebSocket Hub
+	ws.InitInterviewHub()
+
 	// API routes
 	api := r.Group("/api")
 	{
@@ -241,6 +244,7 @@ func main() {
 			authGroup.POST("/interview-bookings", controllers.CreateInterviewBooking)                         // จองเวลาสัมภาษณ์
 			authGroup.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings) // ดูการจองของตัวเอง
 			authGroup.DELETE("/interview-bookings/:id", controllers.DeleteInterviewBooking)                   // ยกเลิกการจอง
+			authGroup.GET("/ws/interview", controllers.InterviewWebSocketHandler)                     // WebSocket สำหรับ interview
 
 			// ข้อความช่วยเหลือ (Assistance/Chat Messages)
 			authGroup.POST("/assistance", controllers.CreateAssistance)       // ส่งข้อความ

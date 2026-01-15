@@ -8,6 +8,7 @@ import type { InterviewRound, Slot, InterviewBooking, Location, InterviewMode } 
 import type { MyProfileResponse } from '@/interfaces/user';
 import type { ApplicationScholarshipResponse } from '@/interfaces/application_scholarship';
 import Swal from 'sweetalert2';
+import { RefreshCw } from 'lucide-vue-next';
 
 // Interface เสริมสำหรับแสดงผล
 interface InterviewBookingWithDetails extends InterviewBooking {
@@ -277,10 +278,20 @@ const cancelBooking = async (bookingId: number) => {
         </div>
 
         <div v-else class="animate-fade-in flex flex-col h-full overflow-hidden">
-            <div class="mb-6 shrink-0">
-                <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1">จองรอบสัมภาษณ์</h1>
-                <p class="text-gray-500 text-sm" v-if="studentProfile && 'first_name_th' in studentProfile.data">{{
-                    (studentProfile.data as any).first_name_th }} {{ (studentProfile.data as any).last_name_th }}</p>
+            <div class="mb-6 shrink-0 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-[#1e3a8a] mb-1">จองรอบสัมภาษณ์</h1>
+                    <p class="text-gray-500 text-sm" v-if="studentProfile && 'first_name_th' in studentProfile.data">{{
+                        (studentProfile.data as any).first_name_th }} {{ (studentProfile.data as any).last_name_th }}</p>
+                </div>
+                <button 
+                  @click="fetchData"
+                  :disabled="isLoading"
+                  class="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors text-gray-600"
+                  title="รีเฟรชข้อมูล"
+                >
+                  <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
+                </button>
             </div>
 
             <div class="mb-8 bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-3 -mt-4">

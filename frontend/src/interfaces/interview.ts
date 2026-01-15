@@ -41,6 +41,8 @@ export interface Slot {
     ID: number;
     start_time: string;
     end_time: string;
+    capacity: number;
+    book_count: number;
     is_booked: boolean;
     status: string;
     interview_round_id: number;
@@ -70,4 +72,18 @@ export interface Location {
     building: string;
     room: string;
     floor: number;
+}
+
+export interface InterviewBookingDTOResponse {
+    id: number;
+    status: string;
+    booked_by_role: string;
+    slot_id: number;
+    start_time: string;
+    end_time: string;
+    interview_round_id: number;
+    student_first_name: string;
+    student_last_name: string;
+    scholarship_name: string;
+    application_scholarship_id: number;
 }

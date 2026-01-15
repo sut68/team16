@@ -4,11 +4,27 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"backend/config"
 	"backend/entity"
+	"backend/ws"
+
+	"github.com/gin-gonic/gin"
 )
+
+// InterviewBookingDTO is a simplified version of IntervieweBooking for WebSocket messages
+type InterviewBookingDTO struct {
+	ID                       uint      `json:"id"`
+	Status                   string    `json:"status"`
+	BookedByRole             string    `json:"booked_by_role"`
+	SlotID                   uint      `json:"slot_id"`
+	StartTime                time.Time `json:"start_time"`
+	EndTime                  time.Time `json:"end_time"`
+	InterviewRoundID         uint      `json:"interview_round_id"`
+	StudentFirstName         string    `json:"student_first_name"`
+	StudentLastName          string    `json:"student_last_name"`
+	ScholarshipName          string    `json:"scholarship_name"`
+	ApplicationScholarshipID uint      `json:"application_scholarship_id"`
+}
 
 // GetAllInterviewRounds godoc
 func GetAllInterviewRounds(c *gin.Context) {
@@ -136,11 +152,15 @@ func CreateInterviewRound(c *gin.Context) {
 	if err := config.DB.
 		Preload("Scholarship").
 		Preload("AdminProfile").
+		Preload("InterviewMode").
+		Preload("Location").
 		Preload("Slots.InterviewerSlots.Interviewer").
 		First(&createdRound, round.ID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch created round: " + err.Error()})
 		return
 	}
+
+	ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_ROUND_CREATED", createdRound)
 
 	c.JSON(http.StatusCreated, createdRound)
 }
@@ -210,11 +230,15 @@ func UpdateInterviewRound(c *gin.Context) {
 	if err := config.DB.
 		Preload("Scholarship").
 		Preload("AdminProfile").
+		Preload("InterviewMode").
+		Preload("Location").
 		Preload("Slots.InterviewerSlots.Interviewer").
 		First(&updatedRound, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated round: " + err.Error()})
 		return
 	}
+
+	ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_ROUND_UPDATED", updatedRound)
 
 	c.JSON(http.StatusOK, updatedRound)
 }
@@ -222,10 +246,17 @@ func UpdateInterviewRound(c *gin.Context) {
 // DeleteInterviewRound godoc
 func DeleteInterviewRound(c *gin.Context) {
 	id := c.Param("id")
+	// You might want to fetch the round first to ensure it exists
+	// and maybe do some authorization checks.
+	// For now, we'll just delete it.
 	if err := config.DB.Delete(&entity.InterviewRound{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Broadcast the deletion event
+	ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_ROUND_DELETED", gin.H{"id": id})
+
 	c.JSON(http.StatusOK, gin.H{"message": "Interview round deleted"})
 }
 
@@ -327,6 +358,37 @@ func CreateInterviewBooking(c *gin.Context) {
 		return
 	}
 
+	// After commit, fetch data for broadcast
+	var updatedSlot entity.Slot
+	if err := config.DB.Preload("InterviewerSlots.Interviewer").Preload("IntervieweBookings.ApplicationScholarship.Application.StudentProfile").First(&updatedSlot, slot.ID).Error; err == nil {
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_SLOT_UPDATED", updatedSlot)
+	}
+
+	var createdBooking entity.IntervieweBooking
+	if err := config.DB.
+		Preload("Slot").
+		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Scholarship").
+		First(&createdBooking, booking.ID).Error; err == nil {
+
+		// Create and populate the DTO
+		bookingDTO := InterviewBookingDTO{
+			ID:                       createdBooking.ID,
+			Status:                   createdBooking.Status,
+			BookedByRole:             createdBooking.BookedByRole,
+			SlotID:                   createdBooking.Slot.ID,
+			StartTime:                createdBooking.Slot.StartTime,
+			EndTime:                  createdBooking.Slot.EndTime,
+			InterviewRoundID:         createdBooking.Slot.InterviewRoundID,
+			StudentFirstName:         createdBooking.ApplicationScholarship.Application.StudentProfile.FirstNameTH,
+			StudentLastName:          createdBooking.ApplicationScholarship.Application.StudentProfile.LastNameTH,
+			ScholarshipName:          createdBooking.ApplicationScholarship.Scholarship.ScholarshipName,
+			ApplicationScholarshipID: createdBooking.ApplicationScholarshipID,
+		}
+
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_CREATED", bookingDTO)
+	}
+
 	c.JSON(http.StatusCreated, booking)
 }
 
@@ -355,10 +417,29 @@ func DeleteInterviewBooking(c *gin.Context) {
 	id := c.Param("id")
 	var booking entity.IntervieweBooking
 
-	// Find the booking to be deleted
-	if err := config.DB.First(&booking, id).Error; err != nil {
+	// Find the booking to be deleted, preloading data needed for the DTO
+	if err := config.DB.
+		Preload("Slot").
+		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Scholarship").
+		First(&booking, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
 		return
+	}
+
+	// Create DTO from the preloaded data *before* deletion
+	bookingDTO := InterviewBookingDTO{
+		ID:                       booking.ID,
+		Status:                   booking.Status,
+		BookedByRole:             booking.BookedByRole,
+		SlotID:                   booking.Slot.ID,
+		StartTime:                booking.Slot.StartTime,
+		EndTime:                  booking.Slot.EndTime,
+		InterviewRoundID:         booking.Slot.InterviewRoundID,
+		StudentFirstName:         booking.ApplicationScholarship.Application.StudentProfile.FirstNameTH,
+		StudentLastName:          booking.ApplicationScholarship.Application.StudentProfile.LastNameTH,
+		ScholarshipName:          booking.ApplicationScholarship.Scholarship.ScholarshipName,
+		ApplicationScholarshipID: booking.ApplicationScholarshipID,
 	}
 
 	// Start a transaction
@@ -408,9 +489,18 @@ func DeleteInterviewBooking(c *gin.Context) {
 	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
 		return
 	}
+
+	// After commit, fetch data for broadcast
+	var updatedSlot entity.Slot
+	if err := config.DB.Preload("InterviewerSlots.Interviewer").Preload("IntervieweBookings.ApplicationScholarship.Application.StudentProfile").First(&updatedSlot, slot.ID).Error; err == nil {
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_SLOT_UPDATED", updatedSlot)
+	}
+
+	// Broadcast the DTO of the deleted booking
+	ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_DELETED", bookingDTO)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Interview booking cancelled and slot is now available"})
 }
@@ -497,13 +587,148 @@ func AdminCreateInterviewBooking(c *gin.Context) {
 		return
 	}
 
+	// After commit, fetch data for broadcast
+	var updatedSlot entity.Slot
+	if err := config.DB.Preload("InterviewerSlots.Interviewer").Preload("IntervieweBookings.ApplicationScholarship.Application.StudentProfile").First(&updatedSlot, slot.ID).Error; err == nil {
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_SLOT_UPDATED", updatedSlot)
+	}
+
+	var createdBooking entity.IntervieweBooking
+	if err := config.DB.
+		Preload("Slot").
+		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Scholarship").
+		First(&createdBooking, booking.ID).Error; err == nil {
+
+		// Create and populate the DTO
+		bookingDTO := InterviewBookingDTO{
+			ID:                       createdBooking.ID,
+			Status:                   createdBooking.Status,
+			BookedByRole:             createdBooking.BookedByRole,
+			SlotID:                   createdBooking.Slot.ID,
+			StartTime:                createdBooking.Slot.StartTime,
+			EndTime:                  createdBooking.Slot.EndTime,
+			InterviewRoundID:         createdBooking.Slot.InterviewRoundID,
+			StudentFirstName:         createdBooking.ApplicationScholarship.Application.StudentProfile.FirstNameTH,
+			StudentLastName:          createdBooking.ApplicationScholarship.Application.StudentProfile.LastNameTH,
+			ScholarshipName:          createdBooking.ApplicationScholarship.Scholarship.ScholarshipName,
+			ApplicationScholarshipID: createdBooking.ApplicationScholarshipID,
+		}
+
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_CREATED", bookingDTO)
+	}
+
 	c.JSON(http.StatusCreated, booking)
 }
 
 // AdminMoveInterviewBooking godoc
 func AdminMoveInterviewBooking(c *gin.Context) {
-	// Placeholder for moving a student's booking
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Move booking functionality is not implemented yet."})
+	bookingID := c.Param("id")
+	var payload struct {
+		NewSlotID uint `json:"new_slot_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	tx := config.DB.Begin()
+
+	// 1. Find the booking to move
+	var booking entity.IntervieweBooking
+	if err := tx.First(&booking, bookingID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+		return
+	}
+
+	// 2. Find and decrement the old slot
+	var oldSlot entity.Slot
+	if err := tx.First(&oldSlot, booking.SlotID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "Old slot not found"})
+		return
+	}
+
+	oldBookCount := uint(0)
+	if oldSlot.BookCount > 0 {
+		oldBookCount = oldSlot.BookCount - 1
+	}
+	if err := tx.Model(&oldSlot).Updates(map[string]interface{}{"book_count": oldBookCount, "is_booked": oldBookCount > 0}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update old slot"})
+		return
+	}
+
+	// 3. Find and increment the new slot
+	var newSlot entity.Slot
+	if err := tx.First(&newSlot, payload.NewSlotID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "New slot not found"})
+		return
+	}
+
+	if newSlot.IsBooked || newSlot.Status != "Available" {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "New slot is not available"})
+		return
+	}
+
+	if err := tx.Model(&newSlot).Updates(map[string]interface{}{"book_count": newSlot.BookCount + 1, "is_booked": true}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update new slot"})
+		return
+	}
+
+	// 4. Update the booking's slot ID
+	if err := tx.Model(&booking).Update("slot_id", payload.NewSlotID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move booking"})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Transaction commit failed: " + err.Error()})
+		return
+	}
+
+	// 5. Broadcast updates
+	var updatedOldSlot, updatedNewSlot entity.Slot
+	if err := config.DB.Preload("InterviewerSlots.Interviewer").Preload("IntervieweBookings.ApplicationScholarship.Application.StudentProfile").First(&updatedOldSlot, oldSlot.ID).Error; err == nil {
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_SLOT_UPDATED", updatedOldSlot)
+	}
+	if err := config.DB.Preload("InterviewerSlots.Interviewer").Preload("IntervieweBookings.ApplicationScholarship.Application.StudentProfile").First(&updatedNewSlot, newSlot.ID).Error; err == nil {
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_SLOT_UPDATED", updatedNewSlot)
+	}
+
+	var updatedBooking entity.IntervieweBooking
+	if err := config.DB.
+		Preload("Slot").
+		Preload("ApplicationScholarship.Application.StudentProfile").
+		Preload("ApplicationScholarship.Scholarship").
+		First(&updatedBooking, booking.ID).Error; err == nil {
+
+		bookingDTO := InterviewBookingDTO{
+			ID:                       updatedBooking.ID,
+			Status:                   updatedBooking.Status,
+			BookedByRole:             updatedBooking.BookedByRole,
+			SlotID:                   updatedBooking.Slot.ID,
+			StartTime:                updatedBooking.Slot.StartTime,
+			EndTime:                  updatedBooking.Slot.EndTime,
+			InterviewRoundID:         updatedBooking.Slot.InterviewRoundID,
+			StudentFirstName:         updatedBooking.ApplicationScholarship.Application.StudentProfile.FirstNameTH,
+			StudentLastName:          updatedBooking.ApplicationScholarship.Application.StudentProfile.LastNameTH,
+			ScholarshipName:          updatedBooking.ApplicationScholarship.Scholarship.ScholarshipName,
+			ApplicationScholarshipID: updatedBooking.ApplicationScholarshipID,
+		}
+
+		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_UPDATED", bookingDTO)
+	}
+
+
+	c.JSON(http.StatusOK, updatedBooking)
 }
 
 // GetAllLocations godoc
