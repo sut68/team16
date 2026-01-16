@@ -98,7 +98,7 @@ onMounted(async () => {
   try {
     // 1. profile
     const profileRes = await getMyProfile()
-    myId.value = profileRes.data.ID
+    myId.value = profileRes.data.user_id
 
     // 2. get open room
     const roomRes = await ChatroomAPI.getMyOpen()
