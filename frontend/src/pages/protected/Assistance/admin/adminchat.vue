@@ -51,12 +51,32 @@ const formatDate = (dateStr: string) => {
 
 // Filter rooms by search
 const filteredRooms = computed(() => {
-  if (!searchQuery.value.trim()) return rooms.value
-  const query = searchQuery.value.toLowerCase()
-  return rooms.value.filter(r => {
-    const username = r.user?.username?.toLowerCase() || ""
-    const studentId = r.user?.student_profile?.[0]?.student_id?.toLowerCase() || ""
-    return username.includes(query) || studentId.includes(query)
+  let res = rooms.value
+  
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    res = res.filter(r => 
+      getDisplayName(r.user).toLowerCase().includes(query) ||
+      r.user.username.includes(query)
+    )
+  }
+
+  // Sort by latest message time (or room creation time)
+  return [...res].sort((a, b) => {
+    const getLastTime = (roomId: number, roomCreated: string) => {
+       const roomMsgs = allMessages.value.filter(m => m.chatroom_id === roomId)
+       if (roomMsgs.length > 0) {
+           // Assume last pushed message is latest, or sort? 
+           // Better to trust the order/ID
+           const lastMsg = roomMsgs[roomMsgs.length - 1]
+           return new Date(lastMsg!.CreatedAt).getTime()
+       }
+       return new Date(roomCreated).getTime()
+    }
+
+    const timeA = getLastTime(a.ID, a.CreatedAt)
+    const timeB = getLastTime(b.ID, b.CreatedAt)
+    return timeB - timeA // Descending (Newest first)
   })
 })
 
@@ -204,8 +224,8 @@ const closeRoom = async () => {
   }
 }
 
-const loadRooms = async () => {
-  isLoading.value = true
+const loadRooms = async (silent = false) => {
+  if (!silent) isLoading.value = true
   try {
     const profileRes = await getMyProfile()
     myId.value = profileRes.data.ID
@@ -220,30 +240,51 @@ const loadRooms = async () => {
 
     const res = await ChatroomAPI.getAllOpen()
     rooms.value = Array.isArray(res.data) ? res.data : []
-
-    // Removed auto-select first room
-    // if (rooms.value.length > 0 && !selectedRoom.value) {
-    //   selectRoom(rooms.value[0]!)
-    // }
+    
   } catch (err) {
     console.error("Failed to load rooms:", err)
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
 // ---------------- lifecycle ----------------
 // ---------------- lifecycle ----------------
+import { approvalWs } from "@/services/api/approvalWebSocket"
+
+// ... (in onMounted)
 onMounted(() => {
     loadRooms();
+    
     // Start connection checker
     connectionCheckInterval = window.setInterval(() => {
         isConnected.value = chatService.isConnected();
     }, 2000);
+
+    // Notification WS for new rooms
+    approvalWs.connect();
+    approvalWs.on('chatroom_updated', (data) => {
+        console.log("New room/update received:", data);
+        loadRooms(true);
+    });
+
+    // Listen for any new message to update sidebar preview
+    approvalWs.on('new_chat_message', (msg: any) => {
+        // Avoid duplicates if we are already connected to that room
+        const exists = allMessages.value.some(m => m.ID === msg.ID)
+        if (!exists) {
+            allMessages.value.push(msg)
+            
+            // Optional: Move room to top?
+            // Since rooms is array of Chatroom, and msg has ChatroomID.
+            // We can re-sort 'rooms.value' based on latest message time if we want.
+        }
+    });
 })
 
 onUnmounted(() => {
     chatService.disconnect();
+    approvalWs.disconnect();
     if (connectionCheckInterval) clearInterval(connectionCheckInterval);
 })
 </script>

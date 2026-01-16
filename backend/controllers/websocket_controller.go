@@ -128,6 +128,11 @@ func readPump(client *ws.Client) {
 			ChatroomID: client.ChatroomID,
 			Data:       resp,
 		}
+
+		// Also broadcast to admins (Notification System) to update sidebar preview
+		if ws.ApprovalHubInstance != nil {
+			ws.ApprovalHubInstance.BroadcastUpdate("new_chat_message", assist)
+		}
 	}
 }
 
