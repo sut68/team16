@@ -152,10 +152,10 @@ func SeedAll(db *gorm.DB) error {
 	}
 	log.Println("Status news seed completed")
 
-	if err := news.SeedNewsPosts(db); err != nil {
-		return err
-	}
-	log.Println("News posts seed completed")
+	// if err := news.SeedNewsPosts(db); err != nil {
+	// 	return err
+	// }
+	// log.Println("News posts seed completed")
 
 	if err := evaluation.SeedEvaluationCriteria(db); err != nil {
 		return err

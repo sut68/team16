@@ -244,7 +244,7 @@ func main() {
 			authGroup.POST("/interview-bookings", controllers.CreateInterviewBooking)                         // จองเวลาสัมภาษณ์
 			authGroup.GET("/students/:student_profile_id/interview-bookings", controllers.GetStudentBookings) // ดูการจองของตัวเอง
 			authGroup.DELETE("/interview-bookings/:id", controllers.DeleteInterviewBooking)                   // ยกเลิกการจอง
-			authGroup.GET("/ws/interview", controllers.InterviewWebSocketHandler)                     // WebSocket สำหรับ interview
+			authGroup.GET("/ws/interview", controllers.InterviewWebSocketHandler)                             // WebSocket สำหรับ interview
 
 			// ข้อความช่วยเหลือ (Assistance/Chat Messages)
 			authGroup.POST("/assistance", controllers.CreateAssistance)       // ส่งข้อความ
@@ -256,6 +256,9 @@ func main() {
 			// รอบสัมภาษณ์ (Interview Rounds - Read Only)
 			authGroup.GET("/interview-rounds", controllers.GetAllInterviewRounds)     // ดูรอบสัมภาษณ์ทั้งหมด (เพื่อเลือกจอง)
 			authGroup.GET("/interview-rounds/:id", controllers.GetInterviewRoundByID) //	ดูรายละเอียดรอบสัมภาษณ์
+
+			// WebSocket for Approvals (available to all authenticated users - students receive notifications)
+			authGroup.GET("/ws/approval", controllers.ApprovalWebSocketHandler)
 		}
 
 		// -----------------------------------------------------------------
@@ -264,9 +267,6 @@ func main() {
 		adminGroup := api.Group("/")
 		adminGroup.Use(middlewares.JWTAuth(), middlewares.CSRFMiddleware(), middlewares.RequireAdmin())
 		{
-			// WebSocket for Approvals
-			adminGroup.GET("/ws/approval", controllers.ApprovalWebSocketHandler)
-
 			// จัดการบริษัทผู้ให้ทุน (Sponsor Management)
 			adminGroup.POST("/sponsors", controllers.CreateSponsor)                       // สร้างบริษัทผู้ให้ทุนใหม่
 			adminGroup.PATCH("/sponsors/:id", controllers.UpdateSponsor)                  // แก้ไขข้อมูลบริษัท

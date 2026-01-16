@@ -34,18 +34,9 @@ func ApprovalWebSocketHandler(c *gin.Context) {
 		return
 	}
 
-    roleInterface, exists := c.Get("role")
-    if !exists {
-        c.JSON(http.StatusForbidden, gin.H{"error": "User role not found"})
-		return
-    }
-
-    role, ok := roleInterface.(string)
-    if !ok || role != "admin" {
-        c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions. Admin role required."})
-		return
-    }
-
+	// Note: All authenticated users (students and admins) can connect
+	// Students receive notifications when their approval tasks are updated
+	// Admins receive notifications about all approval activities
 
 	// Check if ApprovalHub is initialized
 	if ws.ApprovalHubInstance == nil {

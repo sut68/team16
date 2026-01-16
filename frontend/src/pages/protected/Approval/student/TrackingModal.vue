@@ -235,6 +235,33 @@ const processState = computed(() => {
     };
   }
 
+  // Check for 'evaluating' status - evaluation has been created
+  if (mainStatus === "evaluating") {
+    return {
+      currentStep: 6,
+      status: "process",
+      message: "กำลังอยู่ในขั้นตอนการประเมินโดยกรรมการ",
+    };
+  }
+
+  // Check for 'evaluated' status - evaluation completed, waiting for final decision
+  if (mainStatus === "evaluated") {
+    return {
+      currentStep: 6,
+      status: "process",
+      message: "การประเมินเสร็จสิ้น รอผลการพิจารณาขั้นสุดท้าย",
+    };
+  }
+
+  // Check for 'approved' status - got scholarship
+  if (mainStatus === "approved") {
+    return {
+      currentStep: 7,
+      status: "completed",
+      message: "ยินดีด้วย! คุณได้รับทุนการศึกษาแล้ว",
+    };
+  }
+
   if (["approve", "approved"].includes(latestDecisionType)) {
     if (!["completed", "final-approved", "interview_scheduled"].includes(mainStatus || "")) {
       return {

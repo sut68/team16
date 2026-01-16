@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onActivated, computed, type Ref } from "vue";
+import { ref, onMounted, onActivated, computed, watch, type Ref } from "vue";
 import TrackingModal from "./TrackingModal.vue";
 import {
   getStudentApplications,
@@ -12,11 +12,15 @@ import type {
   MyProfileResponse,
 } from "@/interfaces";
 import Swal from "sweetalert2";
+import { useStudentApprovalWebSocket } from "@/hooks/useStudentApprovalWebSocket";
 
 const studentApplications: Ref<ApplicationScholarshipResponse[]> = ref([]);
 const studentProfile = ref<MyProfileResponse | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+// WebSocket for real-time updates
+const { updateCount } = useStudentApprovalWebSocket();
 
 // Get student profile ID from logged-in user
 const studentProfileId = computed(() => {
@@ -45,7 +49,39 @@ const fetchStudentApplications = async () => {
   }
 };
 
-onMounted(fetchStudentApplications);
+onMounted(() => {
+  fetchStudentApplications();
+});
+
+// Watch for WebSocket updates - when updateCount changes, refetch data
+watch(updateCount, async (newCount, oldCount) => {
+  // Skip initial value (0)
+  if (oldCount === undefined || newCount === 0) return;
+  
+  // console.log('📢 [StudentDocument] WebSocket update detected, refetching...');
+  
+  // Show toast notification
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+      toast.onmouseenter = Swal.stopTimer;
+      toast.onmouseleave = Swal.resumeTimer;
+    }
+  });
+  
+  Toast.fire({
+    icon: 'info',
+    title: 'สถานะเอกสารมีการอัปเดต',
+    text: 'กำลังโหลดข้อมูลใหม่...'
+  });
+
+  // Refetch data
+  await fetchStudentApplications();
+});
 
 // Refetch when navigating back to this page (if using keep-alive)
 onActivated(fetchStudentApplications);
@@ -193,6 +229,30 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
         };
       }
       
+      // Check for evaluating status (evaluation created)
+      if (status === "evaluating") {
+        return {
+          text: "กำลังประเมิน",
+          class: "badge-info bg-indigo-100 text-indigo-800 border-none",
+        };
+      }
+      
+      // Check for evaluated status (evaluation completed, waiting for final decision)
+      if (status === "evaluated") {
+        return {
+          text: "รอผลการพิจารณา",
+          class: "badge-info bg-orange-100 text-orange-800 border-none",
+        };
+      }
+      
+      // Check for approved status (got scholarship)
+      if (status === "approved") {
+        return {
+          text: "ได้รับทุน!",
+          class: "badge-success text-white",
+        };
+      }
+      
       // Check for qualified status
       if (status === "qualified") {
         return {
@@ -273,6 +333,14 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
       text: "รอสัมภาษณ์",
       class: "badge-info bg-purple-100 text-purple-800 border-none",
     },
+    evaluating: {
+      text: "กำลังประเมิน",
+      class: "badge-info bg-indigo-100 text-indigo-800 border-none",
+    },
+    evaluated: {
+      text: "รอผลการพิจารณา",
+      class: "badge-info bg-orange-100 text-orange-800 border-none",
+    },
     approved: { text: "อนุมัติแล้ว", class: "badge-success text-white" },
     rejected: { text: "ไม่ผ่านการพิจารณา", class: "badge-error text-white" },
   };
@@ -311,9 +379,12 @@ const getStatusDisplay = (app: ApplicationScholarshipResponse) => {
         </svg>
         ติดตามสถานะการสมัครทุน
       </h1>
-      <p class="text-gray-500 text-sm">
-        ตรวจสอบความคืบหน้าของใบสมัครทุนการศึกษา
-      </p>
+      <div class="flex items-center gap-4">
+        <p class="text-gray-500 text-sm">
+          ตรวจสอบความคืบหน้าของใบสมัครทุนการศึกษา
+        </p>
+
+      </div>
     </div>
 
     <div v-if="isLoading" class="text-center py-20 text-gray-500">

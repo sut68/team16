@@ -387,6 +387,15 @@ func CreateInterviewBooking(c *gin.Context) {
 		}
 
 		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_CREATED", bookingDTO)
+
+		// Also broadcast to ApprovalHub for StudentDocument real-time update
+		if ws.ApprovalHubInstance != nil {
+			ws.ApprovalHubInstance.BroadcastUpdate("interview_booking_created", gin.H{
+				"application_scholarship_id": createdBooking.ApplicationScholarshipID,
+				"booking_id":                 createdBooking.ID,
+				"status":                     "interview_scheduled",
+			})
+		}
 	}
 
 	c.JSON(http.StatusCreated, booking)
@@ -502,6 +511,15 @@ func DeleteInterviewBooking(c *gin.Context) {
 	// Broadcast the DTO of the deleted booking
 	ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_DELETED", bookingDTO)
 
+	// Also broadcast to ApprovalHub for StudentDocument real-time update
+	if ws.ApprovalHubInstance != nil {
+		ws.ApprovalHubInstance.BroadcastUpdate("interview_booking_deleted", gin.H{
+			"application_scholarship_id": booking.ApplicationScholarshipID,
+			"booking_id":                 booking.ID,
+			"status":                     "qualified",
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Interview booking cancelled and slot is now available"})
 }
 
@@ -616,6 +634,15 @@ func AdminCreateInterviewBooking(c *gin.Context) {
 		}
 
 		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_CREATED", bookingDTO)
+
+		// Also broadcast to ApprovalHub for StudentDocument real-time update
+		if ws.ApprovalHubInstance != nil {
+			ws.ApprovalHubInstance.BroadcastUpdate("interview_booking_created", gin.H{
+				"application_scholarship_id": createdBooking.ApplicationScholarshipID,
+				"booking_id":                 createdBooking.ID,
+				"status":                     "interview_scheduled",
+			})
+		}
 	}
 
 	c.JSON(http.StatusCreated, booking)
@@ -727,7 +754,6 @@ func AdminMoveInterviewBooking(c *gin.Context) {
 		ws.InterviewHubInstance.BroadcastUpdate("INTERVIEW_BOOKING_UPDATED", bookingDTO)
 	}
 
-
 	c.JSON(http.StatusOK, updatedBooking)
 }
 
@@ -750,4 +776,3 @@ func GetAllInterviewModes(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, modes)
 }
-

@@ -7,12 +7,16 @@ import EvaluationFormModal from './EvaluationFormModal.vue'
 import EvaluationDetailModal from './EvaluationDetailModal.vue'
 import StatsGrid from '@/components/ui/StatsGrid.vue'
 import type { StatItem } from '@/components/ui/StatsGrid.vue'
+import { useEvaluationWebSocket } from '@/hooks/useEvaluationWebSocket'
 
 // Icons
 import { 
   Search, X, RefreshCw, Eye, FileEdit, 
   Users, CheckCircle, XCircle, Clock, Award, ChevronDown
 } from 'lucide-vue-next'
+
+// ========== WebSocket ==========
+const { updateCount } = useEvaluationWebSocket()
 
 // ========== State ==========
 const evaluations = ref<EvaluationResponse[]>([])
@@ -260,6 +264,31 @@ watch(selectedScholarshipId, () => {
   selectedRoundId.value = null
 })
 
+// Watch for WebSocket updates - when updateCount changes, refetch data
+watch(updateCount, async (newCount, oldCount) => {
+  // Skip initial value (0)
+  if (oldCount === undefined || newCount === 0) return
+  
+  // console.log('📢 [EvaluationList] WebSocket update detected, refetching...')
+  
+  // Show toast notification
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+  })
+  
+  Toast.fire({
+    icon: 'info',
+    title: 'ข้อมูลมีการอัปเดต',
+  })
+
+  // Refetch data
+  await fetchEvaluations()
+})
+
 // ========== Lifecycle ==========
 onMounted(fetchEvaluations)
 </script>
@@ -271,7 +300,10 @@ onMounted(fetchEvaluations)
   >
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-      <h2 class="text-xl font-bold text-[#1e3a8a]">การประเมินผู้สมัครทุน</h2>
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-bold text-[#1e3a8a]">การประเมินผู้สมัครทุน</h2>
+
+      </div>
 
       <div class="flex items-center gap-3 flex-wrap">
 
