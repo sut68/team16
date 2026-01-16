@@ -4,14 +4,14 @@ import type { InterviewRound, Slot, InterviewBooking, InterviewBookingDTORespons
 // This combines all possible data types from the interview websocket
 export type InterviewData = InterviewRound | Slot | InterviewBooking | { id: number };
 
-export type InterviewMessageType = 
-    | 'INTERVIEW_ROUND_CREATED'
-    | 'INTERVIEW_ROUND_UPDATED'
-    | 'INTERVIEW_ROUND_DELETED'
-    | 'INTERVIEW_SLOT_UPDATED'
-    | 'INTERVIEW_BOOKING_CREATED'
-    | 'INTERVIEW_BOOKING_UPDATED'
-    | 'INTERVIEW_BOOKING_DELETED';
+export type InterviewMessageType =
+  | 'INTERVIEW_ROUND_CREATED'
+  | 'INTERVIEW_ROUND_UPDATED'
+  | 'INTERVIEW_ROUND_DELETED'
+  | 'INTERVIEW_SLOT_UPDATED'
+  | 'INTERVIEW_BOOKING_CREATED'
+  | 'INTERVIEW_BOOKING_UPDATED'
+  | 'INTERVIEW_BOOKING_DELETED';
 
 export interface InterviewMessage {
   type: InterviewMessageType;
@@ -27,7 +27,7 @@ export class InterviewWebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
-  
+
   // A map to hold arrays of callbacks for each message type
   private messageCallbacks: Map<InterviewMessageType, InterviewMessageCallback<any>[]> = new Map();
 
@@ -48,19 +48,19 @@ export class InterviewWebSocketService {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
-    
+
     const wsUrl = this.getWebSocketURL();
-    console.log('🔌 Connecting to Interview WebSocket:', wsUrl);
+    // console.log('🔌 Connecting to Interview WebSocket:', wsUrl);
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('✅ Interview WebSocket connected');
+      // console.log('✅ Interview WebSocket connected');
       this.reconnectAttempts = 0;
       this.connectionCallbacks.forEach(cb => cb(true));
     };
 
     this.ws.onclose = (event) => {
-      console.log('❌ Interview WebSocket disconnected:', event.code, event.reason);
+      // console.log('❌ Interview WebSocket disconnected:', event.code, event.reason);
       this.ws = null;
       this.connectionCallbacks.forEach(cb => cb(false));
 
@@ -87,7 +87,7 @@ export class InterviewWebSocketService {
   private handleMessage(message: InterviewMessage): void {
     const callbacks = this.messageCallbacks.get(message.type);
     if (callbacks) {
-      console.log(`📢 Interview WS [${message.type}]:`, message.data);
+      // console.log(`📢 Interview WS [${message.type}]:`, message.data);
       callbacks.forEach(cb => cb(message.data));
     } else {
       console.warn(`No handler for interview ws message type: ${message.type}`);
@@ -110,7 +110,7 @@ export class InterviewWebSocketService {
       }
     };
   }
-  
+
   // Specific subscription methods
   onRoundCreated(callback: InterviewMessageCallback<InterviewRound>) { return this.on('INTERVIEW_ROUND_CREATED', callback); }
   onRoundUpdated(callback: InterviewMessageCallback<InterviewRound>) { return this.on('INTERVIEW_ROUND_UPDATED', callback); }

@@ -4,6 +4,8 @@ import (
 	"backend/config"
 	"backend/entity"
 	"backend/validators"
+	"backend/ws"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -127,6 +129,15 @@ func CreateEvaluation(ctx *gin.Context) {
 		return
 	}
 
+	// Update ApplicationScholarship status to 'evaluating' so it won't show in QualifiedApplicantsTab
+	if err := tx.Model(&entity.ApplicationScholarship{}).
+		Where("id = ?", evaluation.ApplicationScholarshipID).
+		Update("status", "evaluating").Error; err != nil {
+		tx.Rollback()
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -140,6 +151,12 @@ func CreateEvaluation(ctx *gin.Context) {
 		First(&evaluation, evaluation.ID).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reload"})
 		return
+	}
+
+	// Broadcast to WebSocket for real-time update
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting evaluation created: ID=%d", evaluation.ID)
+		ws.ApprovalHubInstance.BroadcastUpdate("evaluation_created", evaluation)
 	}
 
 	ctx.JSON(http.StatusCreated, evaluation)
@@ -214,6 +231,12 @@ func UpdateEvaluation(ctx *gin.Context) {
 		First(&evaluation, id).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
 		return
+	}
+
+	// Broadcast to WebSocket for real-time update
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting evaluation updated: ID=%d", evaluation.ID)
+		ws.ApprovalHubInstance.BroadcastUpdate("evaluation_updated", evaluation)
 	}
 
 	ctx.JSON(http.StatusOK, evaluation)
@@ -322,10 +345,19 @@ func CompleteEvaluation(ctx *gin.Context) {
 		return
 	}
 
-	// Update ApplicationScholarship final decision and total score
+	// Update ApplicationScholarship status, final decision and total score
+	// This is important so QualifiedApplicantsTab can filter correctly
+	newAppStatus := "evaluated" // Default status after evaluation
+	if inputValues.FinalDecision == "approved" {
+		newAppStatus = "approved"
+	} else if inputValues.FinalDecision == "rejected" {
+		newAppStatus = "rejected"
+	}
+
 	if err := tx.Model(&entity.ApplicationScholarship{}).
 		Where("id = ?", evaluation.ApplicationScholarshipID).
 		Updates(map[string]interface{}{
+			"status":            newAppStatus,
 			"final_total_score": evaluation.TotalScore,
 			"final_decision":    inputValues.FinalDecision,
 		}).Error; err != nil {
@@ -347,6 +379,21 @@ func CompleteEvaluation(ctx *gin.Context) {
 		First(&evaluation, id).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "reload failed"})
 		return
+	}
+
+	// Broadcast to WebSocket for real-time update on StudentDocument
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting evaluation complete for ApplicationScholarship ID: %d", evaluation.ApplicationScholarshipID)
+
+		// Broadcast for EvaluationList page
+		ws.ApprovalHubInstance.BroadcastUpdate("evaluation_completed", evaluation)
+
+		// Broadcast for StudentDocument page
+		ws.ApprovalHubInstance.BroadcastUpdate("application_status_updated", gin.H{
+			"application_scholarship_id": evaluation.ApplicationScholarshipID,
+			"final_decision":             inputValues.FinalDecision,
+			"evaluation_id":              evaluation.ID,
+		})
 	}
 
 	ctx.JSON(http.StatusOK, evaluation)

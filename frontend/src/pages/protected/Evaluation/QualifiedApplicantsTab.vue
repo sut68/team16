@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject, watch } from 'vue'
 import type { ApplicationScholarshipResponse } from '@/interfaces'
 import { getAllApplicationScholarships } from '@/services/api/application'
 import { EvaluationService } from '@/services/evaluation/evaluation'
 import { Get } from '@/services/api/https'
 import Swal from 'sweetalert2'
+import { useEvaluationWebSocket } from '@/hooks/useEvaluationWebSocket'
 
 // Icons
 import { 
@@ -16,6 +17,9 @@ const emit = defineEmits(['created'])
 
 // Get refresh function from parent
 const refreshParentCount = inject<() => void>('refreshQualifiedCount', () => {})
+
+// ========== WebSocket ==========
+const { updateCount } = useEvaluationWebSocket()
 
 // ========== State ==========
 const qualifiedApplicants = ref<ApplicationScholarshipResponse[]>([])
@@ -78,6 +82,12 @@ async function fetchData() {
     // Fetch existing evaluations to filter out
     const evaluations = await EvaluationService.getAll()
     evaluatedIds.value = new Set(evaluations.map(e => e.application_scholarship_id))
+    
+    /* console.log('📋 [QualifiedTab] Fetched:', {
+      applicants: qualifiedApplicants.value.length,
+      evaluatedIds: evaluatedIds.value.size,
+      filtered: filteredApplicants.value.length
+    }) */
   } catch (e) {
     console.error('Error fetching data:', e)
   } finally {
@@ -121,6 +131,9 @@ async function createEvaluationForApplicant(app: ApplicationScholarshipResponse)
       admin_id: adminId.value
     })
     
+    // Immediately add to evaluatedIds to hide from list
+    evaluatedIds.value.add(app.ID)
+    
     await Swal.fire({
       icon: 'success',
       title: 'สร้างการประเมินสำเร็จ',
@@ -128,11 +141,17 @@ async function createEvaluationForApplicant(app: ApplicationScholarshipResponse)
       showConfirmButton: false
     })
     
-    // Refresh data
-    await fetchData()
-    refreshParentCount()
-    emit('created')
+    // Refresh data after a short delay to ensure backend has processed
+    setTimeout(async () => {
+      await fetchData()
+      refreshParentCount()
+      emit('created')
+    }, 300)
+    
   } catch (err: any) {
+    // Remove from evaluatedIds if failed
+    evaluatedIds.value.delete(app.ID)
+    
     Swal.fire({
       icon: 'error',
       title: 'ไม่สามารถสร้างการประเมินได้',
@@ -142,6 +161,15 @@ async function createEvaluationForApplicant(app: ApplicationScholarshipResponse)
     creatingEvaluation.value = false
   }
 }
+
+// Watch for WebSocket updates
+watch(updateCount, async (newCount, oldCount) => {
+  if (oldCount === undefined || newCount === 0) return
+  
+  // console.log('📢 [QualifiedTab] WebSocket update detected, refetching...')
+  await fetchData()
+  refreshParentCount()
+})
 
 // ========== Lifecycle ==========
 onMounted(async () => {
@@ -166,7 +194,10 @@ onMounted(async () => {
   >
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-      <h2 class="text-xl font-bold text-[#1e3a8a]">ผู้สมัครพร้อมสร้างการประเมิน</h2>
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-bold text-[#1e3a8a]">ผู้สมัครพร้อมสร้างการประเมิน</h2>
+
+      </div>
 
       <div class="flex items-center gap-3 flex-wrap">
         <!-- Scholarship Filter -->

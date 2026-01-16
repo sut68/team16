@@ -28,7 +28,7 @@ export class ApprovalWebSocketService {
    */
   connect(): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('🔌 Approval WebSocket already connected');
+      // console.log('🔌 Approval WebSocket already connected');
       return;
     }
 
@@ -42,24 +42,24 @@ export class ApprovalWebSocketService {
       wsUrl = apiUrl.replace('http', 'ws') + '/ws/approval';
     }
 
-    console.log('🔌 Connecting to Approval WebSocket:', wsUrl);
+    // console.log('🔌 Connecting to Approval WebSocket:', wsUrl);
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('✅ Approval WebSocket connected');
+      // console.log('✅ Approval WebSocket connected');
       this.reconnectAttempts = 0;
       this.connectionCallbacks.forEach(cb => cb(true));
     };
 
     this.ws.onclose = (event) => {
-      console.log('❌ Approval WebSocket disconnected:', event.code, event.reason);
+      // console.log('❌ Approval WebSocket disconnected:', event.code, event.reason);
       this.ws = null;
       this.connectionCallbacks.forEach(cb => cb(false));
 
       // Auto-reconnect if not intentionally closed
       if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++;
-        console.log(`🔄 Reconnecting approval ws in ${this.reconnectDelay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        // console.log(`🔄 Reconnecting approval ws in ${this.reconnectDelay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
         setTimeout(() => this.connect(), this.reconnectDelay);
       }
     };
@@ -84,7 +84,7 @@ export class ApprovalWebSocketService {
   private handleMessage(message: ApprovalMessage): void {
     const callbacks = this.messageCallbacks.get(message.type);
     if (callbacks) {
-      console.log(`📢 Approval WS [${message.type}]:`, message.data);
+      // console.log(`📢 Approval WS [${message.type}]:`, message.data);
       callbacks.forEach(cb => cb(message.data));
     } else {
       console.warn(`No handler for approval ws message type: ${message.type}`);
@@ -126,6 +126,14 @@ export class ApprovalWebSocketService {
   }
 
   /**
+   * Subscribe specifically to 'approval_task_updated' events.
+   * This is a convenience helper for the most common message type.
+   */
+  onTaskUpdated(callback: ApprovalMessageCallback<ApprovalTaskResponse>): () => void {
+    return this.on<ApprovalTaskResponse>('approval_task_updated', callback);
+  }
+
+  /**
    * Check if the WebSocket is currently connected.
    */
   isConnected(): boolean {
@@ -137,7 +145,7 @@ export class ApprovalWebSocketService {
    */
   disconnect(): void {
     if (this.ws) {
-      console.log('🔌 Disconnecting Approval WebSocket');
+      // console.log('🔌 Disconnecting Approval WebSocket');
       this.ws.close(1000, 'User disconnected');
       this.ws = null;
       this.messageCallbacks.clear();

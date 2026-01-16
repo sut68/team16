@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/gin-gonic/gin"
 
 	"backend/config"
 	"backend/entity"
 	"backend/services"
+	"backend/ws"
 )
 
 func GetAllScreenings(c *gin.Context) {
@@ -239,6 +241,16 @@ func UpdateScreeningStatus(c *gin.Context) {
 		return
 	}
 
+	// Broadcast to WebSocket for real-time update on StudentDocument
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting screening status updated: ID=%d, Status=%d", screening.ID, input.StatusScreeningID)
+		ws.ApprovalHubInstance.BroadcastUpdate("screening_status_updated", gin.H{
+			"screening_id":               screening.ID,
+			"application_scholarship_id": screening.ApplicationScholarshipID,
+			"status_screening_id":        input.StatusScreeningID,
+		})
+	}
+
 	c.JSON(200, gin.H{"data": true})
 }
 
@@ -277,6 +289,15 @@ func AutoScreenSingle(c *gin.Context) {
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Broadcast to WebSocket for real-time update
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting auto-screen single completed: ScreeningID=%d", screeningID)
+		ws.ApprovalHubInstance.BroadcastUpdate("screening_status_updated", gin.H{
+			"screening_id":  screeningID,
+			"auto_approved": result.AutoApproved,
+		})
 	}
 
 	c.JSON(200, gin.H{
@@ -338,6 +359,17 @@ func AutoScreenBatch(c *gin.Context) {
 		} else {
 			needsReview++
 		}
+	}
+
+	// Broadcast to WebSocket for real-time update
+	if ws.ApprovalHubInstance != nil {
+		log.Printf("📢 Broadcasting auto-screen batch completed: ScholarshipID=%d, Total=%d", scholarshipID, len(results))
+		ws.ApprovalHubInstance.BroadcastUpdate("screening_batch_updated", gin.H{
+			"scholarship_id": scholarshipID,
+			"total":          len(results),
+			"auto_approved":  autoApproved,
+			"needs_review":   needsReview,
+		})
 	}
 
 	c.JSON(200, gin.H{
