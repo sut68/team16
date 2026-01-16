@@ -99,14 +99,28 @@ func readPump(client *ws.Client) {
 			continue
 		}
 
+		// ... (inside readPump loop)
 		assist := entity.Assistance{
 			Massage:    incoming.Massage,
 			SenderID:   client.UserID,
 			ChatroomID: client.ChatroomID,
 		}
 
-		config.DB.Create(&assist)
-		config.DB.Preload("Sender").Preload("Chatroom").First(&assist, assist.ID)
+		if err := config.DB.Create(&assist).Error; err != nil {
+			// Log error
+			// log.Printf("Error saving message: %v", err)
+
+			// Optional: Send error back to client
+			errResp := map[string]string{"error": "Failed to save message"}
+			errBytes, _ := json.Marshal(errResp)
+			client.Send <- errBytes
+			continue
+		}
+
+		if err := config.DB.Preload("Sender").Preload("Chatroom").First(&assist, assist.ID).Error; err != nil {
+			// log.Printf("Error preloading message: %v", err)
+			continue
+		}
 
 		resp, _ := json.Marshal(assist)
 

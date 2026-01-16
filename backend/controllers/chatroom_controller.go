@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/config"
 	"backend/entity"
+	"backend/ws"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,12 @@ func CreateChatroom(c *gin.Context) {
 	}
 
 	config.DB.Create(&room)
+
+	// Broadcast to admins (via ApprovalHub reuse)
+	if ws.ApprovalHubInstance != nil {
+		ws.ApprovalHubInstance.BroadcastUpdate("chatroom_updated", room)
+	}
+
 	c.JSON(http.StatusCreated, room)
 }
 

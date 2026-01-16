@@ -23,6 +23,9 @@ const messageSearchQuery = ref("")
 const chatService = new ChatService()
 const token = sessionStorage.getItem("token")
 const chatBox = ref<HTMLElement | null>(null)
+const isConnected = ref(false)
+const isConnecting = ref(false)
+let connectionCheckInterval: number | null = null
 
 // ---------------- helpers ----------------
 const formatTime = (dateStr: string) => {
@@ -105,7 +108,13 @@ const getLastMessageTime = (roomId: number) => {
 // ---------------- methods ----------------
 const scrollToBottom = () => {
   nextTick(() => {
-    if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
+    if (chatBox.value) {
+      chatBox.value.scrollTop = chatBox.value.scrollHeight
+      // Double check scroll after a short delay to ensure images/layout are stable
+      setTimeout(() => {
+        if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
+      }, 100)
+    }
   })
 }
 
@@ -117,37 +126,65 @@ const toggleMessageSearch = () => {
 }
 
 const selectRoom = async (room: ChatroomRespone) => {
+  // If clicking same room, do nothing
+  if (selectedRoom.value?.ID === room.ID) return;
+
   selectedRoom.value = room
   messages.value = []
   isLoadingMessages.value = true
   isSearchingMessages.value = false
   messageSearchQuery.value = ""
+  isConnecting.value = true
 
   chatService.disconnect()
 
-  try {
-    // Filter messages for this room from cache
-    messages.value = allMessages.value.filter(m => m.chatroom_id === room.ID)
-    scrollToBottom()
+  // Wait a bit to ensure socket allows new connection (debounce)
+  setTimeout(async () => {
+    try {
+        // Filter messages for this room from cache
+        messages.value = allMessages.value.filter(m => m.chatroom_id === room.ID)
+        scrollToBottom()
 
-    // connect websocket
-    if (!token) return
-    chatService.connect(token, room.ID)
-    chatService.onMessage(msg => {
-      messages.value.push(msg)
-      allMessages.value.push(msg)
-      scrollToBottom()
-    })
-  } catch (err) {
-    console.error("Error loading room:", err)
-  } finally {
-    isLoadingMessages.value = false
-  }
+        // connect websocket
+        if (token) {
+            chatService.connect(token, room.ID)
+        }
+        
+        // Listen for messages
+        chatService.onMessage(msg => {
+            messages.value.push(msg)
+            allMessages.value.push(msg)
+            scrollToBottom()
+        })
+    } catch (err) {
+        console.error("Error loading room:", err)
+    } finally {
+        isLoadingMessages.value = false
+        isConnecting.value = false
+    }
+  }, 300);
+}
+
+const leaveRoom = () => {
+  chatService.disconnect();
+  selectedRoom.value = null;
+  messages.value = [];
 }
 
 const send = () => {
   if (!input.value.trim()) return
-  if (!chatService.isConnected()) return
+  
+  if (!chatService.isConnected()) {
+    // Try to reconnect if room is selected
+     if (selectedRoom.value && token) {
+        console.log("Attempting to reconnect...");
+        chatService.connect(token, selectedRoom.value.ID);
+        // Wait a bit? Or just alert user to try again
+     }
+     alert('ไม่สามารถส่งข้อความได้ (Socket Disconnected) กรุณาลองกดส่งใหม่อีกครั้ง');
+     return;
+  }
+  
   if (!selectedRoom.value) return
 
   chatService.sendMessage(input.value)
@@ -184,9 +221,10 @@ const loadRooms = async () => {
     const res = await ChatroomAPI.getAllOpen()
     rooms.value = Array.isArray(res.data) ? res.data : []
 
-    if (rooms.value.length > 0 && !selectedRoom.value) {
-      selectRoom(rooms.value[0]!)
-    }
+    // Removed auto-select first room
+    // if (rooms.value.length > 0 && !selectedRoom.value) {
+    //   selectRoom(rooms.value[0]!)
+    // }
   } catch (err) {
     console.error("Failed to load rooms:", err)
   } finally {
@@ -195,8 +233,19 @@ const loadRooms = async () => {
 }
 
 // ---------------- lifecycle ----------------
-onMounted(() => loadRooms())
-onUnmounted(() => chatService.disconnect())
+// ---------------- lifecycle ----------------
+onMounted(() => {
+    loadRooms();
+    // Start connection checker
+    connectionCheckInterval = window.setInterval(() => {
+        isConnected.value = chatService.isConnected();
+    }, 2000);
+})
+
+onUnmounted(() => {
+    chatService.disconnect();
+    if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+})
 </script>
 
 <template>
@@ -281,35 +330,60 @@ onUnmounted(() => chatService.disconnect())
       <!-- Selected Room -->
       <template v-if="selectedRoom">
         <!-- Chat Header -->
-        <div class="px-6 py-4 border-b bg-white flex items-center justify-between shrink-0 relative overflow-hidden">
+        <div class="px-6 py-4 border-b bg-white flex items-center justify-between shrink-0 relative overflow-hidden h-[72px]">
           <!-- Default Header Content -->
           <div v-if="!isSearchingMessages" class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow relative">
               <UserRoundCheck :size="20" />
+              <!-- Status Dot on Avatar -->
+              <span 
+                :class="['absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full', isConnected ? 'bg-green-500' : 'bg-red-500']"
+                :title="isConnected ? 'Online' : 'Offline'"
+              ></span>
             </div>
             <div>
-              <h3 class="font-semibold text-gray-800">
+              <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                 {{ getDisplayName(selectedRoom.user) }}
+                <!-- Status Badge Text -->
+                <span v-if="!isConnected" class="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded-md font-medium">Offline</span>
               </h3>
-              <p class="text-xs text-green-500 flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+              <p class="text-xs text-green-600 flex items-center gap-1" v-if="isConnected">
                 กำลังสนทนา
+              </p>
+              <p class="text-xs text-slate-400" v-else>
+                ไม่ได้เชื่อมต่อ
               </p>
             </div>
           </div>
           
-          <div v-if="!isSearchingMessages" class="flex items-center gap-2">
+          <div v-if="!isSearchingMessages" class="flex items-center gap-3">
+            <!-- Search -->
             <button 
               @click="toggleMessageSearch"
-              class="p-2 rounded-full hover:bg-gray-100 text-gray-400 transition-colors"
+              class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors tooltip"
+              title="ค้นหาข้อความ"
             >
-              <Search :size="20" />
+              <Search :size="18" />
             </button>
+
+            <div class="h-6 w-px bg-gray-200 mx-1"></div>
+
+            <!-- End Chat / Close Room -->
             <button 
               @click="closeRoom"
-              class="px-4 py-2 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors shadow-sm"
+              class="px-4 py-2 text-xs rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-medium transition-colors shadow-sm flex items-center gap-2"
+              title="จบการสนทนา (ปิดเคส)"
             >
-              ปิดห้อง
+              <span>จบการสนทนา</span>
+            </button>
+
+            <!-- Leave / Minimize -->
+             <button 
+              @click="leaveRoom"
+              class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              title="พักแชท (ออกหน้านี้)"
+            >
+              <X :size="20" />
             </button>
           </div>
 
@@ -417,10 +491,11 @@ onUnmounted(() => chatService.disconnect())
             
             <button
               @click="send"
-              :disabled="!input.trim()"
+              :disabled="!input.trim() || isConnecting"
               class="px-5 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium flex items-center gap-2 transition-colors shadow-md hover:shadow-lg"
             >
-              Send
+              <span v-if="isConnecting" class="loading loading-spinner loading-xs"></span>
+              <span v-else>Send</span>
               <Send :size="18" />
             </button>
           </div>
