@@ -66,7 +66,18 @@ const fetchData = async () => {
                     const round = allRounds.value.find(r => r.slots?.some(s => s.ID === booking.slot_id));
 
                     return { ...booking, slot, round };
-                }).filter(b => b.slot && b.round); // Ensure booking is valid
+                })
+                .filter(b => b.slot && b.round) // Ensure booking is valid
+                .filter(b => {
+                    // Filter out bookings for applications that are finished
+                    const app = studentApplications.value.find(a => a.ID === b.application_scholarship_id);
+                    if (!app) return true;
+                    
+                    const status = app.status?.toLowerCase() || '';
+                    // Exclude if evaluated or final decision made
+                    const isFinished = ['evaluated', 'approved', 'rejected', 'completed', 'final-approved'].includes(status);
+                    return !isFinished;
+                });
             } else {
                 myBookings.value = [];
             }
