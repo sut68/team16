@@ -4,13 +4,15 @@ import { useRouter, useRoute } from 'vue-router';
 import { getScholarships, applyForScholarship } from '@/services/api/scholarship';
 import { getStudentApplications } from '@/services/api/application';
 import { getMyProfile } from '@/services/api/user';
-import type { ScholarshipResponse, MyProfileResponse, StudentProfileResponse } from '@/interfaces';
+import { FeatureScholarshipAPI } from '@/services/api/featurescholarship';
+import type { ScholarshipResponse, MyProfileResponse, StudentProfileResponse, FeatureScholarshipResponse } from '@/interfaces';
 import type { ApplicationScholarshipResponse } from '@/interfaces/application_scholarship';
 import type { FamilyInfoResponse } from '@/interfaces/family_info';
 import Swal from 'sweetalert2';
 
 const scholarships = ref<ScholarshipResponse[]>([]);
 const studentApplications = ref<ApplicationScholarshipResponse[]>([]);
+const allFeatures = ref<FeatureScholarshipResponse[]>([]);
 const studentProfile = ref<MyProfileResponse | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -106,6 +108,10 @@ const fetchScholarships = async () => {
     if (studentProfileId.value) {
       studentApplications.value = await getStudentApplications(studentProfileId.value);
     }
+    
+    // Fetch scholarship features
+    const featuresRes = await FeatureScholarshipAPI.getAll();
+    allFeatures.value = Array.isArray(featuresRes) ? featuresRes : [];
     
     // Check for auto-open query param
     if (route.query.id) {
@@ -223,10 +229,35 @@ const totalFamilyIncome = computed(() => {
       total += guardianInc;
     }
   }
-  // If guardian_is_parent is "father" or "mother", don't add guardian income (already counted)
-  
   return total;
 });
+
+// Helper to format operator
+const mapOperatorToText = (op: string) => {
+    switch (op) {
+        case '>=': return 'ไม่ต่ำกว่า';
+        case '<=': return 'ไม่เกิน';
+        case '>': return 'มากกว่า';
+        case '<': return 'น้อยกว่า';
+        case '=':
+        case '==': return 'เท่ากับ';
+        default: return op;
+    }
+};
+
+// Helper to format feature value (add commas for numbers)
+const formatFeatureValue = (val: string) => {
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+        return num.toLocaleString('th-TH');
+    }
+    return val;
+};
+
+// Helper to get features for a scholarship
+const getFeatures = (scholarshipId: number) => {
+  return allFeatures.value.filter(f => f.scholarship_id === scholarshipId);
+};
 
 onMounted(fetchScholarships);
 </script>
@@ -371,6 +402,22 @@ onMounted(fetchScholarships);
             <div><span class="text-gray-500">รอบ:</span> <span class="font-medium">{{ selectedScholarship.semaster?.term }}/{{ selectedScholarship.semaster?.academic_year }}</span></div>
             <div class="col-span-2"><span class="text-gray-500">ปิดรับสมัคร:</span> <span class="font-medium">{{ new Date(selectedScholarship.close_date).toLocaleDateString('th-TH') }}</span></div>
           </div>
+        </div>
+
+        <!-- Qualifications / Requirements -->
+        <div v-if="getFeatures(selectedScholarship.ID).length > 0" class="bg-amber-50 border border-amber-100 rounded-xl p-4">
+          <h3 class="font-bold text-amber-800 mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            คุณสมบัติของผู้สมัคร
+          </h3>
+          <ul class="list-disc list-inside text-sm text-slate-700 space-y-1 ml-1">
+            <li v-for="feat in getFeatures(selectedScholarship.ID)" :key="feat.ID">
+              <span class="font-medium">{{ feat.Typefeature?.type_feature_name || 'คุณสมบัติ' }}</span> 
+               {{ mapOperatorToText(feat.operator) }} {{ formatFeatureValue(feat.value) }}
+            </li>
+          </ul>
         </div>
 
         <!-- Student Profile (Read-only) -->
