@@ -1,61 +1,89 @@
 <template>
-  <div :class="{ 'sidebar-closed': !isSidebarOpen }">
-    <aside ref="asideRef">
+  <div :class="{ 'sidebar-closed': !isSidebarOpen, 'sidebar-mobile-open': isMobileMenuOpen }">
+    <!-- Mobile Header Bar -->
+    <div class="mobile-header">
+      <button @click="toggleMobileMenu" class="mobile-menu-btn" aria-label="เปิดเมนู">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        </svg>
+      </button>
+      <div class="mobile-header-title">
+        <img class="mobile-logo" :src="logo" alt="logo">
+        <span>ทุนการศึกษา</span>
+      </div>
+      <div class="mobile-header-spacer"></div>
+    </div>
+
+    <!-- Mobile Overlay -->
+    <div 
+      v-if="isMobileMenuOpen" 
+      class="mobile-overlay"
+      @click="closeMobileMenu"
+    ></div>
+
+    <aside ref="asideRef" :class="{ 'mobile-open': isMobileMenuOpen }">
+      <!-- Mobile Close Button -->
+      <button @click="closeMobileMenu" class="mobile-close-btn" aria-label="ปิดเมนู">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
       <div class="logo-and-menu-header">
         <img class="logo" :src="logo" alt="logo">
-        <div class="header-text-wrapper" v-show="isSidebarOpen">
+        <div class="header-text-wrapper" v-show="isSidebarOpen || isMobileMenuOpen">
           <span> ทุนการศึกษา </span>
           <span> สำนักวิชาวิศวกรรมศาสตร์ </span>
         </div>
       </div>
 
-      <router-link to="/dashboard" class="menu-link" exact-active-class="active">
+      <router-link to="/dashboard" class="menu-link" exact-active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">แดชบอร์ด</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">แดชบอร์ด</span>
       </router-link>
 
-      <router-link to="/dashboard/apply-scholarship" class="menu-link" active-class="active">
+      <router-link to="/dashboard/apply-scholarship" class="menu-link" active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">ยื่นสมัครทุน</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">ยื่นสมัครทุน</span>
       </router-link>
 
-      <router-link to="/dashboard/track-status" class="menu-link" active-class="active">
+      <router-link to="/dashboard/track-status" class="menu-link" active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6l3.75 2.25" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">ติดตามสถานะทุน</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">ติดตามสถานะทุน</span>
       </router-link>
 
-      <router-link to="/dashboard/schedule" class="menu-link" active-class="active">
+      <router-link to="/dashboard/schedule" class="menu-link" active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6l3.75 2.25" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">จองรอบสัมภาษณ์</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">จองรอบสัมภาษณ์</span>
       </router-link>
 
-      <router-link to="/dashboard/assistance" class="menu-link" active-class="active">
+      <router-link to="/dashboard/assistance" class="menu-link" active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">ติดต่อช่วยเหลือ</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">ติดต่อช่วยเหลือ</span>
       </router-link>
 
-      <router-link to="/dashboard/profilestudent" class="menu-link" active-class="active">
+      <router-link to="/dashboard/profilestudent" class="menu-link" active-class="active" @click="closeMobileMenu">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"
           class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
 
-        <span v-show="isSidebarOpen" class="menu-text">โปรไฟล์</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">โปรไฟล์</span>
       </router-link>
 
       <div class="flex-grow"></div> <!-- Spacer -->
@@ -64,7 +92,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
         </svg>
-        <span v-show="isSidebarOpen" class="menu-text">ออกจากระบบ</span>
+        <span v-show="isSidebarOpen || isMobileMenuOpen" class="menu-text">ออกจากระบบ</span>
       </a>
 
     </aside>
@@ -91,6 +119,7 @@ export default defineComponent({
   name: 'SidebarMenu',
   setup() {
     const isSidebarOpen = ref(true);
+    const isMobileMenuOpen = ref(false);
     const toggleButtonTop = ref('180px');
     const asideRef = ref<HTMLElement | null>(null);
     const route = useRoute();
@@ -142,6 +171,22 @@ export default defineComponent({
       }, TRANSITION_DURATION);
     };
 
+    // Mobile menu functions
+    const toggleMobileMenu = () => {
+      isMobileMenuOpen.value = !isMobileMenuOpen.value;
+      // Prevent body scroll when mobile menu is open
+      if (isMobileMenuOpen.value) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    };
+
+    const closeMobileMenu = () => {
+      isMobileMenuOpen.value = false;
+      document.body.style.overflow = '';
+    };
+
     const setupResizeObserver = () => {
       if (!asideRef.value) return;
       
@@ -181,7 +226,10 @@ export default defineComponent({
     return {
       logo,
       isSidebarOpen,
+      isMobileMenuOpen,
       toggleSidebar,
+      toggleMobileMenu,
+      closeMobileMenu,
       toggleButtonTop,
       asideRef,
       handleLogout,
@@ -430,6 +478,235 @@ aside p {
 
 div.sidebar-closed .logo-and-menu-header::after {
   display: none;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Mobile Header Bar - visible only on mobile */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(135deg, #8B001D 0%, #6d0016 100%);
+  z-index: 1000;
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-menu-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-menu-btn:hover,
+.mobile-menu-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.mobile-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mobile-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.mobile-header-spacer {
+  width: 44px; /* Same as button for centering */
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile Close Button inside sidebar */
+.mobile-close-btn {
+  display: none;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.mobile-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ========================================
+   MOBILE BREAKPOINT (max-width: 768px)
+   ======================================== */
+@media (max-width: 768px) {
+  /* Show mobile header */
+  .mobile-header {
+    display: flex;
+  }
+
+  /* Show overlay when menu is open */
+  .mobile-overlay {
+    display: block;
+  }
+
+  /* Show close button in sidebar */
+  .mobile-close-btn {
+    display: block;
+  }
+
+  /* Hide desktop toggle button on mobile */
+  .sidebar-toggle-btn {
+    display: none !important;
+  }
+
+  /* Sidebar - hidden by default, slide in from left */
+  aside {
+    position: fixed;
+    left: -280px; /* Start off-screen */
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 999;
+    border-radius: 0;
+    border-top-right-radius: 30px;
+    border-bottom-right-radius: 30px;
+    padding-top: 20px;
+    padding-left: 15px;
+    transition: left 0.3s ease-in-out;
+  }
+
+  /* Sidebar open state */
+  aside.mobile-open {
+    left: 0;
+  }
+
+  /* Main content - full width on mobile */
+  .main-content {
+    margin-left: 0;
+    margin-top: 60px; /* Space for mobile header */
+    height: calc(100vh - 60px);
+  }
+
+  /* Main scroll area adjustments */
+  .main-scroll {
+    border-top-left-radius: 0;
+    margin: 0;
+    padding: 12px;
+  }
+
+  /* Logo adjustments */
+  .logo-and-menu-header {
+    margin-top: 10px;
+    padding-right: 50px; /* Space for close button */
+  }
+
+  /* Menu link touch-friendly sizing */
+  .menu-link {
+    padding: 14px 12px 14px 20px;
+    font-size: 15px;
+    min-height: 48px; /* Touch-friendly minimum */
+  }
+
+  /* Override sidebar-closed styles on mobile */
+  div.sidebar-closed aside {
+    width: 280px;
+    left: -280px;
+  }
+
+  div.sidebar-closed .main-content {
+    margin-left: 0;
+  }
+
+  div.sidebar-closed .menu-link {
+    padding-left: 20px;
+    justify-content: flex-start;
+    border-radius: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  div.sidebar-closed .logo {
+    margin: 0;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    margin-left: -5px;
+    width: 50px;
+  }
+
+  div.sidebar-closed .logo-and-menu-header {
+    justify-content: flex-start;
+    padding-left: inherit;
+  }
+
+  div.sidebar-closed .menu-link svg {
+    margin-right: 0 !important;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE (max-width: 480px)
+   ======================================== */
+@media (max-width: 480px) {
+  aside {
+    width: 100%;
+    left: -100%;
+    border-radius: 0;
+  }
+
+  aside.mobile-open {
+    left: 0;
+  }
+
+  div.sidebar-closed aside {
+    width: 100%;
+    left: -100%;
+  }
+
+  .mobile-header-title span {
+    font-size: 14px;
+  }
+
+  .main-scroll {
+    padding: 8px;
+  }
 }
 
 </style>

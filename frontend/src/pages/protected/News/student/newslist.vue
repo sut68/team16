@@ -181,65 +181,75 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#F5F7FA] font-prompt overflow-hidden rounded-tl-[50px] rounded-bl-[50px] shadow-2xl ml-0 relative z-10">
+  <div class="flex h-full bg-[#F5F7FA] font-prompt overflow-hidden rounded-tl-[30px] md:rounded-tl-[50px] shadow-2xl ml-0 relative z-10">
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
       
       <NewsPreview v-if="selectedNewsId" :id="selectedNewsId" @back="backToNewsList" class="absolute inset-0 z-50" />
 
       <div class="flex flex-col h-full transition-all duration-300" :class="{ 'scale-95 opacity-50 blur-[2px]': selectedNewsId }">
           
-          <header class="px-10 py-6 flex flex-col gap-6 bg-white/50 backdrop-blur-sm sticky top-0 z-30">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <h1 class="text-2xl font-bold text-[#1e3a8a]">ข่าวทุนการศึกษา</h1>
-                    <div class="flex bg-gray-200/50 p-1 rounded-xl">
-                        <button @click="showFavoritesOnly = false" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300" :class="!showFavoritesOnly ? 'bg-white text-[#1e3a8a] shadow-sm' : 'text-gray-500 hover:text-gray-700'">ทั้งหมด</button>
-                        <button @click="showFavoritesOnly = true" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1.5" :class="showFavoritesOnly ? 'bg-white text-[#8B0025] shadow-sm' : 'text-gray-500 hover:text-gray-700'"><Heart :size="14" :class="showFavoritesOnly ? 'fill-[#8B0025]' : ''" /> ที่ถูกใจ</button>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4">
-                  <div class="relative group">
-                    <input v-model="searchTerm" type="text" placeholder="ค้นหาทุน..." class="w-64 pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8B0025]/20 focus:border-[#8B0025] transition-all shadow-sm group-hover:shadow-md"/>
-                    <Search class="absolute left-3.5 top-3 text-gray-400 group-hover:text-[#8B0025] transition-colors" :size="18" />
-                  </div>
-                  <div class="relative">
-                      <button @click.stop="toggleNotifications" class="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#8B0025] hover:shadow-md transition-all relative group z-20 overflow-hidden">
-                        <Bell :size="20" :class="hasNewNotifications ? 'animate-bell-ring text-[#8B0025]' : ''" />
-                        <span v-if="hasNewNotifications" class="absolute top-2 right-2.5 flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span></span>
-                      </button>
-                      <div v-if="showNotifications" class="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-fade-in-up origin-top-right">
-                          <div class="px-4 py-3 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
-                              <span class="font-bold text-[#1e3a8a] text-sm">การแจ้งเตือนล่าสุด</span>
-                              <button @click="showNotifications = false" class="text-gray-400 hover:text-red-500"><X :size="16" /></button>
-                          </div>
-                          <div class="max-h-80 overflow-y-auto custom-scrollbar">
-                              <div v-if="recentNotifications.length === 0" class="p-6 text-center text-gray-400 text-sm">ไม่มีการแจ้งเตือน</div>
-                              <div v-for="item in recentNotifications" :key="item.id" @click="goToNews(item.id)" class="p-3 border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer flex gap-3 transition-colors relative">
-                                  <div class="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
-                                      <img v-if="item.imagePath" :src="item.imagePath" class="w-full h-full object-cover" />
-                                      <div v-else :class="`w-full h-full ${item.fallbackColor}`"></div>
-                                  </div>
-                                  <div class="flex-1 min-w-0">
-                                      <h4 class="text-sm font-bold text-gray-700 truncate pr-4">{{ item.title }}</h4>
-                                      <p class="text-xs text-gray-400 mt-0.5 truncate">{{ item.caption }}</p>
-                                      <p class="text-[10px] text-gray-300 mt-1">{{ new Date(item.createdAt).toLocaleDateString('th-TH') }}</p>
-                                  </div>
-                                  <div v-if="item.isNewBadge" class="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                              </div>
-                          </div>
+          <div class="w-full mx-auto flex flex-col h-full p-6 bg-white shadow overflow-auto font-sans text-slate-800 custom-scrollbar">
+            
+            <!-- Header Section (Moved inside) -->
+            <div class="flex flex-col gap-6 mb-6">
+              <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 lg:gap-0">
+                  
+                  <!-- Title and Filter Tabs -->
+                  <div class="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+                      <h1 class="text-xl md:text-2xl font-bold text-[#1e3a8a]">ข่าวทุนการศึกษา</h1>
+                      <div class="flex bg-gray-200/50 p-1 rounded-xl w-fit">
+                          <button @click="showFavoritesOnly = false" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300" :class="!showFavoritesOnly ? 'bg-white text-[#1e3a8a] shadow-sm' : 'text-gray-500 hover:text-gray-700'">ทั้งหมด</button>
+                          <button @click="showFavoritesOnly = true" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1.5" :class="showFavoritesOnly ? 'bg-white text-[#8B0025] shadow-sm' : 'text-gray-500 hover:text-gray-700'"><Heart :size="14" :class="showFavoritesOnly ? 'fill-[#8B0025]' : ''" /> ที่ถูกใจ</button>
                       </div>
-                      <div v-if="showNotifications" @click="showNotifications = false" class="fixed inset-0 z-10 cursor-default"></div>
                   </div>
-                </div>
-            </div>
-          </header>
 
-          <div class="flex-1 overflow-y-auto px-10 pb-10 custom-scrollbar">
+                  <!-- Search and Notification -->
+                  <div class="flex items-center gap-3 lg:gap-4 w-full lg:w-auto">
+                    <div class="relative group flex-1 lg:flex-none">
+                      <input v-model="searchTerm" type="text" placeholder="ค้นหาทุน..." class="w-full lg:w-64 pl-10 md:pl-11 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#8B0025]/20 focus:border-[#8B0025] transition-all shadow-sm group-hover:shadow-md"/>
+                      <Search class="absolute left-3 md:left-3.5 top-2 md:top-2.5 text-gray-400 group-hover:text-[#8B0025] transition-colors" :size="18" />
+                    </div>
+                    
+                    <div class="relative flex-shrink-0">
+                        <button @click.stop="toggleNotifications" class="w-9 h-9 md:w-10 md:h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#8B0025] hover:shadow-md transition-all relative group z-20 overflow-hidden">
+                          <Bell :size="20" :class="hasNewNotifications ? 'animate-bell-ring text-[#8B0025]' : ''" />
+                          <span v-if="hasNewNotifications" class="absolute top-2 right-2.5 flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span></span>
+                        </button>
+                        
+                        <div v-if="showNotifications" class="absolute right-0 mt-3 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-fade-in-up origin-top-right">
+                            <div class="px-4 py-3 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                                <span class="font-bold text-[#1e3a8a] text-sm">การแจ้งเตือนล่าสุด</span>
+                                <button @click="showNotifications = false" class="text-gray-400 hover:text-red-500"><X :size="16" /></button>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto custom-scrollbar">
+                                <div v-if="recentNotifications.length === 0" class="p-6 text-center text-gray-400 text-sm">ไม่มีการแจ้งเตือน</div>
+                                <div v-for="item in recentNotifications" :key="item.id" @click="goToNews(item.id)" class="p-3 border-b border-gray-50 hover:bg-blue-50/50 cursor-pointer flex gap-3 transition-colors relative">
+                                    <div class="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
+                                        <img v-if="item.imagePath" :src="item.imagePath" class="w-full h-full object-cover" />
+                                        <div v-else :class="`w-full h-full ${item.fallbackColor}`"></div>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="text-sm font-bold text-gray-700 truncate pr-4">{{ item.title }}</h4>
+                                        <p class="text-xs text-gray-400 mt-0.5 truncate">{{ item.caption }}</p>
+                                        <p class="text-[10px] text-gray-300 mt-1">{{ new Date(item.createdAt).toLocaleDateString('th-TH') }}</p>
+                                    </div>
+                                    <div v-if="item.isNewBadge" class="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="showNotifications" @click="showNotifications = false" class="fixed inset-0 z-10 cursor-default"></div>
+                    </div>
+                  </div>
+              </div>
+            </div>
+
+            <!-- Content Body -->
             <div v-if="loading" class="flex justify-center items-center h-40"><span class="loading loading-spinner loading-lg text-[#1e3a8a]"></span></div>
 
             <div v-else>
-                <div v-if="highlightNews.length > 0 && !showFavoritesOnly && !searchTerm" class="mb-8 mt-2"> 
-                    <div class="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg shadow-blue-900/10 group cursor-grab active:cursor-grabbing select-none">
+                <!-- Featured Slider -->
+                <div v-if="highlightNews.length > 0 && !showFavoritesOnly && !searchTerm" class="mb-6 md:mb-8 mt-2"> 
+                    <div class="relative w-full h-48 sm:h-64 md:h-80 rounded-2xl overflow-hidden shadow-lg shadow-blue-900/10 group cursor-grab active:cursor-grabbing select-none">
                         <div class="flex h-full transition-transform duration-700 ease-in-out" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
                             <div v-for="item in highlightNews" :key="item.id" class="w-full flex-shrink-0 relative h-full cursor-pointer" @click="goToNews(item.id)">
                                 <div v-if="item.imagePath" class="absolute inset-0">
@@ -247,11 +257,11 @@ onUnmounted(() => {
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                                 </div>
                                 <div v-else :class="`absolute inset-0 ${item.bgGradient}`"></div>
-                                <div class="relative z-10 flex flex-col justify-end h-full px-8 pb-10 md:px-12 md:pb-12 text-white">
+                                <div class="relative z-10 flex flex-col justify-end h-full px-4 pb-6 sm:px-8 sm:pb-10 md:px-12 md:pb-12 text-white">
                                     <div class="transform transition-transform duration-500 translate-y-4 group-hover:translate-y-0">
-                                        <span class="bg-white/20 w-fit px-3 py-1 rounded-full text-xs font-bold mb-3 backdrop-blur-md border border-white/20 shadow-sm inline-block">Latest News</span>
-                                        <h2 class="text-2xl md:text-4xl font-bold truncate drop-shadow-md mb-2">{{ item.title }}</h2>
-                                        <p class="text-sm md:text-base opacity-90 line-clamp-2 drop-shadow-sm max-w-2xl text-gray-200">{{ item.desc }}</p>
+                                        <span class="bg-white/20 w-fit px-3 py-1 rounded-full text-xs font-bold mb-2 sm:mb-3 backdrop-blur-md border border-white/20 shadow-sm inline-block">ข่าวล่าสุด</span>
+                                        <h2 class="text-lg sm:text-2xl md:text-4xl font-bold truncate drop-shadow-md mb-1 sm:mb-2">{{ item.title }}</h2>
+                                        <p class="text-xs sm:text-sm md:text-base opacity-90 line-clamp-2 drop-shadow-sm max-w-2xl text-gray-200">{{ item.desc }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -259,40 +269,43 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <div v-if="filteredNewsList.length === 0" class="flex flex-col items-center justify-center py-20 text-gray-400">
-                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                        <Heart v-if="showFavoritesOnly" :size="40" class="text-gray-300" />
-                        <Search v-else :size="40" class="text-gray-300" />
+                <!-- Empty State -->
+                <div v-if="filteredNewsList.length === 0" class="flex flex-col items-center justify-center py-12 md:py-20 text-gray-400">
+                    <div class="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <Heart v-if="showFavoritesOnly" :size="32" class="text-gray-300 md:w-10 md:h-10" />
+                        <Search v-else :size="32" class="text-gray-300 md:w-10 md:h-10" />
                     </div>
-                    <p class="text-lg font-medium">{{ showFavoritesOnly ? 'ยังไม่มีข่าวที่ถูกใจ' : 'ไม่พบข้อมูลทุน' }}</p>
+                    <p class="text-base md:text-lg font-medium">{{ showFavoritesOnly ? 'ยังไม่มีข่าวที่ถูกใจ' : 'ไม่พบข้อมูลทุน' }}</p>
                 </div>
 
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                <!-- News Grid - Responsive columns -->
+                <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 md:gap-8 py-2">
                     <div 
                         v-for="news in filteredNewsList" :key="news.id" @click="goToNews(news.id)"
-                        class="group bg-white rounded-2xl p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer relative overflow-hidden"
+                        class="group bg-white rounded-2xl p-3 sm:p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer relative"
                     >
-                        <div :class="`relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 flex items-center justify-center group-hover:opacity-95 transition bg-gray-50`">
+                        <div :class="`relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:opacity-95 transition bg-gray-50`">
                             <img v-if="news.imagePath" :src="news.imagePath" class="w-full h-full object-cover" @error="news.imagePath = null" />
                             <div v-else :class="`w-full h-full flex flex-col items-center justify-center text-center p-4 ${news.fallbackColor}`">
-                                <h3 class="text-xl font-bold text-slate-700/80 line-clamp-2">{{ news.title }}</h3>
-                                <p class="text-sm text-slate-500 mt-1 line-clamp-2">{{ news.desc }}</p>
+                                <h3 class="text-lg sm:text-xl font-bold text-slate-700/80 line-clamp-2">{{ news.title }}</h3>
+                                <p class="text-xs sm:text-sm text-slate-500 mt-1 line-clamp-2">{{ news.desc }}</p>
                             </div>
-                            <div v-if="news.isNewBadge" class="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md animate-pulse">NEW!</div>
+                            <div v-if="news.isNewBadge" class="absolute top-2 left-2 sm:top-3 sm:left-3 bg-red-500 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold shadow-md animate-pulse">NEW!</div>
                         </div>
                         
                         <div class="flex justify-between items-center mt-auto px-1 pt-1">
-                            <div class="flex-1 min-w-0 pr-3">
-                                <p class="text-sm font-bold text-gray-700 truncate">
+                            <div class="flex-1 min-w-0 pr-2 sm:pr-3">
+                                <p class="text-xs sm:text-sm font-bold text-gray-700 truncate">
                                     {{ news.title }}
                                 </p>
-                                <p class="text-xs font-medium text-gray-400 truncate flex items-center gap-1">
+                                <p class="text-[10px] sm:text-xs font-medium text-gray-400 truncate flex items-center gap-1">
                                     {{ news.postDetail }} - {{ news.caption }}
                                 </p>
                             </div>
                             
-                            <button @click.stop="handleToggleLike(news.id)" class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 bg-gray-50 hover:bg-red-50 flex-shrink-0">
-                                <Heart :class="news.isLiked ? 'fill-[#8B0025] text-[#8B0025]' : 'text-gray-400'" :size="22" :stroke-width="news.isLiked ? 0 : 2" />
+                            <!-- Like Button - Touch friendly -->
+                            <button @click.stop="handleToggleLike(news.id)" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 bg-gray-50 hover:bg-red-50 flex-shrink-0">
+                                <Heart :class="news.isLiked ? 'fill-[#8B0025] text-[#8B0025]' : 'text-gray-400'" :size="20" :stroke-width="news.isLiked ? 0 : 2" />
                             </button>
                         </div>
 

@@ -92,12 +92,12 @@ function handleViewAllNews() {
           />
         </div>
 
-        <nav class="hidden md:flex gap-6 text-sm font-medium text-gray-600" data-testid="homepage-nav">
+        <!-- <nav class="hidden md:flex gap-6 text-sm font-medium text-gray-600" data-testid="homepage-nav">
           <a href="#" class="hover:text-[#F26522] transition">สมัครเรียน</a>
           <a href="#" class="hover:text-[#F26522] transition">คณะและหลักสูตร</a>
           <a href="#" class="hover:text-[#F26522] transition">ชีวิตในมหาลัย</a>
           <a href="#" class="hover:text-[#F26522] transition">International</a>
-        </nav>
+        </nav> -->
 
         <router-link to="/login"
           class="bg-[#F26522] hover:bg-[#6d0016] text-white px-4 py-2 rounded-lg font-bold text-sm transition shadow-lg flex items-center gap-1.5"
