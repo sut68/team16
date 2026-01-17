@@ -2,28 +2,28 @@ package user
 
 import (
 	"backend/entity"
+
 	"gorm.io/gorm"
 )
 
 func SeedAdminProfiles(db *gorm.DB) error {
-	if err := db.First(&entity.AdminProfile{}).Error; err == gorm.ErrRecordNotFound {
-		var adminUser entity.User
-		if err := db.Where("username = ?", "admin").First(&adminUser).Error; err != nil {
-			return err
-		}
+	var adminUser entity.User
+	if err := db.Where("username = ?", "admin").First(&adminUser).Error; err != nil {
+		return err
+	}
 
-		adminProfile := entity.AdminProfile{
-			AdminFirstname: "Super",
-			AdminLastname:  "Admin",
-			Position:       "SuperAdmin",
-			Email:          "admin@example.com",
-			UserID:         adminUser.ID,
-			Phone:          "0812345678",
-		}
+	adminProfile := entity.AdminProfile{
+		AdminFirstname: "Super",
+		AdminLastname:  "Admin",
+		Position:       "SuperAdmin",
+		Email:          "admin@example.com",
+		UserID:         adminUser.ID,
+		Phone:          "0812345678",
+	}
 
-		if err := db.Create(&adminProfile).Error; err != nil {
-			return err
-		}
+	// ใช้ UserID เป็นตัวเช็คว่ามีโปรไฟล์ของคนนี้หรือยัง
+	if err := db.Where("user_id = ?", adminUser.ID).FirstOrCreate(&adminProfile).Error; err != nil {
+		return err
 	}
 	return nil
 }

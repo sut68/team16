@@ -2,8 +2,9 @@ package semaster
 
 import (
 	"backend/entity"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 func CreateSemasters(db *gorm.DB) error {
@@ -19,7 +20,13 @@ func CreateSemasters(db *gorm.DB) error {
 	}
 
 	for _, semaster := range semasters {
-		if err := db.Create(&semaster).Error; err != nil {
+		var existing entity.Semaster
+		err := db.Where("academic_year = ? AND term = ? AND round = ?", semaster.AcademicYear, semaster.Term, semaster.Round).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			if err := db.Create(&semaster).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
 			return err
 		}
 	}
