@@ -325,6 +325,28 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	// =================================================================
+	// 🧹 Manual Cleanup: Chat & Assistance (ล้างข้อความและห้องแชท)
+	// =================================================================
+
+	// 1. ลบ Assistances ที่ User นี้เป็นคนส่ง
+	if err := tx.Unscoped().Where("sender_id = ?", user.ID).Delete(&entity.Assistance{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ลบข้อความช่วยเหลือไม่ผ่าน: " + err.Error()})
+		return
+	}
+
+	// 2. ลบ Chatrooms ที่เกี่ยวข้องกับ User นี้
+	// Note: เราต้องลบ Assistances ในห้องแชทเหล่านั้นด้วย (ถ้ามี)
+	var chatroomIDs []uint
+	tx.Model(&entity.Chatroom{}).Unscoped().Where("user_id = ?", user.ID).Pluck("id", &chatroomIDs)
+	if len(chatroomIDs) > 0 {
+		// ลบข้อความในห้องแชท
+		tx.Unscoped().Where("chatroom_id IN ?", chatroomIDs).Delete(&entity.Assistance{})
+		// ลบห้องแชท
+		tx.Unscoped().Where("id IN ?", chatroomIDs).Delete(&entity.Chatroom{})
+	}
+
+	// =================================================================
 	// 🧹 Manual Cleanup: ล้างบาง (เหลน -> หลาน -> ลูก -> พ่อ)
 	// =================================================================
 
@@ -338,18 +360,30 @@ func DeleteUser(c *gin.Context) {
 			for _, sp := range studentProfiles {
 
 				// -------------------------------------------------------------
-				// STEP 1: ลบ "เหลน" (Screenings) ** จุดที่เพิ่มใหม่ **
+				// STEP 1: ลบ "เหลน" และ "โหลน" (Screenings, AppScholarships)
 				// -------------------------------------------------------------
-				// ต้องหา ID ของ Application ที่ผูกกับ Profile นี้ก่อน
 				var appIDs []uint
 				tx.Model(&entity.Application{}).Unscoped().Where("student_profile_id = ?", sp.ID).Pluck("id", &appIDs)
 
 				if len(appIDs) > 0 {
-					// สั่งลบ screenings ที่ application_id อยู่ในลิสต์ที่เราหามา
-					if err := tx.Exec("DELETE FROM screenings WHERE application_id IN ?", appIDs).Error; err != nil {
-						tx.Rollback()
-						c.JSON(http.StatusBadRequest, gin.H{"error": "ลบ Screenings ไม่ผ่าน: " + err.Error()})
-						return
+					// 1.1 หา IDs ของ ApplicationScholarship ก่อน
+					var appSchIDs []uint
+					tx.Model(&entity.ApplicationScholarship{}).Unscoped().Where("application_id IN ?", appIDs).Pluck("id", &appSchIDs)
+
+					if len(appSchIDs) > 0 {
+						// 1.2 ลบ screenings โดยใช้ application_scholarship_id (ชื่อคอลัมน์ที่ถูกต้อง)
+						if err := tx.Exec("DELETE FROM screenings WHERE application_scholarship_id IN ?", appSchIDs).Error; err != nil {
+							tx.Rollback()
+							c.JSON(http.StatusBadRequest, gin.H{"error": "ลบ Screenings ไม่ผ่าน: " + err.Error()})
+							return
+						}
+
+						// 1.3 ลบ ApplicationScholarship
+						if err := tx.Unscoped().Where("id IN ?", appSchIDs).Delete(&entity.ApplicationScholarship{}).Error; err != nil {
+							tx.Rollback()
+							c.JSON(http.StatusBadRequest, gin.H{"error": "ลบ ApplicationScholarships ไม่ผ่าน"})
+							return
+						}
 					}
 				}
 

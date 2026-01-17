@@ -177,6 +177,10 @@ const formatTime = (date: string | Date) => {
     }) + ' น.';
 };
 
+const isSlotPassed = (slot: Slot) => {
+    return new Date(slot.start_time).getTime() < new Date().getTime();
+};
+
 // --- 4. Methods ---
 const openBookingModal = async (round: InterviewRound, mode: 'book' | 'view' = 'book') => {
     isLoading.value = true;
@@ -201,7 +205,7 @@ const openBookingModal = async (round: InterviewRound, mode: 'book' | 'view' = '
 };
 
 const selectSlot = (slot: Slot) => {
-    if (!slot.is_booked) {
+    if (!slot.is_booked && !isSlotPassed(slot)) {
         selectedSlot.value = slot;
     }
 };
@@ -551,15 +555,17 @@ const cancelBooking = async (bookingId: number) => {
 
                             <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
                                 <button v-for="slot in availableSlots" :key="slot.ID"
-                                    @click="!isBookingInViewMode && !slot.is_booked && selectSlot(slot)"
-                                    :disabled="slot.is_booked || isBookingInViewMode"
+                                    @click="!isBookingInViewMode && !slot.is_booked && !isSlotPassed(slot) && selectSlot(slot)"
+                                    :disabled="slot.is_booked || isBookingInViewMode || isSlotPassed(slot)"
                                     class="relative group flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 h-[70px] sm:h-20"
                                     :class="[
                                         (slot.is_booked && selectedSlot?.ID !== slot.ID)
                                             ? 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed' 
-                                            : (selectedSlot?.ID === slot.ID 
-                                                ? 'bg-blue-50 border-blue-600 shadow-sm scale-[1.02] z-10' 
-                                                : 'bg-white border-slate-100 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5'),
+                                            : (isSlotPassed(slot) && selectedSlot?.ID !== slot.ID
+                                                ? 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
+                                                : (selectedSlot?.ID === slot.ID 
+                                                    ? 'bg-blue-50 border-blue-600 shadow-sm scale-[1.02] z-10' 
+                                                    : 'bg-white border-slate-100 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5')),
                                         isBookingInViewMode ? '!cursor-default' : ''
                                     ]">
                                     
@@ -575,9 +581,12 @@ const cancelBooking = async (bookingId: number) => {
                                     <span class="text-[10px] sm:text-[12px] px-2 py-0.5 rounded-full font-medium"
                                         :class="[
                                             (slot.is_booked && selectedSlot?.ID !== slot.ID) ? 'bg-gray-200 text-gray-500' :
+                                            (isSlotPassed(slot) && selectedSlot?.ID !== slot.ID) ? 'bg-gray-200 text-gray-400' :
                                             (selectedSlot?.ID === slot.ID ? 'bg-blue-200 text-blue-800' : 'bg-green-100 text-green-700')
                                         ]">
-                                        {{ (slot.is_booked && selectedSlot?.ID !== slot.ID) ? 'ไม่ว่าง' : (selectedSlot?.ID === slot.ID ? 'นัดของคุณ' : 'ว่าง') }}
+                                        {{ (slot.is_booked && selectedSlot?.ID !== slot.ID) ? 'ไม่ว่าง' : 
+                                           (isSlotPassed(slot) && selectedSlot?.ID !== slot.ID) ? 'เลยเวลา' :
+                                           (selectedSlot?.ID === slot.ID ? 'นัดของคุณ' : 'ว่าง') }}
                                     </span>
                                 </button>
                             </div>

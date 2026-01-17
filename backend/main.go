@@ -19,7 +19,11 @@ import (
 
 func main() {
 	r := gin.New()
-	r.Use(gin.LoggerWithWriter(os.Stdout))
+	// Use Logger with configuration to skip health check logs
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/api/health"},
+		Output:    os.Stdout,
+	}))
 	r.Use(gin.Recovery())
 
 	// Configure CORS

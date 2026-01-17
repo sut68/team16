@@ -95,19 +95,11 @@
             :class="activeTab === tab.id ? 'text-[#1e3a8a]' : 'text-slate-400'"
           />
           {{ tab.label }}
-          <!-- Badge for qualified tab -->
+          <!-- Badge for qualified tab (Dot notification) -->
           <span 
-            v-if="tab.badge && qualifiedCount > 0 && activeTab !== tab.id"
-            class="ml-1 min-w-5 h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse"
-          >
-            {{ qualifiedCount }}
-          </span>
-          <span 
-            v-else-if="tab.badge"
-            class="ml-1 text-xs opacity-60"
-          >
-            ({{ qualifiedCount }})
-          </span>
+            v-if="tab.badge && qualifiedCount > 0"
+            class="ml-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-200"
+          ></span>
         </a>
       </div>
     </div>

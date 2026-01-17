@@ -368,6 +368,31 @@ const handleFileChange = async (e: Event) => {
   const file = target.files?.[0];
 
   if (file) {
+    // Check file type
+    if (file.type !== 'application/pdf') {
+      Swal.fire({
+        title: "ไฟล์ไม่ถูกต้อง",
+        text: "กรุณาอัปโหลดไฟล์ในรูปแบบ PDF เท่านั้น",
+        icon: "error",
+        confirmButtonColor: "#1e3a8a",
+      });
+      target.value = "";
+      return;
+    }
+
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      Swal.fire({
+        title: "ไฟล์มีขนาดใหญ่เกินไป",
+        text: "กรุณาอัปโหลดไฟล์ที่มีขนาดไม่เกิน 10MB",
+        icon: "error",
+        confirmButtonColor: "#1e3a8a",
+      });
+      target.value = "";
+      return;
+    }
+
     const result = await Swal.fire({
       title: "ยืนยันการส่งเอกสาร",
       text: `คุณต้องการส่งไฟล์ "${file.name}" ใช่หรือไม่?`,
@@ -575,13 +600,13 @@ const handleFileChange = async (e: Event) => {
                 </div>
 
                 <div class="mt-3 animate-fade-in">
-                  <input
-                    type="file"
-                    ref="fileInput"
-                    class="hidden"
-                    @change="handleFileChange"
-                    accept=".pdf,.jpg,.png"
-                  />
+                    <input
+                      type="file"
+                      ref="fileInput"
+                      class="hidden"
+                      @change="handleFileChange"
+                      accept=".pdf"
+                    />
 
                   <div v-if="stage.id === 3">
                     <div
@@ -631,7 +656,10 @@ const handleFileChange = async (e: Event) => {
 
                       <!-- Required Documents Checklist -->
                       <div class="bg-white rounded-lg p-4 mb-4 border border-blue-100">
-                        <p class="text-sm font-semibold text-slate-700 mb-2">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                        <div class="flex justify-between items-center mb-2">
+                          <p class="text-sm font-semibold text-slate-700">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                          <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-medium">ไม่เกิน 10MB</span>
+                        </div>
                         <ul class="text-sm text-slate-600 space-y-1.5">
                           <li class="flex items-center gap-2">
                             <span class="text-green-500">○</span>
@@ -766,7 +794,10 @@ const handleFileChange = async (e: Event) => {
 
                       <!-- Required Documents Checklist -->
                       <div class="bg-white rounded-lg p-4 mb-4 border border-orange-100">
-                        <p class="text-sm font-semibold text-slate-700 mb-2">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                        <div class="flex justify-between items-center mb-2">
+                          <p class="text-sm font-semibold text-slate-700">เอกสารที่ต้องรวมเป็น 1 ไฟล์ PDF</p>
+                          <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-medium">ไม่เกิน 10MB</span>
+                        </div>
                         <ul class="text-sm text-slate-600 space-y-1.5">
                           <li class="flex items-center gap-2">
                             <span class="text-orange-500">○</span>

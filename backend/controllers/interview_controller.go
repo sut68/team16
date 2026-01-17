@@ -322,6 +322,12 @@ func CreateInterviewBooking(c *gin.Context) {
 		return
 	}
 
+	if slot.StartTime.Before(time.Now()) {
+		tx.Rollback()
+		c.JSON(http.StatusConflict, gin.H{"error": "ไม่สามารถจองรอบที่เวลาเริ่มต้นผ่านไปแล้วได้"})
+		return
+	}
+
 	if slot.BookCount >= slot.Capacity {
 		tx.Rollback()
 		c.JSON(http.StatusConflict, gin.H{"error": "Slot is fully booked"})

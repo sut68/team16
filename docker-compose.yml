@@ -38,6 +38,10 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-uploads}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - SEED_ADMIN_USERNAME=${SEED_ADMIN_USERNAME:-admin}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-admin123}
+      - SEED_USER_USERNAME=${SEED_USER_USERNAME:-user}
+      - SEED_USER_PASSWORD=${SEED_USER_PASSWORD:-user123}
     depends_on:
       postgres:
         condition: service_healthy
